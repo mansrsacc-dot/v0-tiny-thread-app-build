@@ -20,6 +20,7 @@ interface Design {
   removeBackground: boolean;
   generationHistory: Record<string, string[]>;
   currentHistoryIndex: Record<string, number>;
+  regenerationCount: number;
 }
 
 export default function TinyThreadStudio() {
@@ -183,6 +184,7 @@ export default function TinyThreadStudio() {
         removeBackground: removeBackground,
         generationHistory: {},
         currentHistoryIndex: {},
+        regenerationCount: 0,
       };
 
       setDesigns(prev => [...prev, newDesign]);
@@ -309,6 +311,15 @@ export default function TinyThreadStudio() {
 
   const handleRegenerate = useCallback(() => {
     if (cooldown > 0 || isGenerating || !selectedDesign) return;
+    if (selectedDesign.regenerationCount >= 4) return;
+    
+    // Increment regeneration count
+    setDesigns(prev => prev.map(d => {
+      if (d.id === selectedDesign.id) {
+        return { ...d, regenerationCount: d.regenerationCount + 1 };
+      }
+      return d;
+    }));
     
     setCooldown(20);
     const interval = setInterval(() => {
@@ -788,10 +799,10 @@ export default function TinyThreadStudio() {
                               e.stopPropagation();
                               handleRegenerate();
                             }}
-                            disabled={cooldown > 0 || isGenerating}
+                            disabled={cooldown > 0 || isGenerating || design.regenerationCount >= 4}
                             className={cn(
                               "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
-                              cooldown > 0 || isGenerating
+                              cooldown > 0 || isGenerating || design.regenerationCount >= 4
                                 ? "opacity-50 cursor-not-allowed text-neutral-400"
                                 : "hover:bg-white/10 text-neutral-200"
                             )}
@@ -803,7 +814,13 @@ export default function TinyThreadStudio() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                               </svg>
                             )}
-                            <span>{cooldown > 0 ? `${cooldown}s` : ""}</span>
+                            <span>
+                              {design.regenerationCount >= 4 
+                                ? "Max reached" 
+                                : cooldown > 0 
+                                  ? `${cooldown}s` 
+                                  : `(${4 - design.regenerationCount} left)`}
+                            </span>
                           </button>
                           
                           {/* History Navigation */}
