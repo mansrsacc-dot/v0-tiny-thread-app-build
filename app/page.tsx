@@ -18,6 +18,8 @@ interface Design {
   generatedImages: Record<string, string>;
   processedImages: Record<string, string>;
   removeBackground: boolean;
+  generationHistory: Record<string, string[]>;
+  currentHistoryIndex: Record<string, number>;
 }
 
 export default function TinyThreadStudio() {
@@ -34,6 +36,7 @@ export default function TinyThreadStudio() {
   const [showStitched, setShowStitched] = useState(false);
   const [dragState, setDragState] = useState<{ isDragging: boolean; startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const [resizeState, setResizeState] = useState<{ isResizing: boolean; startX: number; startY: number; startSize: number } | null>(null);
+  const [cooldown, setCooldown] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationLockRef = useRef(false);
@@ -103,7 +106,7 @@ export default function TinyThreadStudio() {
     });
   }, []);
 
-  const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style) => {
+  const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false) => {
     if (generationLockRef.current) return;
     generationLockRef.current = true;
     setIsGenerating(true);
@@ -122,23 +125,20 @@ export default function TinyThreadStudio() {
       const data = await response.json();
       
       if (data.imageUrl) {
-        setDesigns(prev => prev.map(d => {
-          if (d.id === designId) {
-            return {
-              ...d,
-              generatedImages: { ...d.generatedImages, [styleType]: data.imageUrl },
-            };
-          }
-          return d;
-        }));
-
         const processed = await removeImageBackground(data.imageUrl, styleType, color);
         
         setDesigns(prev => prev.map(d => {
           if (d.id === designId) {
+            const currentHistory = d.generationHistory[styleType] || [];
+            const newHistory = [...currentHistory, data.imageUrl];
+            const newIndex = newHistory.length - 1;
+            
             return {
               ...d,
+              generatedImages: { ...d.generatedImages, [styleType]: data.imageUrl },
               processedImages: { ...d.processedImages, [styleType]: processed },
+              generationHistory: { ...d.generationHistory, [styleType]: newHistory },
+              currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
             };
           }
           return d;
@@ -181,6 +181,8 @@ export default function TinyThreadStudio() {
         generatedImages: {},
         processedImages: {},
         removeBackground: removeBackground,
+        generationHistory: {},
+        currentHistoryIndex: {},
       };
 
       setDesigns(prev => [...prev, newDesign]);
@@ -304,6 +306,51 @@ export default function TinyThreadStudio() {
     const mmRange = sizeCategory === "S" ? [45, 100] : sizeCategory === "M" ? [100, 150] : [150, 250];
     return Math.round(mmRange[0] + ratio * (mmRange[1] - mmRange[0]));
   };
+
+  const handleRegenerate = useCallback(() => {
+    if (cooldown > 0 || isGenerating || !selectedDesign) return;
+    
+    setCooldown(20);
+    const interval = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, selectedDesign.style, true);
+  }, [cooldown, isGenerating, selectedDesign, generateEmbroidery]);
+
+  const navigateHistory = useCallback((direction: "prev" | "next") => {
+    if (!selectedDesign) return;
+    
+    const styleType = selectedDesign.style;
+    const history = selectedDesign.generationHistory[styleType] || [];
+    const currentIndex = selectedDesign.currentHistoryIndex[styleType] ?? 0;
+    
+    let newIndex: number;
+    if (direction === "prev") {
+      newIndex = Math.max(0, currentIndex - 1);
+    } else {
+      newIndex = Math.min(history.length - 1, currentIndex + 1);
+    }
+    
+    if (newIndex !== currentIndex && history[newIndex]) {
+      setDesigns(prev => prev.map(d => {
+        if (d.id === selectedDesign.id) {
+          return {
+            ...d,
+            generatedImages: { ...d.generatedImages, [styleType]: history[newIndex] },
+            currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
+          };
+        }
+        return d;
+      }));
+    }
+  }, [selectedDesign]);
 
   return (
     <div className={cn("min-h-screen flex", theme === "dark" ? "dark" : "")}>
@@ -639,13 +686,85 @@ export default function TinyThreadStudio() {
         {/* Top Controls */}
         <div className="flex justify-end p-4">
           {designs.length > 0 && (
-            <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm")}>
-              <span className={cn("text-xs", !showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Original</span>
-              <Switch
-                checked={showStitched}
-                onCheckedChange={setShowStitched}
-              />
-              <span className={cn("text-xs", showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Stitched</span>
+            <div className="flex items-center gap-2">
+              <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm")}>
+                <span className={cn("text-xs", !showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Original</span>
+                <Switch
+                  checked={showStitched}
+                  onCheckedChange={setShowStitched}
+                />
+                <span className={cn("text-xs", showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Stitched</span>
+              </div>
+              
+              {/* Regenerate Button */}
+              {selectedDesign && selectedDesign.generatedImages[selectedDesign.style] && (
+                <button
+                  onClick={handleRegenerate}
+                  disabled={cooldown > 0 || isGenerating}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                    theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm",
+                    cooldown > 0 || isGenerating
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-amber-400/20"
+                  )}
+                >
+                  {isGenerating ? (
+                    <Spinner className="w-3 h-3" />
+                  ) : (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                  <span className={theme === "dark" ? "text-neutral-300" : "text-gray-700"}>
+                    {cooldown > 0 ? `Regenerate (${cooldown}s)` : "Regenerate"}
+                  </span>
+                </button>
+              )}
+              
+              {/* History Navigation */}
+              {selectedDesign && (() => {
+                const history = selectedDesign.generationHistory[selectedDesign.style] || [];
+                const currentIndex = selectedDesign.currentHistoryIndex[selectedDesign.style] ?? 0;
+                
+                if (history.length <= 1) return null;
+                
+                return (
+                  <div className={cn("flex items-center gap-1 px-2 py-1.5 rounded-lg", theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm")}>
+                    <button
+                      onClick={() => navigateHistory("prev")}
+                      disabled={currentIndex === 0}
+                      className={cn(
+                        "p-1 rounded transition-all",
+                        currentIndex === 0
+                          ? "opacity-30 cursor-not-allowed"
+                          : "hover:bg-amber-400/20"
+                      )}
+                    >
+                      <svg className={cn("w-3 h-3", theme === "dark" ? "text-neutral-300" : "text-gray-700")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <span className={cn("text-xs min-w-[32px] text-center", theme === "dark" ? "text-neutral-400" : "text-gray-500")}>
+                      {currentIndex + 1}/{history.length}
+                    </span>
+                    <button
+                      onClick={() => navigateHistory("next")}
+                      disabled={currentIndex === history.length - 1}
+                      className={cn(
+                        "p-1 rounded transition-all",
+                        currentIndex === history.length - 1
+                          ? "opacity-30 cursor-not-allowed"
+                          : "hover:bg-amber-400/20"
+                      )}
+                    >
+                      <svg className={cn("w-3 h-3", theme === "dark" ? "text-neutral-300" : "text-gray-700")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
