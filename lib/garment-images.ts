@@ -8,10 +8,6 @@ export const GARMENT_IMAGES = {
       front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-white-front-k4zZvfmeQ2iVRi7MzQy94KPnW4ebyY.jpg",
       back: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-white-back.jpg-X5I6sYplyDPZPlPnUEP1gK81mtIe8Q.jpeg",
     },
-    cream: {
-      front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-cream-front-OeOLV4He7iJG56LulpcDyi684BofZL.jpg",
-      back: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-cream-back.jpg-t4Vlugv8yR8vHCvx2GPyvcZB4k6HNh.jpeg",
-    },
   },
   cap: {
     black: {
@@ -20,14 +16,11 @@ export const GARMENT_IMAGES = {
     white: {
       front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cap-white-front-kYisZ76gyCeeLb3IYogIXdTJo7mXkO.jpg",
     },
-    cream: {
-      front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cap-white-front-kYisZ76gyCeeLb3IYogIXdTJo7mXkO.jpg",
-    },
   },
 } as const;
 
 export type Product = "hoodie" | "cap";
-export type Color = "black" | "white" | "cream";
+export type Color = "black" | "white";
 export type View = "front" | "back";
 export type Size = "S" | "M" | "L";
 export type Style = "outline" | "standard" | "photo-stitch" | "pet-head";

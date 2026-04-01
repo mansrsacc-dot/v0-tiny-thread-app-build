@@ -436,7 +436,7 @@ export default function TinyThreadStudio() {
               Color
             </label>
             <div className="flex gap-3">
-              {(["black", "white", "cream"] as Color[]).map(c => (
+              {(["black", "white"] as Color[]).map(c => (
                 <button
                   key={c}
                   onClick={() => setColor(c)}
@@ -444,7 +444,7 @@ export default function TinyThreadStudio() {
                     "w-8 h-8 rounded-full border-2 transition-all",
                     color === c ? "ring-2 ring-amber-400 ring-offset-2" : "",
                     theme === "dark" ? "ring-offset-[#0d0d0d]" : "ring-offset-white",
-                    c === "black" ? "bg-black border-neutral-600" : c === "white" ? "bg-white border-gray-300" : "bg-[#f5f0e6] border-gray-300"
+                    c === "black" ? "bg-black border-neutral-600" : "bg-white border-gray-300"
                   )}
                   title={c.charAt(0).toUpperCase() + c.slice(1)}
                 />
