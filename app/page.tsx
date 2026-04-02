@@ -389,95 +389,6 @@ export default function TinyThreadStudio() {
     }
   }, [selectedDesign, removeImageBackground, color]);
 
-  // Capture mockup screenshot
-  const captureMockup = useCallback(async (): Promise<string> => {
-    const previewEl = document.querySelector('[data-testid="garment-preview"]') as HTMLElement;
-    if (!previewEl) throw new Error("Preview element not found");
-    const html2canvas = (await import("html2canvas")).default;
-    const canvas = await html2canvas(previewEl, { useCORS: true, allowTaint: true });
-    return canvas.toDataURL("image/png");
-  }, []);
-
-  // Vectorize the generated image
-  const vectorizeImage = useCallback(async (imageUrl: string): Promise<string> => {
-    const res = await fetch("/api/vectorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl })
-    });
-    const data = await res.json();
-    return data.epsUrl || "";
-  }, []);
-
-  // Add to Shopify cart
-  const addToShopifyCart = useCallback(async (
-    productType: string,
-    garmentColor: string,
-    designsList: Design[],
-    mockupScreenshot: string,
-    vectorEps: string
-  ) => {
-    const variantId = VARIANT_IDS[`${productType}-${garmentColor}`];
-    if (!variantId) throw new Error("Unknown product variant");
-
-    const designSpecs = designsList.map(d => ({
-      view: d.view,
-      style: d.style,
-      size: d.size,
-      sizeMm: Math.round((d.currentSizePx / 780) * 700) + "mm",
-    }));
-
-    const mutation = `
-      mutation cartCreate($input: CartInput!) {
-        cartCreate(input: $input) {
-          cart {
-            id
-            checkoutUrl
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    const variables = {
-      input: {
-        lines: [
-          {
-            merchandiseId: variantId,
-            quantity: 1,
-            attributes: [
-              { key: "Embroidery Style", value: designSpecs.map(d => d.style).join(", ") },
-              { key: "Embroidery Size", value: designSpecs.map(d => `${d.size} (${d.sizeMm})`).join(", ") },
-              { key: "Placement", value: designSpecs.map(d => d.view).join(", ") },
-              { key: "_mockup_preview", value: mockupScreenshot.substring(0, 500) + "..." },
-              { key: "_vector_file", value: vectorEps ? "EPS included" : "not available" },
-              { key: "_design_count", value: String(designsList.length) },
-            ]
-          }
-        ]
-      }
-    };
-
-    const res = await fetch(`https://${SHOPIFY_STORE}/api/2024-01/graphql.json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
-      },
-      body: JSON.stringify({ query: mutation, variables }),
-    });
-
-    const data = await res.json();
-    const cart = data?.data?.cartCreate?.cart;
-    if (cart?.checkoutUrl) {
-      return cart.checkoutUrl;
-    }
-    throw new Error("Failed to create cart");
-  }, []);
-
   // Handle Add to Cart
   const handleAddToCart = useCallback(async () => {
     if (designs.length === 0) {
@@ -485,62 +396,105 @@ export default function TinyThreadStudio() {
       return;
     }
 
+    const hasStitched = designs.some(d => d.processedImages[d.style]);
+    if (!hasStitched) {
+      toast({ title: "Not ready", description: "Please wait for the embroidery preview to generate." });
+      return;
+    }
+
     setIsAddingToCart(true);
     try {
-      // 1. Capture mockup screenshot
-      const mockupImage = await captureMockup();
+      // 1. Build design specs
+      const designSpecs = designs.map(d => ({
+        view: d.view,
+        style: d.style,
+        size: d.size,
+        sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) + "mm" : "unknown",
+      }));
 
-      // 2. Vectorize the generated image (use first design's stitched image)
-      let vectorEps = "";
-      const firstStitched = designs.find(d => d.processedImages[d.style]);
-      if (firstStitched?.processedImages[firstStitched.style]) {
-        try {
-          vectorEps = await vectorizeImage(firstStitched.processedImages[firstStitched.style]);
-        } catch (e) {
-          console.log("Vectorization failed, continuing without vector");
-        }
+      // 2. Get variant ID
+      const variantKey = `${product}-${color}`;
+      const variantId = VARIANT_IDS[variantKey];
+      
+      if (!variantId) {
+        throw new Error("Unknown product variant: " + variantKey);
       }
 
-      // 3. Store files for designer
-      const orderData = {
-        product,
-        garmentColor: color,
-        designs: designs.map(d => ({
-          view: d.view,
-          style: d.style,
-          size: d.size,
-          sizeMm: Math.round((d.currentSizePx / 780) * 700),
-          originalImage: d.originalImage,
-          stitchedImage: d.processedImages[d.style],
-        })),
-        mockupScreenshot: mockupImage,
-        vectorFile: vectorEps,
-        timestamp: new Date().toISOString(),
+      console.log("[v0] Creating cart with variant:", variantId);
+
+      // 3. Create Shopify cart via Storefront API
+      const mutation = `
+        mutation cartCreate($input: CartInput!) {
+          cartCreate(input: $input) {
+            cart {
+              id
+              checkoutUrl
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        input: {
+          lines: [
+            {
+              merchandiseId: variantId,
+              quantity: 1,
+              attributes: [
+                { key: "Embroidery Style", value: designSpecs.map(d => d.style).join(", ") },
+                { key: "Embroidery Size", value: designSpecs.map(d => `${d.size} (${d.sizeMm})`).join(", ") },
+                { key: "Placement", value: designSpecs.map(d => d.view).join(", ") },
+                { key: "Design Count", value: String(designs.length) },
+              ]
+            }
+          ]
+        }
       };
 
-      // Send to designer notification endpoint
-      await fetch("/api/send-to-designer", {
+      console.log("[v0] Sending to Shopify...");
+
+      const res = await fetch(`https://${SHOPIFY_STORE}/api/2024-01/graphql.json`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
+        },
+        body: JSON.stringify({ query: mutation, variables }),
       });
 
-      // 4. Add to Shopify cart
-      const checkoutUrl = await addToShopifyCart(product, color, designs, mockupImage, vectorEps);
+      const data = await res.json();
+      console.log("[v0] Shopify response:", JSON.stringify(data));
 
-      // 5. Store order data for the popup and designer notification
-      window.__tinyThreadOrder = orderData;
+      const cart = data?.data?.cartCreate?.cart;
+      const errors = data?.data?.cartCreate?.userErrors;
 
-      // 6. Redirect to checkout
-      window.location.href = checkoutUrl;
+      if (errors && errors.length > 0) {
+        throw new Error(errors.map((e: { message: string }) => e.message).join(", "));
+      }
 
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to add to cart. Please try again." });
-      console.error(error);
+      if (cart?.checkoutUrl) {
+        console.log("[v0] Success! Redirecting to:", cart.checkoutUrl);
+        window.location.href = cart.checkoutUrl;
+      } else {
+        throw new Error("No checkout URL returned from Shopify");
+      }
+
+    } catch (error: unknown) {
+      console.error("[v0] Add to cart error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      toast({ 
+        title: "Error adding to cart", 
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsAddingToCart(false);
     }
-  }, [designs, product, color, captureMockup, vectorizeImage, addToShopifyCart, toast]);
+  }, [designs, product, color, toast]);
 
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
