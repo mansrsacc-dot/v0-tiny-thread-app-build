@@ -21,6 +21,22 @@ const VARIANT_IDS: Record<string, string> = {
   "cap-white": "gid://shopify/ProductVariant/56930135998795",
 };
 
+// Pricing based on product, style, and size
+const PRICING: Record<string, Record<string, Record<string, number>>> = {
+  hoodie: {
+    outline:        { S: 59, M: 69, L: 99 },
+    standard:       { S: 69, M: 79, L: 109 },
+    "photo-stitch": { S: 79, M: 89, L: 129 },
+    "pet-head":     { S: 79, M: 89, L: 129 },
+  },
+  cap: {
+    outline:        { S: 39, M: 49 },
+    standard:       { S: 45, M: 55 },
+    "photo-stitch": { S: 55, M: 65 },
+    "pet-head":     { S: 55, M: 65 },
+  }
+};
+
 declare global {
   interface Window {
     __tinyThreadOrder?: unknown;
@@ -67,6 +83,7 @@ export default function TinyThreadStudio() {
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
+  const currentPrice = PRICING[product]?.[style]?.[size] || 0;
 
   // Read URL parameters to pre-select product and color
   useEffect(() => {
@@ -463,6 +480,7 @@ export default function TinyThreadStudio() {
                 { key: "Embroidery Size", value: designSpecs.map(d => `${d.size} (${d.sizeMm})`).join(", ") },
                 { key: "Placement", value: designSpecs.map(d => d.view).join(", ") },
                 { key: "Design Count", value: String(designs.length) },
+                { key: "Price", value: "€" + currentPrice },
               ]
             }
           ]
@@ -933,6 +951,10 @@ export default function TinyThreadStudio() {
                 <p className="text-xs text-amber-400">This style works best with a single pet face in the photo</p>
               </div>
             )}
+            <div className="text-center text-sm mt-2">
+              <span className={theme === "dark" ? "text-white/40" : "text-gray-500"}>Price: </span>
+              <span className="text-amber-400 font-bold text-lg">{currentPrice > 0 ? `€${currentPrice}` : "—"}</span>
+            </div>
           </div>
 
           {/* Remove Background Toggle */}
@@ -1078,7 +1100,7 @@ export default function TinyThreadStudio() {
                   Adding to Cart...
                 </>
               ) : (
-                "Add to Cart"
+                <>Add to Cart — €{currentPrice}</>
               )}
             </Button>
             <p className={cn("text-[10px] text-center", theme === "dark" ? "text-white/30" : "text-gray-400")}>
@@ -1105,7 +1127,7 @@ export default function TinyThreadStudio() {
               Adding to Cart...
             </>
           ) : (
-            "Add to Cart"
+            <>Add to Cart — €{currentPrice}</>
           )}
         </Button>
       </div>
