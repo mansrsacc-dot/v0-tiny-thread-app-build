@@ -596,6 +596,12 @@ export default function TinyThreadStudio() {
             ref={previewRef}
             data-testid="garment-preview"
             className="relative w-full h-full max-w-2xl"
+            onClick={(e) => {
+              // Only deselect if clicking directly on the preview background, not on a design overlay
+              if (e.target === e.currentTarget || e.target instanceof HTMLImageElement) {
+                setSelectedDesignId(null);
+              }
+            }}
           >
             <img
               src={getGarmentImage()}
