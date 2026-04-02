@@ -596,6 +596,18 @@ export default function TinyThreadStudio() {
             ref={previewRef}
             data-testid="garment-preview"
             className="relative w-full h-full max-w-2xl"
+            style={{ cursor: designs.length === 0 ? 'pointer' : 'default' }}
+            onClick={(e) => {
+              // If no designs, trigger file upload via ref
+              if (designs.length === 0 && fileInputRef.current) {
+                fileInputRef.current.click();
+                return;
+              }
+              // Only deselect if clicking directly on the preview background, not on a design overlay
+              if (e.target === e.currentTarget || e.target instanceof HTMLImageElement) {
+                setSelectedDesignId(null);
+              }
+            }}
           >
             <img
               src={getGarmentImage()}
@@ -762,12 +774,24 @@ export default function TinyThreadStudio() {
 
             {/* Upload Prompt Overlay */}
             {designs.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className={cn(
-                  "px-6 py-3 rounded-lg",
-                  theme === "dark" ? "bg-neutral-900/90 text-neutral-300" : "bg-white/90 text-gray-700 shadow-lg"
-                )}>
-                  Upload a photo to begin
+              <div 
+                className="absolute inset-0 flex items-center justify-center z-10 group cursor-pointer transition-all"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {/* Dark overlay that appears on hover */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 rounded-lg" />
+                
+                {/* Upload prompt - subtle by default, prominent on hover */}
+                <div className="relative flex flex-col items-center gap-3 opacity-60 group-hover:opacity-100 transition-all duration-300 group-hover:scale-105">
+                  <div className="w-16 h-16 rounded-full bg-amber-400/20 group-hover:bg-amber-400/30 flex items-center justify-center transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-white font-semibold text-sm group-hover:text-amber-400 transition-colors">Click to upload your photo</p>
+                    <p className="text-white/40 text-xs mt-1">JPG, PNG — max 10MB</p>
+                  </div>
                 </div>
               </div>
             )}
