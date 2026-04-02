@@ -6,6 +6,27 @@ import { GARMENT_IMAGES, SIZE_CONSTRAINTS, STYLES, type Product, type Color, typ
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Loader2 } from "lucide-react";
+import html2canvas from "html2canvas";
+import { useToast } from "@/hooks/use-toast";
+
+// Shopify Storefront API config
+const SHOPIFY_STORE = "tinythread-2.myshopify.com";
+const STOREFRONT_TOKEN = "190fa68ec00aa40fb44afbb51c4b70e7";
+
+// Product variant IDs - map from product+color to variant ID
+const VARIANT_IDS: Record<string, string> = {
+  "hoodie-black": "gid://shopify/ProductVariant/56930119942475",
+  "hoodie-white": "gid://shopify/ProductVariant/56930122137931",
+  "cap-black": "gid://shopify/ProductVariant/56930133049675",
+  "cap-white": "gid://shopify/ProductVariant/56930135998795",
+};
+
+declare global {
+  interface Window {
+    __tinyThreadOrder?: unknown;
+  }
+}
 
 interface Design {
   id: string;
@@ -38,7 +59,9 @@ export default function TinyThreadStudio() {
   const [dragState, setDragState] = useState<{ isDragging: boolean; startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const [resizeState, setResizeState] = useState<{ isResizing: boolean; startX: number; startY: number; startSize: number } | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   
+  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationLockRef = useRef(false);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -367,6 +390,158 @@ export default function TinyThreadStudio() {
     }
   }, [selectedDesign, removeImageBackground, color]);
 
+  // Capture mockup screenshot
+  const captureMockup = useCallback(async (): Promise<string> => {
+    const previewEl = document.querySelector('[data-testid="garment-preview"]') as HTMLElement;
+    if (!previewEl) throw new Error("Preview element not found");
+    const canvas = await html2canvas(previewEl, { useCORS: true, allowTaint: true });
+    return canvas.toDataURL("image/png");
+  }, []);
+
+  // Vectorize the generated image
+  const vectorizeImage = useCallback(async (imageUrl: string): Promise<string> => {
+    const res = await fetch("/api/vectorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl })
+    });
+    const data = await res.json();
+    return data.epsUrl || "";
+  }, []);
+
+  // Add to Shopify cart
+  const addToShopifyCart = useCallback(async (
+    productType: string,
+    garmentColor: string,
+    designsList: Design[],
+    mockupScreenshot: string,
+    vectorEps: string
+  ) => {
+    const variantId = VARIANT_IDS[`${productType}-${garmentColor}`];
+    if (!variantId) throw new Error("Unknown product variant");
+
+    const designSpecs = designsList.map(d => ({
+      view: d.view,
+      style: d.style,
+      size: d.size,
+      sizeMm: Math.round((d.currentSizePx / 780) * 700) + "mm",
+    }));
+
+    const mutation = `
+      mutation cartCreate($input: CartInput!) {
+        cartCreate(input: $input) {
+          cart {
+            id
+            checkoutUrl
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        lines: [
+          {
+            merchandiseId: variantId,
+            quantity: 1,
+            attributes: [
+              { key: "Embroidery Style", value: designSpecs.map(d => d.style).join(", ") },
+              { key: "Embroidery Size", value: designSpecs.map(d => `${d.size} (${d.sizeMm})`).join(", ") },
+              { key: "Placement", value: designSpecs.map(d => d.view).join(", ") },
+              { key: "_mockup_preview", value: mockupScreenshot.substring(0, 500) + "..." },
+              { key: "_vector_file", value: vectorEps ? "EPS included" : "not available" },
+              { key: "_design_count", value: String(designsList.length) },
+            ]
+          }
+        ]
+      }
+    };
+
+    const res = await fetch(`https://${SHOPIFY_STORE}/api/2024-01/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
+      },
+      body: JSON.stringify({ query: mutation, variables }),
+    });
+
+    const data = await res.json();
+    const cart = data?.data?.cartCreate?.cart;
+    if (cart?.checkoutUrl) {
+      return cart.checkoutUrl;
+    }
+    throw new Error("Failed to create cart");
+  }, []);
+
+  // Handle Add to Cart
+  const handleAddToCart = useCallback(async () => {
+    if (designs.length === 0) {
+      toast({ title: "No design", description: "Please upload and generate a design first." });
+      return;
+    }
+
+    setIsAddingToCart(true);
+    try {
+      // 1. Capture mockup screenshot
+      const mockupImage = await captureMockup();
+
+      // 2. Vectorize the generated image (use first design's stitched image)
+      let vectorEps = "";
+      const firstStitched = designs.find(d => d.processedImages[d.style]);
+      if (firstStitched?.processedImages[firstStitched.style]) {
+        try {
+          vectorEps = await vectorizeImage(firstStitched.processedImages[firstStitched.style]);
+        } catch (e) {
+          console.log("Vectorization failed, continuing without vector");
+        }
+      }
+
+      // 3. Store files for designer
+      const orderData = {
+        product,
+        garmentColor: color,
+        designs: designs.map(d => ({
+          view: d.view,
+          style: d.style,
+          size: d.size,
+          sizeMm: Math.round((d.currentSizePx / 780) * 700),
+          originalImage: d.originalImage,
+          stitchedImage: d.processedImages[d.style],
+        })),
+        mockupScreenshot: mockupImage,
+        vectorFile: vectorEps,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Send to designer notification endpoint
+      await fetch("/api/send-to-designer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      });
+
+      // 4. Add to Shopify cart
+      const checkoutUrl = await addToShopifyCart(product, color, designs, mockupImage, vectorEps);
+
+      // 5. Store order data for the popup and designer notification
+      window.__tinyThreadOrder = orderData;
+
+      // 6. Redirect to checkout
+      window.location.href = checkoutUrl;
+
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to add to cart. Please try again." });
+      console.error(error);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  }, [designs, product, color, captureMockup, vectorizeImage, addToShopifyCart, toast]);
+
   return (
     <div className={cn("min-h-screen flex", theme === "dark" ? "dark" : "")}>
       <div className={cn(
@@ -687,12 +862,27 @@ export default function TinyThreadStudio() {
             </div>
           )}
 
-          {/* Request Quote Button */}
-          {designs.length > 0 && (
-            <Button className="w-full bg-amber-400 hover:bg-amber-500 text-black font-medium">
-              Request Quote
+          {/* Add to Cart Button */}
+          <div className="space-y-1">
+            <Button
+              data-testid="add-to-cart"
+              onClick={handleAddToCart}
+              disabled={designs.length === 0 || isAddingToCart}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isAddingToCart ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding to Cart...
+                </>
+              ) : (
+                "Add to Cart"
+              )}
             </Button>
-          )}
+            <p className={cn("text-[10px] text-center", theme === "dark" ? "text-white/30" : "text-gray-400")}>
+              Your design files will be sent to our embroidery artists
+            </p>
+          </div>
         </div>
       </div>
 
@@ -716,6 +906,7 @@ export default function TinyThreadStudio() {
         <div className="flex-1 flex items-center justify-center p-8">
           <div
             ref={previewRef}
+            data-testid="garment-preview"
             className="relative max-w-2xl w-full aspect-square"
           >
             <img
