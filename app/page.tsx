@@ -868,7 +868,7 @@ export default function TinyThreadStudio() {
         <div className="p-4 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <a href="https://tinythread.shop" className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 rounded-full border-2 border-amber-400 flex items-center justify-center">
                 <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="3" />
@@ -877,7 +877,7 @@ export default function TinyThreadStudio() {
               </div>
               <span className={cn("font-semibold", theme === "dark" ? "text-white" : "text-gray-900")}>TinyThread</span>
               <span className="text-amber-400 text-xs font-medium">STUDIO</span>
-            </div>
+            </a>
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className={cn("p-2 rounded-lg", theme === "dark" ? "hover:bg-neutral-800 text-neutral-400" : "hover:bg-gray-100 text-gray-500")}
