@@ -68,6 +68,20 @@ export default function TinyThreadStudio() {
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
 
+  // Read URL parameters to pre-select product and color
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlProduct = params.get("product");
+    const urlColor = params.get("color");
+    
+    if (urlProduct === "hoodie" || urlProduct === "cap") {
+      setProduct(urlProduct);
+    }
+    if (urlColor === "black" || urlColor === "white") {
+      setColor(urlColor);
+    }
+  }, []);
+
   const getGarmentImage = () => {
     if (product === "cap") {
       return GARMENT_IMAGES.cap[color]?.front || GARMENT_IMAGES.cap.black.front;
@@ -479,7 +493,7 @@ export default function TinyThreadStudio() {
       if (cart?.checkoutUrl) {
         console.log("[v0] Success! Redirecting to:", cart.checkoutUrl);
         const encodedCheckout = encodeURIComponent(cart.checkoutUrl);
-        window.location.href = "https://tinythread.shop?added=true&checkout=" + encodedCheckout;
+        window.location.href = "https://tinythread-2.myshopify.com?added=true&checkout=" + encodedCheckout;
       } else {
         throw new Error("No checkout URL returned from Shopify");
       }
