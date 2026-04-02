@@ -85,7 +85,8 @@ const GUIDE_CONTENT = {
     { title: "Understand the Styles", text: "Outline — Clean minimal line art. Best with clear subjects, strong silhouettes. Avoid busy backgrounds.\n\nStandard Logo — Bold flat-color graphic like a sticker. Best for logos, text, badges. Avoid detailed photos.\n\nPhoto Stitch — Ultra-detailed thread painting. Best with clear well-lit photos of any subject. Avoid blurry or dark images.\n\nPet Head — Embroidered pet face portrait. Use a close-up of ONE pet's face looking at the camera. Avoid multiple pets or full body shots.", icon: "🎨" },
     { title: "Upload Your Photo", text: "Click on the garment or the upload area to add your photo. The better your photo quality, the better your embroidery will look.\n\nTip: Use clear, well-lit images where the subject is clearly visible.", icon: "📸" },
     { title: "Preview & Adjust", text: "See how your embroidery will look on the garment. Toggle between Original and Stitched view to compare.\n\nNot happy? Click Regenerate for a new variation (up to 4 times). Drag to reposition, resize within your selected range.", icon: "✨" },
-    { title: "Add to Cart & Order", text: "Click 'Add to Cart' to place your order. We'll handcraft your unique piece in our Riga studio.\n\nWant both sides? After adding to cart, you can customize another design for the back.", icon: "🛒" },
+    { title: "Front & Back Embroidery", text: "You can add embroidery to both the front and back of your hoodie. Each side is a separate design with its own style, size, and placement.\n\nThis is completely optional — most customers start with just the front. If you'd like both sides, simply create your front design first, then add another design for the back.", icon: "↔️" },
+    { title: "Add to Cart & Order", text: "Happy with your design? Click 'Add to Cart' to place your order. We'll handcraft your unique piece in our Riga studio using professional equipment and premium thread.", icon: "🛒" },
     { title: "Important to Know", text: "The preview you see in the studio is a digital approximation of your embroidery. The final handcrafted result may vary slightly in color, detail, and texture.\n\nThis is the beauty of real embroidery — each piece is unique, crafted with care by our artists in Riga. No two pieces are exactly alike, just like real craftsmanship should be.\n\nIf you have any questions, contact us at info@tinythread.shop", icon: "💎" }
   ],
   lv: [
@@ -94,7 +95,8 @@ const GUIDE_CONTENT = {
     { title: "Izproti stilus", text: "Outline — Tīrs minimāls līniju zīmējums. Labākās bildes: skaidri objekti ar izteiktu siluetu. Izvairīties no aizņemtiem foniem.\n\nStandard Logo — Spilgta plakana grafika kā uzlīme. Labākās bildes: logo, teksts, nozīmītes. Izvairīties no detalizētām fotogrāfijām.\n\nPhoto Stitch — Ļoti detalizēta diegu glezna. Labākās bildes: skaidras, labi apgaismotas fotogrāfijas. Izvairīties no izplūdušām bildēm.\n\nPet Head — Mājdzīvnieka sejas portrets. Izmanto viena dzīvnieka sejas tuvplānu. Izvairīties no vairākiem dzīvniekiem vai pilna ķermeņa foto.", icon: "🎨" },
     { title: "Augšupielādē fotogrāfiju", text: "Klikšķini uz apģērba vai augšupielādes zonas, lai pievienotu bildi. Jo labāka fotogrāfijas kvalitāte, jo labāk izskatīsies izšuvums.\n\nPadoms: Izmanto skaidrus, labi apgaismotus attēlus.", icon: "📸" },
     { title: "Priekšskatījums un pielāgošana", text: "Apskati, kā izšuvums izskatīsies uz apģērba. Pārslēdzies starp Oriģinālu un Izšūto skatu.\n\nNeapmierina? Klikšķini Reģenerēt jaunam variantam (līdz 4 reizēm). Velc, lai pārvietotu un mainītu izmēru.", icon: "✨" },
-    { title: "Pievieno grozam un pasūti", text: "Klikšķini 'Pievienot grozam', lai pasūtītu. Mēs ar rokām izgatavosim tavu unikālo izstrādājumu Rīgas studijā.\n\nVēlies abas puses? Pēc pievienošanas grozam vari pielāgot dizainu otrai pusei.", icon: "🛒" },
+    { title: "Priekšas un aizmugures izšuvums", text: "Tu vari pievienot izšuvumu gan hoodie priekšā, gan aizmugurē. Katra puse ir atsevišķs dizains ar savu stilu, izmēru un izvietojumu.\n\nTā ir pilnīgi brīvprātīga iespēja — lielākā daļa klientu sāk tikai ar priekšpusi. Ja vēlies abas puses, vienkārši izveido vispirms priekšpuses dizainu, tad pievieno otru dizainu aizmugurē.", icon: "↔️" },
+    { title: "Pievieno grozam un pasūti", text: "Apmierināts ar dizainu? Klikšķini 'Pievienot grozam', lai veiktu pasūtījumu. Mēs ar rokām izgatavosim tavu unikālo izstrādājumu Rīgas studijā, izmantojot profesionālu aprīkojumu un augstākās kvalitātes diegus.", icon: "🛒" },
     { title: "Svarīgi zināt", text: "Priekšskatījums, ko redzi studijā, ir digitāls tuvinājums tavam izšuvumam. Galīgais ar rokām izgatavotais rezultāts var nedaudz atšķirties krāsā, detaļās un tekstūrā.\n\nTā ir īsta izšuvuma burvība — katrs izstrādājums ir unikāls, rūpīgi izgatavots mūsu meistaru rokās Rīgā. Nav divu vienādu darbu, tieši tā, kā tam jābūt īstam roku darbam.\n\nJa tev ir kādi jautājumi, sazinies ar mums: info@tinythread.shop", icon: "💎" }
   ]
 };
@@ -141,6 +143,7 @@ export default function TinyThreadStudio() {
   const [showGuide, setShowGuide] = useState(false);
   const [guideLang, setGuideLang] = useState<"en" | "lv">("en");
   const [guideStep, setGuideStep] = useState(0);
+  const [showConfirmCart, setShowConfirmCart] = useState(false);
   
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -492,6 +495,15 @@ export default function TinyThreadStudio() {
       }));
     }
   }, [selectedDesign, removeImageBackground, color]);
+
+  // Show confirmation popup before adding to cart
+  const handleAddToCartClick = useCallback(() => {
+    if (designs.length === 0) {
+      toast({ title: "No design", description: "Please upload and generate a design first." });
+      return;
+    }
+    setShowConfirmCart(true);
+  }, [designs.length, toast]);
 
   // Handle Add to Cart
   const handleAddToCart = useCallback(async () => {
@@ -1203,7 +1215,7 @@ export default function TinyThreadStudio() {
           <div className="hidden md:block space-y-1">
             <Button
               data-testid="add-to-cart"
-              onClick={handleAddToCart}
+              onClick={handleAddToCartClick}
               disabled={designs.length === 0 || isAddingToCart}
               className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -1230,7 +1242,7 @@ export default function TinyThreadStudio() {
       )}>
         <Button
           data-testid="add-to-cart-mobile"
-          onClick={handleAddToCart}
+          onClick={handleAddToCartClick}
           disabled={designs.length === 0 || isAddingToCart}
           className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -1334,6 +1346,53 @@ export default function TinyThreadStudio() {
                   }
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Popup Before Add to Cart */}
+      {showConfirmCart && (
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
+            <div className="text-4xl mb-4">🧵</div>
+            <h2 className="text-xl font-bold text-white mb-2">
+              {guideLang === "lv" ? "Vai esi pabeidzis?" : "Are you done?"}
+            </h2>
+            <p className="text-white/50 text-sm mb-6">
+              {guideLang === "lv" 
+                ? "Pārliecinies, ka tavs dizains izskatās tieši tā, kā vēlies. Pēc pasūtīšanas izmaiņas nav iespējamas."
+                : "Make sure your design looks exactly how you want it. Changes are not possible after ordering."
+              }
+            </p>
+            
+            {/* Show option to add back design if only front exists */}
+            {designs.length === 1 && (
+              <p className="text-amber-400/70 text-xs mb-6">
+                {guideLang === "lv"
+                  ? "💡 Tu vēl vari pievienot izšuvumu aizmugurē pirms pasūtīšanas"
+                  : "💡 You can still add embroidery to the back before ordering"
+                }
+              </p>
+            )}
+            
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowConfirmCart(false);
+                  handleAddToCart();
+                }}
+                className="w-full px-6 py-3 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 transition-colors"
+              >
+                {guideLang === "lv" ? "Jā, pievienot grozam" : "Yes, add to cart"}
+              </button>
+              
+              <button
+                onClick={() => setShowConfirmCart(false)}
+                className="w-full px-6 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20 transition-colors"
+              >
+                {guideLang === "lv" ? "Nē, vēlos vēl pielāgot" : "No, I want to adjust more"}
+              </button>
             </div>
           </div>
         </div>
