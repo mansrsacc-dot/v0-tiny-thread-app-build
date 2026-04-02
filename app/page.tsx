@@ -6,6 +6,26 @@ import { GARMENT_IMAGES, SIZE_CONSTRAINTS, STYLES, type Product, type Color, typ
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+// Shopify Storefront API config
+const SHOPIFY_STORE = "tinythread-2.myshopify.com";
+const STOREFRONT_TOKEN = "190fa68ec00aa40fb44afbb51c4b70e7";
+
+// Product variant IDs - map from product+color to variant ID
+const VARIANT_IDS: Record<string, string> = {
+  "hoodie-black": "gid://shopify/ProductVariant/56930119942475",
+  "hoodie-white": "gid://shopify/ProductVariant/56930122137931",
+  "cap-black": "gid://shopify/ProductVariant/56930133049675",
+  "cap-white": "gid://shopify/ProductVariant/56930135998795",
+};
+
+declare global {
+  interface Window {
+    __tinyThreadOrder?: unknown;
+  }
+}
 
 interface Design {
   id: string;
@@ -20,6 +40,7 @@ interface Design {
   removeBackground: boolean;
   generationHistory: Record<string, string[]>;
   currentHistoryIndex: Record<string, number>;
+  regenerationCount: number;
 }
 
 export default function TinyThreadStudio() {
@@ -37,7 +58,9 @@ export default function TinyThreadStudio() {
   const [dragState, setDragState] = useState<{ isDragging: boolean; startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const [resizeState, setResizeState] = useState<{ isResizing: boolean; startX: number; startY: number; startSize: number } | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   
+  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationLockRef = useRef(false);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -183,6 +206,7 @@ export default function TinyThreadStudio() {
         removeBackground: removeBackground,
         generationHistory: {},
         currentHistoryIndex: {},
+        regenerationCount: 0,
       };
 
       setDesigns(prev => [...prev, newDesign]);
@@ -309,6 +333,15 @@ export default function TinyThreadStudio() {
 
   const handleRegenerate = useCallback(() => {
     if (cooldown > 0 || isGenerating || !selectedDesign) return;
+    if (selectedDesign.regenerationCount >= 4) return;
+    
+    // Increment regeneration count
+    setDesigns(prev => prev.map(d => {
+      if (d.id === selectedDesign.id) {
+        return { ...d, regenerationCount: d.regenerationCount + 1 };
+      }
+      return d;
+    }));
     
     setCooldown(20);
     const interval = setInterval(() => {
@@ -356,10 +389,396 @@ export default function TinyThreadStudio() {
     }
   }, [selectedDesign, removeImageBackground, color]);
 
+  // Capture mockup screenshot
+  const captureMockup = useCallback(async (): Promise<string> => {
+    const previewEl = document.querySelector('[data-testid="garment-preview"]') as HTMLElement;
+    if (!previewEl) throw new Error("Preview element not found");
+    const html2canvas = (await import("html2canvas")).default;
+    const canvas = await html2canvas(previewEl, { useCORS: true, allowTaint: true });
+    return canvas.toDataURL("image/png");
+  }, []);
+
+  // Vectorize the generated image
+  const vectorizeImage = useCallback(async (imageUrl: string): Promise<string> => {
+    const res = await fetch("/api/vectorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl })
+    });
+    const data = await res.json();
+    return data.epsUrl || "";
+  }, []);
+
+  // Add to Shopify cart
+  const addToShopifyCart = useCallback(async (
+    productType: string,
+    garmentColor: string,
+    designsList: Design[],
+    mockupScreenshot: string,
+    vectorEps: string
+  ) => {
+    const variantId = VARIANT_IDS[`${productType}-${garmentColor}`];
+    if (!variantId) throw new Error("Unknown product variant");
+
+    const designSpecs = designsList.map(d => ({
+      view: d.view,
+      style: d.style,
+      size: d.size,
+      sizeMm: Math.round((d.currentSizePx / 780) * 700) + "mm",
+    }));
+
+    const mutation = `
+      mutation cartCreate($input: CartInput!) {
+        cartCreate(input: $input) {
+          cart {
+            id
+            checkoutUrl
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        lines: [
+          {
+            merchandiseId: variantId,
+            quantity: 1,
+            attributes: [
+              { key: "Embroidery Style", value: designSpecs.map(d => d.style).join(", ") },
+              { key: "Embroidery Size", value: designSpecs.map(d => `${d.size} (${d.sizeMm})`).join(", ") },
+              { key: "Placement", value: designSpecs.map(d => d.view).join(", ") },
+              { key: "_mockup_preview", value: mockupScreenshot.substring(0, 500) + "..." },
+              { key: "_vector_file", value: vectorEps ? "EPS included" : "not available" },
+              { key: "_design_count", value: String(designsList.length) },
+            ]
+          }
+        ]
+      }
+    };
+
+    const res = await fetch(`https://${SHOPIFY_STORE}/api/2024-01/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
+      },
+      body: JSON.stringify({ query: mutation, variables }),
+    });
+
+    const data = await res.json();
+    const cart = data?.data?.cartCreate?.cart;
+    if (cart?.checkoutUrl) {
+      return cart.checkoutUrl;
+    }
+    throw new Error("Failed to create cart");
+  }, []);
+
+  // Handle Add to Cart
+  const handleAddToCart = useCallback(async () => {
+    if (designs.length === 0) {
+      toast({ title: "No design", description: "Please upload and generate a design first." });
+      return;
+    }
+
+    setIsAddingToCart(true);
+    try {
+      // 1. Capture mockup screenshot
+      const mockupImage = await captureMockup();
+
+      // 2. Vectorize the generated image (use first design's stitched image)
+      let vectorEps = "";
+      const firstStitched = designs.find(d => d.processedImages[d.style]);
+      if (firstStitched?.processedImages[firstStitched.style]) {
+        try {
+          vectorEps = await vectorizeImage(firstStitched.processedImages[firstStitched.style]);
+        } catch (e) {
+          console.log("Vectorization failed, continuing without vector");
+        }
+      }
+
+      // 3. Store files for designer
+      const orderData = {
+        product,
+        garmentColor: color,
+        designs: designs.map(d => ({
+          view: d.view,
+          style: d.style,
+          size: d.size,
+          sizeMm: Math.round((d.currentSizePx / 780) * 700),
+          originalImage: d.originalImage,
+          stitchedImage: d.processedImages[d.style],
+        })),
+        mockupScreenshot: mockupImage,
+        vectorFile: vectorEps,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Send to designer notification endpoint
+      await fetch("/api/send-to-designer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      });
+
+      // 4. Add to Shopify cart
+      const checkoutUrl = await addToShopifyCart(product, color, designs, mockupImage, vectorEps);
+
+      // 5. Store order data for the popup and designer notification
+      window.__tinyThreadOrder = orderData;
+
+      // 6. Redirect to checkout
+      window.location.href = checkoutUrl;
+
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to add to cart. Please try again." });
+      console.error(error);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  }, [designs, product, color, captureMockup, vectorizeImage, addToShopifyCart, toast]);
+
   return (
-    <div className={cn("min-h-screen flex", theme === "dark" ? "dark" : "")}>
+    <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
+      {/* Garment Preview - First on mobile, Second on desktop */}
       <div className={cn(
-        "w-[280px] flex-shrink-0 overflow-y-auto border-r",
+        "w-full md:flex-1 h-[50vh] md:h-auto order-1 md:order-2 flex flex-col relative",
+        theme === "dark" ? "bg-[#0a0a0a]" : "bg-gray-100"
+      )}>
+        {/* Top Controls - Original/Stitched toggle */}
+        <div className="flex justify-end p-2 md:p-4">
+          {designs.length > 0 && (
+            <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm")}>
+              <span className={cn("text-xs", !showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Original</span>
+              <Switch
+                checked={showStitched}
+                onCheckedChange={setShowStitched}
+              />
+              <span className={cn("text-xs", showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Stitched</span>
+            </div>
+          )}
+        </div>
+
+        {/* Garment Preview */}
+        <div className="flex-1 flex items-center justify-center p-4 md:p-8">
+          <div
+            ref={previewRef}
+            data-testid="garment-preview"
+            className="relative w-full h-full max-w-2xl"
+          >
+            <img
+              src={getGarmentImage()}
+              alt={`${product} ${color} ${view}`}
+              className="w-full h-full object-contain"
+            />
+
+            {/* Design Overlays */}
+            {currentDesignsForView.map(design => {
+              const imageToShow = showStitched && design.removeBackground
+                ? design.processedImages[design.style] || design.generatedImages[design.style]
+                : showStitched
+                  ? design.generatedImages[design.style]
+                  : design.originalImage;
+
+              if (!imageToShow) return null;
+
+              return (
+                <div
+                  key={design.id}
+                  style={{
+                    position: "absolute",
+                    left: `${design.position.x}%`,
+                    top: `${design.position.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    width: design.currentSizePx,
+                    height: design.currentSizePx,
+                  }}
+                  className={cn(
+                    "cursor-move group",
+                    selectedDesignId === design.id && "ring-2 ring-amber-400"
+                  )}
+                  onMouseDown={(e) => handleMouseDown(e, design.id)}
+                >
+                  <img
+                    src={imageToShow}
+                    alt="Design"
+                    className="w-full h-full object-contain pointer-events-none"
+                    draggable={false}
+                  />
+                  
+                  {selectedDesignId === design.id && (
+                    <>
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDesign(design.id);
+                        }}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                      
+                      {/* Resize Handle */}
+                      <div
+                        onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
+                        className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-sm cursor-se-resize"
+                      />
+                      
+                      {/* Size Indicator */}
+                      <div className={cn(
+                        "absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap",
+                        theme === "dark" ? "bg-neutral-800 text-neutral-300" : "bg-white text-gray-700 shadow-sm"
+                      )}>
+                        ~{getSizeInMm(design.currentSizePx, design.size)}mm
+                      </div>
+                      
+                      {/* Regenerate & History Controls - Below Design */}
+                      {design.generatedImages[design.style] && (
+                        <div 
+                          className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-sm"
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          {/* Regenerate Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRegenerate();
+                            }}
+                            disabled={cooldown > 0 || isGenerating || design.regenerationCount >= 4}
+                            className={cn(
+                              "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
+                              cooldown > 0 || isGenerating || design.regenerationCount >= 4
+                                ? "opacity-50 cursor-not-allowed text-neutral-400"
+                                : "hover:bg-white/10 text-neutral-200"
+                            )}
+                          >
+                            {isGenerating ? (
+                              <Spinner className="w-3 h-3" />
+                            ) : (
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            )}
+                            <span>
+                              {design.regenerationCount >= 4 
+                                ? "Max reached" 
+                                : cooldown > 0 
+                                  ? `${cooldown}s` 
+                                  : `(${4 - design.regenerationCount} left)`}
+                            </span>
+                          </button>
+                          
+                          {/* History Navigation */}
+                          {(() => {
+                            const history = design.generationHistory[design.style] || [];
+                            const currentIndex = design.currentHistoryIndex[design.style] ?? 0;
+                            
+                            if (history.length <= 1) return null;
+                            
+                            return (
+                              <>
+                                <div className="w-px h-4 bg-neutral-600" />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigateHistory("prev");
+                                  }}
+                                  disabled={currentIndex === 0}
+                                  className={cn(
+                                    "p-1 rounded transition-all",
+                                    currentIndex === 0
+                                      ? "opacity-30 cursor-not-allowed"
+                                      : "hover:bg-white/10"
+                                  )}
+                                >
+                                  <svg className="w-3 h-3 text-neutral-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                  </svg>
+                                </button>
+                                <span className="text-xs text-neutral-400 min-w-[28px] text-center">
+                                  {currentIndex + 1}/{history.length}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigateHistory("next");
+                                  }}
+                                  disabled={currentIndex === history.length - 1}
+                                  className={cn(
+                                    "p-1 rounded transition-all",
+                                    currentIndex === history.length - 1
+                                      ? "opacity-30 cursor-not-allowed"
+                                      : "hover:bg-white/10"
+                                  )}
+                                >
+                                  <svg className="w-3 h-3 text-neutral-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                </button>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Upload Prompt Overlay */}
+            {designs.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className={cn(
+                  "px-6 py-3 rounded-lg",
+                  theme === "dark" ? "bg-neutral-900/90 text-neutral-300" : "bg-white/90 text-gray-700 shadow-lg"
+                )}>
+                  Upload a photo to begin
+                </div>
+              </div>
+            )}
+
+            {/* Loading Overlay */}
+            {isGenerating && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                <div className="flex flex-col items-center gap-3">
+                  <Spinner className="w-8 h-8 text-amber-400" />
+                  <span className="text-white text-sm">Generating embroidery...</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer Badges - Hidden on mobile */}
+        <div className="hidden md:flex justify-center gap-4 p-4">
+          <div className={cn(
+            "px-3 py-1.5 rounded text-xs font-medium uppercase tracking-wider",
+            theme === "dark" ? "bg-neutral-800 text-neutral-400" : "bg-white text-gray-500 shadow-sm"
+          )}>
+            {product.toUpperCase()} · {color.toUpperCase()} · {view.toUpperCase()}
+          </div>
+          {selectedDesign && (
+            <div className={cn(
+              "px-3 py-1.5 rounded text-xs font-medium",
+              theme === "dark" ? "bg-neutral-800 text-neutral-400" : "bg-white text-gray-500 shadow-sm"
+            )}>
+              {STYLES.find(s => s.id === selectedDesign.style)?.name} · {selectedDesign.size}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Sidebar Controls - Second on mobile, First on desktop */}
+      <div className={cn(
+        "w-full md:w-[280px] md:min-w-[280px] flex-1 md:flex-none order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-20 md:pb-0",
         theme === "dark" ? "bg-[#0d0d0d] border-neutral-800" : "bg-white border-gray-200"
       )}>
         <div className="p-4 space-y-6">
@@ -425,7 +844,7 @@ export default function TinyThreadStudio() {
               Color
             </label>
             <div className="flex gap-3">
-              {(["black", "white", "cream"] as Color[]).map(c => (
+              {(["black", "white"] as Color[]).map(c => (
                 <button
                   key={c}
                   onClick={() => setColor(c)}
@@ -433,7 +852,7 @@ export default function TinyThreadStudio() {
                     "w-8 h-8 rounded-full border-2 transition-all",
                     color === c ? "ring-2 ring-amber-400 ring-offset-2" : "",
                     theme === "dark" ? "ring-offset-[#0d0d0d]" : "ring-offset-white",
-                    c === "black" ? "bg-black border-neutral-600" : c === "white" ? "bg-white border-gray-300" : "bg-[#f5f0e6] border-gray-300"
+                    c === "black" ? "bg-black border-neutral-600" : "bg-white border-gray-300"
                   )}
                   title={c.charAt(0).toUpperCase() + c.slice(1)}
                 />
@@ -514,7 +933,7 @@ export default function TinyThreadStudio() {
             <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
               Style
             </label>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
               {STYLES.map(s => (
                 <button
                   key={s.id}
@@ -531,10 +950,10 @@ export default function TinyThreadStudio() {
                   <div className={cn("font-medium text-sm", style === s.id ? "text-amber-400" : theme === "dark" ? "text-white" : "text-gray-900")}>
                     {s.name}
                   </div>
-                  <div className={cn("text-xs mt-0.5", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+                  <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                     {s.description}
                   </div>
-                  <div className={cn("text-xs mt-0.5", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
+                  <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
                     Best for: {s.bestFor}
                   </div>
                 </button>
@@ -676,235 +1095,50 @@ export default function TinyThreadStudio() {
             </div>
           )}
 
-          {/* Request Quote Button */}
-          {designs.length > 0 && (
-            <Button className="w-full bg-amber-400 hover:bg-amber-500 text-black font-medium">
-              Request Quote
+          {/* Add to Cart Button - Desktop (in sidebar flow) */}
+          <div className="hidden md:block space-y-1">
+            <Button
+              data-testid="add-to-cart"
+              onClick={handleAddToCart}
+              disabled={designs.length === 0 || isAddingToCart}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isAddingToCart ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding to Cart...
+                </>
+              ) : (
+                "Add to Cart"
+              )}
             </Button>
-          )}
+            <p className={cn("text-[10px] text-center", theme === "dark" ? "text-white/30" : "text-gray-400")}>
+              Your design files will be sent to our embroidery artists
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Right Panel - Garment Preview */}
-      <div className={cn("flex-1 flex flex-col", theme === "dark" ? "bg-[#0a0a0a]" : "bg-gray-100")}>
-        {/* Top Controls */}
-        <div className="flex justify-end p-4">
-          {designs.length > 0 && (
-            <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm")}>
-              <span className={cn("text-xs", !showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Original</span>
-              <Switch
-                checked={showStitched}
-                onCheckedChange={setShowStitched}
-              />
-              <span className={cn("text-xs", showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Stitched</span>
-            </div>
+      {/* Add to Cart Button - Mobile (sticky at bottom) */}
+      <div className={cn(
+        "md:hidden fixed bottom-0 left-0 right-0 p-3 border-t z-50",
+        theme === "dark" ? "bg-[#0d0d0d] border-neutral-800" : "bg-white border-gray-200"
+      )}>
+        <Button
+          data-testid="add-to-cart-mobile"
+          onClick={handleAddToCart}
+          disabled={designs.length === 0 || isAddingToCart}
+          className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isAddingToCart ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Adding to Cart...
+            </>
+          ) : (
+            "Add to Cart"
           )}
-        </div>
-
-        {/* Garment Preview */}
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div
-            ref={previewRef}
-            className="relative max-w-2xl w-full aspect-square"
-          >
-            <img
-              src={getGarmentImage()}
-              alt={`${product} ${color} ${view}`}
-              className="w-full h-full object-contain"
-            />
-
-            {/* Design Overlays */}
-            {currentDesignsForView.map(design => {
-              const imageToShow = showStitched && design.removeBackground
-                ? design.processedImages[design.style] || design.generatedImages[design.style]
-                : showStitched
-                  ? design.generatedImages[design.style]
-                  : design.originalImage;
-
-              if (!imageToShow) return null;
-
-              return (
-                <div
-                  key={design.id}
-                  style={{
-                    position: "absolute",
-                    left: `${design.position.x}%`,
-                    top: `${design.position.y}%`,
-                    transform: "translate(-50%, -50%)",
-                    width: design.currentSizePx,
-                    height: design.currentSizePx,
-                  }}
-                  className={cn(
-                    "cursor-move group",
-                    selectedDesignId === design.id && "ring-2 ring-amber-400"
-                  )}
-                  onMouseDown={(e) => handleMouseDown(e, design.id)}
-                >
-                  <img
-                    src={imageToShow}
-                    alt="Design"
-                    className="w-full h-full object-contain pointer-events-none"
-                    draggable={false}
-                  />
-                  
-                  {selectedDesignId === design.id && (
-                    <>
-                      {/* Delete Button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteDesign(design.id);
-                        }}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                      
-                      {/* Resize Handle */}
-                      <div
-                        onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
-                        className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-sm cursor-se-resize"
-                      />
-                      
-                      {/* Size Indicator */}
-                      <div className={cn(
-                        "absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap",
-                        theme === "dark" ? "bg-neutral-800 text-neutral-300" : "bg-white text-gray-700 shadow-sm"
-                      )}>
-                        ~{getSizeInMm(design.currentSizePx, design.size)}mm
-                      </div>
-                      
-                      {/* Regenerate & History Controls - Below Design */}
-                      {design.generatedImages[design.style] && (
-                        <div 
-                          className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-sm"
-                          onMouseDown={(e) => e.stopPropagation()}
-                        >
-                          {/* Regenerate Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRegenerate();
-                            }}
-                            disabled={cooldown > 0 || isGenerating}
-                            className={cn(
-                              "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
-                              cooldown > 0 || isGenerating
-                                ? "opacity-50 cursor-not-allowed text-neutral-400"
-                                : "hover:bg-white/10 text-neutral-200"
-                            )}
-                          >
-                            {isGenerating ? (
-                              <Spinner className="w-3 h-3" />
-                            ) : (
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                            )}
-                            <span>{cooldown > 0 ? `${cooldown}s` : ""}</span>
-                          </button>
-                          
-                          {/* History Navigation */}
-                          {(() => {
-                            const history = design.generationHistory[design.style] || [];
-                            const currentIndex = design.currentHistoryIndex[design.style] ?? 0;
-                            
-                            if (history.length <= 1) return null;
-                            
-                            return (
-                              <>
-                                <div className="w-px h-4 bg-neutral-600" />
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigateHistory("prev");
-                                  }}
-                                  disabled={currentIndex === 0}
-                                  className={cn(
-                                    "p-1 rounded transition-all",
-                                    currentIndex === 0
-                                      ? "opacity-30 cursor-not-allowed"
-                                      : "hover:bg-white/10"
-                                  )}
-                                >
-                                  <svg className="w-3 h-3 text-neutral-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                  </svg>
-                                </button>
-                                <span className="text-xs text-neutral-400 min-w-[28px] text-center">
-                                  {currentIndex + 1}/{history.length}
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigateHistory("next");
-                                  }}
-                                  disabled={currentIndex === history.length - 1}
-                                  className={cn(
-                                    "p-1 rounded transition-all",
-                                    currentIndex === history.length - 1
-                                      ? "opacity-30 cursor-not-allowed"
-                                      : "hover:bg-white/10"
-                                  )}
-                                >
-                                  <svg className="w-3 h-3 text-neutral-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                  </svg>
-                                </button>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Upload Prompt Overlay */}
-            {designs.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className={cn(
-                  "px-6 py-3 rounded-lg",
-                  theme === "dark" ? "bg-neutral-900/90 text-neutral-300" : "bg-white/90 text-gray-700 shadow-lg"
-                )}>
-                  Upload a photo to begin
-                </div>
-              </div>
-            )}
-
-            {/* Loading Overlay */}
-            {isGenerating && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
-                <div className="flex flex-col items-center gap-3">
-                  <Spinner className="w-8 h-8 text-amber-400" />
-                  <span className="text-white text-sm">Generating embroidery...</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer Badges */}
-        <div className="flex justify-center gap-4 p-4">
-          <div className={cn(
-            "px-3 py-1.5 rounded text-xs font-medium uppercase tracking-wider",
-            theme === "dark" ? "bg-neutral-800 text-neutral-400" : "bg-white text-gray-500 shadow-sm"
-          )}>
-            {product.toUpperCase()} · {color.toUpperCase()} · {view.toUpperCase()}
-          </div>
-          {selectedDesign && (
-            <div className={cn(
-              "px-3 py-1.5 rounded text-xs font-medium",
-              theme === "dark" ? "bg-neutral-800 text-neutral-400" : "bg-white text-gray-500 shadow-sm"
-            )}>
-              {STYLES.find(s => s.id === selectedDesign.style)?.name} · {selectedDesign.size}
-            </div>
-          )}
-        </div>
+        </Button>
       </div>
     </div>
   );
