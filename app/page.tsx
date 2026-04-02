@@ -805,7 +805,7 @@ export default function TinyThreadStudio() {
 
       {/* Sidebar Controls - Second on mobile, First on desktop */}
       <div className={cn(
-        "w-full md:w-[280px] md:min-w-[280px] flex-1 md:flex-none order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-20 md:pb-0",
+        "w-full md:w-[280px] md:min-w-[280px] flex-1 md:flex-none order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0",
         theme === "dark" ? "bg-[#0d0d0d] border-neutral-800" : "bg-white border-gray-200"
       )}>
         <div className="p-4 space-y-6">
