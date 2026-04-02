@@ -13,12 +13,52 @@ import { useToast } from "@/hooks/use-toast";
 const SHOPIFY_STORE = "tinythread-2.myshopify.com";
 const STOREFRONT_TOKEN = "190fa68ec00aa40fb44afbb51c4b70e7";
 
-// Product variant IDs - map from product+color to variant ID
+// Product variant IDs - map from product+color+size+style to variant ID
 const VARIANT_IDS: Record<string, string> = {
-  "hoodie-black": "gid://shopify/ProductVariant/56930119942475",
-  "hoodie-white": "gid://shopify/ProductVariant/56930122137931",
-  "cap-black": "gid://shopify/ProductVariant/56930133049675",
-  "cap-white": "gid://shopify/ProductVariant/56930135998795",
+  // Hoodie Black
+  "hoodie-black-S-outline": "gid://shopify/ProductVariant/56937201041739",
+  "hoodie-black-S-standard": "gid://shopify/ProductVariant/56937201074507",
+  "hoodie-black-S-photo-stitch": "gid://shopify/ProductVariant/56937201107275",
+  "hoodie-black-S-pet-head": "gid://shopify/ProductVariant/56937201140043",
+  "hoodie-black-M-outline": "gid://shopify/ProductVariant/56937201172811",
+  "hoodie-black-M-standard": "gid://shopify/ProductVariant/56937201205579",
+  "hoodie-black-M-photo-stitch": "gid://shopify/ProductVariant/56937201238347",
+  "hoodie-black-M-pet-head": "gid://shopify/ProductVariant/56937201271115",
+  "hoodie-black-L-outline": "gid://shopify/ProductVariant/56937201303883",
+  "hoodie-black-L-standard": "gid://shopify/ProductVariant/56937201336651",
+  "hoodie-black-L-photo-stitch": "gid://shopify/ProductVariant/56937201369419",
+  "hoodie-black-L-pet-head": "gid://shopify/ProductVariant/56937201402187",
+  // Hoodie White
+  "hoodie-white-S-outline": "gid://shopify/ProductVariant/56937179152715",
+  "hoodie-white-S-standard": "gid://shopify/ProductVariant/56937179185483",
+  "hoodie-white-S-photo-stitch": "gid://shopify/ProductVariant/56937179218251",
+  "hoodie-white-S-pet-head": "gid://shopify/ProductVariant/56937179251019",
+  "hoodie-white-M-outline": "gid://shopify/ProductVariant/56937179283787",
+  "hoodie-white-M-standard": "gid://shopify/ProductVariant/56937179316555",
+  "hoodie-white-M-photo-stitch": "gid://shopify/ProductVariant/56937179349323",
+  "hoodie-white-M-pet-head": "gid://shopify/ProductVariant/56937179382091",
+  "hoodie-white-L-outline": "gid://shopify/ProductVariant/56937193275723",
+  "hoodie-white-L-standard": "gid://shopify/ProductVariant/56937193308491",
+  "hoodie-white-L-photo-stitch": "gid://shopify/ProductVariant/56937193341259",
+  "hoodie-white-L-pet-head": "gid://shopify/ProductVariant/56937193374027",
+  // Cap Black
+  "cap-black-S-outline": "gid://shopify/ProductVariant/56937206317387",
+  "cap-black-S-standard": "gid://shopify/ProductVariant/56937206350155",
+  "cap-black-S-photo-stitch": "gid://shopify/ProductVariant/56937206382923",
+  "cap-black-S-pet-head": "gid://shopify/ProductVariant/56937206415691",
+  "cap-black-M-outline": "gid://shopify/ProductVariant/56937206448459",
+  "cap-black-M-standard": "gid://shopify/ProductVariant/56937206481227",
+  "cap-black-M-photo-stitch": "gid://shopify/ProductVariant/56937206513995",
+  "cap-black-M-pet-head": "gid://shopify/ProductVariant/56937206546763",
+  // Cap White
+  "cap-white-S-outline": "gid://shopify/ProductVariant/56937204482379",
+  "cap-white-S-standard": "gid://shopify/ProductVariant/56937204515147",
+  "cap-white-S-photo-stitch": "gid://shopify/ProductVariant/56937204547915",
+  "cap-white-S-pet-head": "gid://shopify/ProductVariant/56937204580683",
+  "cap-white-M-outline": "gid://shopify/ProductVariant/56937204613451",
+  "cap-white-M-standard": "gid://shopify/ProductVariant/56937204646219",
+  "cap-white-M-photo-stitch": "gid://shopify/ProductVariant/56937204678987",
+  "cap-white-M-pet-head": "gid://shopify/ProductVariant/56937204711755",
 };
 
 // Pricing based on product, style, and size
@@ -443,8 +483,8 @@ export default function TinyThreadStudio() {
         sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) + "mm" : "unknown",
       }));
 
-      // 2. Get variant ID
-      const variantKey = `${product}-${color}`;
+      // 2. Get variant ID based on product, color, size, and style
+      const variantKey = `${product}-${color}-${size}-${style}`;
       const variantId = VARIANT_IDS[variantKey];
       
       if (!variantId) {
