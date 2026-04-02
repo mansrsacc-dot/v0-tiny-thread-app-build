@@ -7,7 +7,6 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
-import html2canvas from "html2canvas";
 import { useToast } from "@/hooks/use-toast";
 
 // Shopify Storefront API config
@@ -394,6 +393,7 @@ export default function TinyThreadStudio() {
   const captureMockup = useCallback(async (): Promise<string> => {
     const previewEl = document.querySelector('[data-testid="garment-preview"]') as HTMLElement;
     if (!previewEl) throw new Error("Preview element not found");
+    const html2canvas = (await import("html2canvas")).default;
     const canvas = await html2canvas(previewEl, { useCORS: true, allowTaint: true });
     return canvas.toDataURL("image/png");
   }, []);
