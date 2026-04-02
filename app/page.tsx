@@ -478,7 +478,8 @@ export default function TinyThreadStudio() {
 
       if (cart?.checkoutUrl) {
         console.log("[v0] Success! Redirecting to:", cart.checkoutUrl);
-        window.location.href = cart.checkoutUrl;
+        const encodedCheckout = encodeURIComponent(cart.checkoutUrl);
+        window.location.href = "https://tinythread.shop?added=true&checkout=" + encodedCheckout;
       } else {
         throw new Error("No checkout URL returned from Shopify");
       }
