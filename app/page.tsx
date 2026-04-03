@@ -117,6 +117,7 @@ interface Design {
   generationHistory: Record<string, string[]>;
   currentHistoryIndex: Record<string, number>;
   regenerationCount: number;
+  rawImageUrl: string | null;
 }
 
 export default function TinyThreadStudio() {
@@ -251,6 +252,8 @@ export default function TinyThreadStudio() {
       const data = await response.json();
       
       if (data.imageUrl) {
+        // Save the raw Replicate URL before background removal (for vectorization webhook)
+        const rawReplicateUrl = data.imageUrl;
         const processed = await removeImageBackground(data.imageUrl, styleType, color);
         
         setDesigns(prev => prev.map(d => {
@@ -265,6 +268,7 @@ export default function TinyThreadStudio() {
               processedImages: { ...d.processedImages, [styleType]: processed },
               generationHistory: { ...d.generationHistory, [styleType]: newHistory },
               currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
+              rawImageUrl: rawReplicateUrl,
             };
           }
           return d;
@@ -310,6 +314,7 @@ export default function TinyThreadStudio() {
         generationHistory: {},
         currentHistoryIndex: {},
         regenerationCount: 0,
+        rawImageUrl: null,
       };
 
       setDesigns(prev => [...prev, newDesign]);
@@ -541,10 +546,10 @@ export default function TinyThreadStudio() {
       params.set("properties[Placement]", designSpecs.map(d => d.view).join(", "));
       params.set("properties[Design Count]", String(designs.length));
       
-      // Add the stitched/generated image URL so webhook can vectorize it
-      const firstStitched = designs.find(d => d.processedImages[d.style]);
-      if (firstStitched?.processedImages[firstStitched.style]) {
-        params.set("properties[_design_image]", firstStitched.processedImages[firstStitched.style]);
+      // Add the raw Replicate URL so webhook can vectorize it (~97 chars, not base64)
+      const firstWithRawUrl = designs.find(d => d.rawImageUrl);
+      if (firstWithRawUrl?.rawImageUrl) {
+        params.set("properties[_design_image]", firstWithRawUrl.rawImageUrl);
       }
       
       params.set("return_to", "/?added=true");
