@@ -621,22 +621,29 @@ export default function TinyThreadStudio() {
         params.set("properties[_design_image]", firstWithRawUrl.rawImageUrl);
       }
       
-      // Capture mockup screenshot and store it
+      // Capture placement mockup and send to designer immediately (before redirect)
       try {
-        const captured = await captureMockupImage();
-        if (captured) {
-          const storeRes = await fetch("/api/store-mockup", {
+        const placementImage = await captureMockupImage();
+        if (placementImage) {
+          await fetch("/api/send-mockup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image: captured })
+            body: JSON.stringify({
+              mockupImage: placementImage,
+              product: product,
+              garmentColor: color,
+              view: view,
+              designs: designs.map(d => ({
+                style: d.style,
+                size: d.size,
+                sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
+                view: d.view,
+              }))
+            })
           });
-          const storeData = await storeRes.json();
-          if (storeData.url) {
-            params.set("properties[_mockup_url]", storeData.url);
-          }
         }
       } catch (e) {
-        console.log("Mockup capture failed, continuing without it");
+        console.log("[MOCKUP] Send failed, continuing");
       }
       
       params.set("return_to", "/?added=true");
@@ -654,7 +661,7 @@ export default function TinyThreadStudio() {
       });
       setIsAddingToCart(false);
     }
-  }, [designs, product, color, size, style, toast, captureMockupImage]);
+  }, [designs, product, color, size, style, view, toast, captureMockupImage]);
 
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
