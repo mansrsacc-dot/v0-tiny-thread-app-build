@@ -671,6 +671,7 @@ export default function TinyThreadStudio() {
               alt={`${product} ${color} ${view}`}
               className="w-full h-full object-contain"
               crossOrigin="anonymous"
+              data-testid="garment-mockup"
             />
 
             {/* Design Overlays */}

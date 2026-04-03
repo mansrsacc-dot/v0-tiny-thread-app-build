@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Jimp from "jimp";
 
 // Garment image URLs from lib/garment-images.ts
 const GARMENT_URLS: Record<string, string> = {
@@ -13,55 +12,48 @@ const GARMENT_URLS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
+    // Dynamic import of Jimp v1 to avoid build-time issues
+    const { Jimp } = await import("jimp");
+    
     const body = await req.json();
     const { garmentRef, designImageUrl, positionX, positionY, designSizePx } = body;
 
-    // Get garment URL
+    // Get garment URL from mapping
     const garmentUrl = GARMENT_URLS[garmentRef];
     if (!garmentUrl || !designImageUrl) {
       return NextResponse.json({ error: "Missing garment or design URL" }, { status: 400 });
     }
 
-    console.log("[PLACEMENT] Loading garment:", garmentRef);
-    console.log("[PLACEMENT] Loading design:", designImageUrl.substring(0, 60));
+    console.log("[PLACEMENT] Garment:", garmentRef);
+    console.log("[PLACEMENT] Design:", designImageUrl.substring(0, 60));
 
     // Load garment image
     const garment = await Jimp.read(garmentUrl);
-    garment.resize(800, 1000);
+    garment.resize({ w: 800, h: 1000 });
 
     // Load design image
     const design = await Jimp.read(designImageUrl);
 
-    // Calculate design size on canvas (proportional to garment)
-    // designSizePx is relative to the preview element width (~780px)
+    // Calculate design size on canvas
     const designCanvasSize = Math.round((designSizePx / 780) * 800);
-    design.resize(designCanvasSize, designCanvasSize, Jimp.RESIZE_BILINEAR);
+    design.resize({ w: designCanvasSize, h: designCanvasSize });
 
     // Calculate position
-    // positionX and positionY are percentage offsets from default center
-    // Default center: x=50% of 800=400, y=35% of 1000=350
     const centerX = Math.round(800 * (50 + (positionX || 0)) / 100);
     const centerY = Math.round(1000 * (35 + (positionY || 0)) / 100);
-    const drawX = Math.round(centerX - designCanvasSize / 2);
-    const drawY = Math.round(centerY - designCanvasSize / 2);
+    const drawX = Math.max(0, Math.round(centerX - designCanvasSize / 2));
+    const drawY = Math.max(0, Math.round(centerY - designCanvasSize / 2));
 
     // Composite design onto garment
-    garment.composite(design, Math.max(0, drawX), Math.max(0, drawY));
+    garment.composite(design, drawX, drawY);
 
-    // Add specs text bar at bottom (dark overlay)
-    const bar = new Jimp(800, 50, 0x000000CC);
-    garment.composite(bar, 0, 950);
+    // Convert to JPEG buffer
+    const buffer = await garment.getBuffer("image/jpeg");
+    const base64 = Buffer.from(buffer).toString("base64");
 
-    // Convert to buffer
-    const buffer = await garment.getBufferAsync(Jimp.MIME_JPEG);
-    const base64 = buffer.toString("base64");
+    console.log("[PLACEMENT] Success! Buffer size:", buffer.length);
 
-    console.log("[PLACEMENT] Composite generated, size:", buffer.length);
-
-    return NextResponse.json({ 
-      base64: base64,
-      success: true 
-    });
+    return NextResponse.json({ base64, success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[PLACEMENT] Error:", message);
