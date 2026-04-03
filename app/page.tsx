@@ -703,10 +703,11 @@ export default function TinyThreadStudio() {
               }
             }}
           >
-            <img
-              src={getGarmentImage()}
-              alt={`${product} ${color} ${view}`}
-              className="w-full h-full object-contain"
+<img
+            src={getGarmentImage()}
+            alt={`${product} ${color} ${view}`}
+            crossOrigin="anonymous"
+            className="w-full h-full object-contain"
             />
 
             {/* Design Overlays */}

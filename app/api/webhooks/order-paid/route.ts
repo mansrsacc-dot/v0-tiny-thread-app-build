@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Deduplication set to prevent processing same order multiple times
+const processedOrders = new Set<string>();
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    
+    // Deduplicate — skip if we already processed this order
+    const orderId = String(body.id || body.order_number);
+    if (processedOrders.has(orderId)) {
+      console.log("[WEBHOOK] Skipping duplicate order:", orderId);
+      return NextResponse.json({ success: true, duplicate: true });
+    }
+    processedOrders.add(orderId);
+    
+    // Cleanup old entries (keep last 100)
+    if (processedOrders.size > 100) {
+      const first = processedOrders.values().next().value;
+      if (first) processedOrders.delete(first);
+    }
     
     console.log("[WEBHOOK] Order paid received:", body.id);
     
@@ -25,12 +42,15 @@ export async function POST(req: NextRequest) {
       
       console.log("[WEBHOOK] Item:", item.title, "Style:", style, "Size:", size);
       
-      // Step 1: Vectorize the design image if available
+      // Step 1: Vectorize the design image if available (with 10s timeout to prevent Shopify retry)
       let epsBase64 = null;
       if (designImageUrl) {
         try {
           console.log("[WEBHOOK] Vectorizing design...");
-          const imageResponse = await fetch(designImageUrl);
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+          
+          const imageResponse = await fetch(designImageUrl, { signal: controller.signal });
           const imageBlob = await imageResponse.blob();
           
           const formData = new FormData();
@@ -42,8 +62,11 @@ export async function POST(req: NextRequest) {
             headers: {
               "Authorization": "Basic " + btoa("vkhpaa5kmksrknd:snt3ii13v1s63o4554clpecm68n87t27g580qvfq50qr143dp4h4")
             },
-            body: formData
+            body: formData,
+            signal: controller.signal
           });
+          
+          clearTimeout(timeout);
           
           if (vecResponse.ok) {
             const epsBuffer = await vecResponse.arrayBuffer();
@@ -53,7 +76,7 @@ export async function POST(req: NextRequest) {
             console.log("[WEBHOOK] Vectorization failed:", vecResponse.status);
           }
         } catch (e) {
-          console.log("[WEBHOOK] Vectorization error:", e);
+          console.log("[WEBHOOK] Vectorization skipped:", e);
         }
       }
       
