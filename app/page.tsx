@@ -497,75 +497,6 @@ export default function TinyThreadStudio() {
     }
   }, [selectedDesign, removeImageBackground, color]);
 
-  // Capture mockup image with design on garment for designer
-  const captureMockupImage = useCallback(async (): Promise<string | null> => {
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = 800;
-      canvas.height = 1000;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-
-      // Load the garment mockup image
-      const garmentImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = getGarmentImage();
-      });
-
-      // Draw garment
-      ctx.drawImage(garmentImg, 0, 0, 800, 1000);
-
-      // Draw each design on the garment for the current view
-      for (const design of designs.filter(d => d.view === view)) {
-        const designSrc = showStitched && design.removeBackground
-          ? design.processedImages[design.style] || design.generatedImages[design.style]
-          : showStitched
-          ? design.generatedImages[design.style]
-          : design.originalImage;
-        if (!designSrc) continue;
-
-        const designImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = designSrc;
-        });
-
-        // Calculate position and size on canvas
-        const sizePx = design.currentSizePx || 150;
-        const previewEl = document.querySelector('[data-testid="garment-preview"]');
-        const scaleX = 800 / (previewEl?.clientWidth || 800);
-        const scaleY = 1000 / (previewEl?.clientHeight || 1000);
-        
-        const drawSize = sizePx * scaleX;
-        const drawX = (400 + design.position.x * 8) - drawSize / 2;
-        const drawY = (350 + design.position.y * 10) - drawSize / 2;
-
-        ctx.drawImage(designImg, drawX, drawY, drawSize, drawSize);
-      }
-
-      // Add text overlay with specs
-      ctx.fillStyle = "rgba(0,0,0,0.7)";
-      ctx.fillRect(0, 920, 800, 80);
-      ctx.fillStyle = "#f59e0b";
-      ctx.font = "bold 16px system-ui";
-      const specs = designs.map(d => `${d.view.toUpperCase()} | ${d.style} | ${d.size} | ~${d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100}mm`).join("  |  ");
-      ctx.fillText(specs, 20, 955);
-      ctx.fillStyle = "white";
-      ctx.font = "14px system-ui";
-      ctx.fillText(`${product.toUpperCase()} | ${color.toUpperCase()} | ${view.toUpperCase()}`, 20, 978);
-
-      return canvas.toDataURL("image/png");
-    } catch (e) {
-      console.error("Failed to capture mockup:", e);
-      return null;
-    }
-  }, [designs, view, product, color, showStitched, getGarmentImage]);
-
   // Show confirmation popup before adding to cart
   const handleAddToCartClick = useCallback(() => {
     if (designs.length === 0) {
@@ -621,30 +552,17 @@ export default function TinyThreadStudio() {
         params.set("properties[_design_image]", firstWithRawUrl.rawImageUrl);
       }
       
-      // Capture placement mockup and send to designer immediately (before redirect)
-      try {
-        const placementImage = await captureMockupImage();
-        if (placementImage) {
-          await fetch("/api/send-mockup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              mockupImage: placementImage,
-              product: product,
-              garmentColor: color,
-              view: view,
-              designs: designs.map(d => ({
-                style: d.style,
-                size: d.size,
-                sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
-                view: d.view,
-              }))
-            })
-          });
-        }
-      } catch (e) {
-        console.log("[MOCKUP] Send failed, continuing");
-      }
+      // Pass garment reference for webhook to look up garment image
+      params.set("properties[_garment]", `${product}-${color}-${view}`);
+      
+      // Pass design position info for the designer
+      const positionInfo = designs.map(d => ({
+        view: d.view,
+        x: d.position.x,
+        y: d.position.y,
+        size: d.currentSizePx || 150
+      }));
+      params.set("properties[_positions]", JSON.stringify(positionInfo));
       
       params.set("return_to", "/?added=true");
 
@@ -661,7 +579,7 @@ export default function TinyThreadStudio() {
       });
       setIsAddingToCart(false);
     }
-  }, [designs, product, color, size, style, view, toast, captureMockupImage]);
+  }, [designs, product, color, size, style, view, toast]);
 
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
@@ -703,11 +621,10 @@ export default function TinyThreadStudio() {
               }
             }}
           >
-<img
-            src={getGarmentImage()}
-            alt={`${product} ${color} ${view}`}
-            crossOrigin="anonymous"
-            className="w-full h-full object-contain"
+            <img
+              src={getGarmentImage()}
+              alt={`${product} ${color} ${view}`}
+              className="w-full h-full object-contain"
             />
 
             {/* Design Overlays */}

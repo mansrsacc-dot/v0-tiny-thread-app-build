@@ -1,25 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Deduplication set to prevent processing same order multiple times
-const processedOrders = new Set<string>();
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    
-    // Deduplicate — skip if we already processed this order
-    const orderId = String(body.id || body.order_number);
-    if (processedOrders.has(orderId)) {
-      console.log("[WEBHOOK] Skipping duplicate order:", orderId);
-      return NextResponse.json({ success: true, duplicate: true });
-    }
-    processedOrders.add(orderId);
-    
-    // Cleanup old entries (keep last 100)
-    if (processedOrders.size > 100) {
-      const first = processedOrders.values().next().value;
-      if (first) processedOrders.delete(first);
-    }
     
     console.log("[WEBHOOK] Order paid received:", body.id);
     
@@ -38,19 +21,34 @@ export async function POST(req: NextRequest) {
       const placement = properties.find((p: { name: string; value: string }) => p.name === "Placement")?.value || "Unknown";
       const designCount = properties.find((p: { name: string; value: string }) => p.name === "Design Count")?.value || "1";
       const designImageUrl = properties.find((p: { name: string; value: string }) => p.name === "_design_image")?.value || null;
-      const mockupUrl = properties.find((p: { name: string; value: string }) => p.name === "_mockup_url")?.value || null;
+      const garmentRef = properties.find((p: { name: string; value: string }) => p.name === "_garment")?.value || null;
+      const positions = properties.find((p: { name: string; value: string }) => p.name === "_positions")?.value || "[]";
+      
+      // Build garment mockup URL from our app's public mockups folder
+      let garmentImageUrl = null;
+      if (garmentRef) {
+        garmentImageUrl = `https://v0-tiny-thread-app-build.vercel.app/mockups/${garmentRef}.jpg`;
+      }
+      
+      // Parse position info for designer
+      let positionInfo = "";
+      try {
+        const posData = JSON.parse(positions);
+        positionInfo = posData.map((p: { view: string; x: number; y: number; size: number }) => 
+          `${p.view}: offset x=${p.x}%, y=${p.y}%, size=${Math.round((p.size / 780) * 700)}mm`
+        ).join("<br>");
+      } catch(e) {
+        // ignore parse errors
+      }
       
       console.log("[WEBHOOK] Item:", item.title, "Style:", style, "Size:", size);
       
-      // Step 1: Vectorize the design image if available (with 10s timeout to prevent Shopify retry)
+      // Step 1: Vectorize the design image if available
       let epsBase64 = null;
       if (designImageUrl) {
         try {
           console.log("[WEBHOOK] Vectorizing design...");
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 10000);
-          
-          const imageResponse = await fetch(designImageUrl, { signal: controller.signal });
+          const imageResponse = await fetch(designImageUrl);
           const imageBlob = await imageResponse.blob();
           
           const formData = new FormData();
@@ -62,11 +60,8 @@ export async function POST(req: NextRequest) {
             headers: {
               "Authorization": "Basic " + btoa("vkhpaa5kmksrknd:snt3ii13v1s63o4554clpecm68n87t27g580qvfq50qr143dp4h4")
             },
-            body: formData,
-            signal: controller.signal
+            body: formData
           });
-          
-          clearTimeout(timeout);
           
           if (vecResponse.ok) {
             const epsBuffer = await vecResponse.arrayBuffer();
@@ -76,7 +71,7 @@ export async function POST(req: NextRequest) {
             console.log("[WEBHOOK] Vectorization failed:", vecResponse.status);
           }
         } catch (e) {
-          console.log("[WEBHOOK] Vectorization skipped:", e);
+          console.log("[WEBHOOK] Vectorization error:", e);
         }
       }
       
@@ -103,15 +98,25 @@ export async function POST(req: NextRequest) {
               <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Price</td><td style="padding: 8px; border: 1px solid #ddd;">${item.price}</td></tr>
             </table>
             
-            ${mockupUrl ? `
-              <h3>Design Placement on Garment:</h3>
-              <img src="${mockupUrl}" alt="Mockup Preview" style="max-width: 400px; border: 1px solid #ddd; border-radius: 8px;">
+            <h3>Garment & Design:</h3>
+            <div style="display: flex; gap: 16px; align-items: flex-start;">
+              ${garmentImageUrl ? `
+                <div style="text-align: center;">
+                  <img src="${garmentImageUrl}" alt="Garment" style="max-width: 250px; border: 1px solid #ddd; border-radius: 8px;">
+                  <p style="font-size: 12px; color: #666; margin-top: 4px;">Garment</p>
+                </div>
+              ` : ''}
+              ${designImageUrl ? `
+                <div style="text-align: center;">
+                  <img src="${designImageUrl}" alt="Design" style="max-width: 250px; border: 1px solid #ddd; border-radius: 8px;">
+                  <p style="font-size: 12px; color: #666; margin-top: 4px;">Generated Design</p>
+                </div>
+              ` : '<p><em>No design image attached</em></p>'}
+            </div>
+            ${positionInfo ? `
+              <p style="margin-top: 8px; font-size: 13px;"><strong>Position:</strong><br>${positionInfo}</p>
             ` : ''}
-            
-            ${designImageUrl ? `
-              <h3>Generated Design Preview:</h3>
-              <img src="${designImageUrl}" alt="Design Preview" style="max-width: 400px; border: 1px solid #ddd; border-radius: 8px;">
-            ` : '<p><em>No design image attached</em></p>'}
+            <p style="margin-top: 4px; font-size: 13px;"><strong>Placement:</strong> ${placement} — <strong>Size:</strong> ${size}</p>
             
             ${epsBase64 ? '<p>EPS vector file attached to this email.</p>' : '<p>EPS vectorization was not available for this order.</p>'}
             
