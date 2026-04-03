@@ -540,6 +540,13 @@ export default function TinyThreadStudio() {
       params.set("properties[Embroidery Size]", designSpecs.map(d => `${d.size} (${d.sizeMm}mm)`).join(", "));
       params.set("properties[Placement]", designSpecs.map(d => d.view).join(", "));
       params.set("properties[Design Count]", String(designs.length));
+      
+      // Add the stitched/generated image URL so webhook can vectorize it
+      const firstStitched = designs.find(d => d.processedImages[d.style]);
+      if (firstStitched?.processedImages[firstStitched.style]) {
+        params.set("properties[_design_image]", firstStitched.processedImages[firstStitched.style]);
+      }
+      
       params.set("return_to", "/?added=true");
 
       // Redirect to Shopify cart/add — this adds to the REAL browser cart
