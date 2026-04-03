@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
       
       // Step 2: Send email to designer
       const emailBody = {
-        from: "TinyThread Orders <orders@tinythread.shop>",
-        to: ["order@kdzprint.com"],
+        from: "TinyThread Orders <onboarding@resend.dev>",
+        to: ["karvelsm@gmail.com"],
         subject: `New Order #${orderNumber} — ${item.title}`,
         html: `
           <div style="font-family: system-ui, sans-serif; max-width: 600px;">
