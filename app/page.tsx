@@ -564,6 +564,52 @@ export default function TinyThreadStudio() {
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
+      // Generate placement image on server and send to designer
+      try {
+        const firstStitched = designs.find(d => d.processedImages[d.style] || d.generatedImages[d.style]);
+        if (firstStitched) {
+          const garmentUrl = getGarmentImage();
+          const designUrl = firstStitched.rawImageUrl || firstStitched.processedImages[firstStitched.style] || firstStitched.generatedImages[firstStitched.style];
+          
+          const placementRes = await fetch("/api/generate-placement", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              garmentImageUrl: garmentUrl,
+              designImageUrl: designUrl,
+              position: firstStitched.position,
+              designSize: firstStitched.currentSizePx || 150,
+              placement: firstStitched.view,
+              style: firstStitched.style,
+              size: firstStitched.size,
+              product: product,
+              garmentColor: color
+            })
+          });
+          const placementData = await placementRes.json();
+          
+          if (placementData.base64) {
+            await fetch("/api/send-placement", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                placementBase64: placementData.base64,
+                product: product,
+                garmentColor: color,
+                designs: designs.map(d => ({
+                  view: d.view,
+                  style: d.style,
+                  size: d.size,
+                  sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
+                }))
+              })
+            });
+          }
+        }
+      } catch (e) {
+        console.log("[PLACEMENT] Generation/send failed, continuing");
+      }
+      
       params.set("return_to", "/?added=true");
 
       // Redirect to Shopify cart/add — this adds to the REAL browser cart
