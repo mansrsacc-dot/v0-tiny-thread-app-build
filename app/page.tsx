@@ -9,56 +9,52 @@ import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Shopify Storefront API config
-const SHOPIFY_STORE = "tinythread-2.myshopify.com";
-const STOREFRONT_TOKEN = "190fa68ec00aa40fb44afbb51c4b70e7";
-
-// Product variant IDs - map from product+color+size+style to variant ID
+// Product variant IDs - map from product+color+size+style to numeric variant ID
 const VARIANT_IDS: Record<string, string> = {
   // Hoodie Black
-  "hoodie-black-S-outline": "gid://shopify/ProductVariant/56937201041739",
-  "hoodie-black-S-standard": "gid://shopify/ProductVariant/56937201074507",
-  "hoodie-black-S-photo-stitch": "gid://shopify/ProductVariant/56937201107275",
-  "hoodie-black-S-pet-head": "gid://shopify/ProductVariant/56937201140043",
-  "hoodie-black-M-outline": "gid://shopify/ProductVariant/56937201172811",
-  "hoodie-black-M-standard": "gid://shopify/ProductVariant/56937201205579",
-  "hoodie-black-M-photo-stitch": "gid://shopify/ProductVariant/56937201238347",
-  "hoodie-black-M-pet-head": "gid://shopify/ProductVariant/56937201271115",
-  "hoodie-black-L-outline": "gid://shopify/ProductVariant/56937201303883",
-  "hoodie-black-L-standard": "gid://shopify/ProductVariant/56937201336651",
-  "hoodie-black-L-photo-stitch": "gid://shopify/ProductVariant/56937201369419",
-  "hoodie-black-L-pet-head": "gid://shopify/ProductVariant/56937201402187",
+  "hoodie-black-S-outline": "56937201041739",
+  "hoodie-black-S-standard": "56937201074507",
+  "hoodie-black-S-photo-stitch": "56937201107275",
+  "hoodie-black-S-pet-head": "56937201140043",
+  "hoodie-black-M-outline": "56937201172811",
+  "hoodie-black-M-standard": "56937201205579",
+  "hoodie-black-M-photo-stitch": "56937201238347",
+  "hoodie-black-M-pet-head": "56937201271115",
+  "hoodie-black-L-outline": "56937201303883",
+  "hoodie-black-L-standard": "56937201336651",
+  "hoodie-black-L-photo-stitch": "56937201369419",
+  "hoodie-black-L-pet-head": "56937201402187",
   // Hoodie White
-  "hoodie-white-S-outline": "gid://shopify/ProductVariant/56937179152715",
-  "hoodie-white-S-standard": "gid://shopify/ProductVariant/56937179185483",
-  "hoodie-white-S-photo-stitch": "gid://shopify/ProductVariant/56937179218251",
-  "hoodie-white-S-pet-head": "gid://shopify/ProductVariant/56937179251019",
-  "hoodie-white-M-outline": "gid://shopify/ProductVariant/56937179283787",
-  "hoodie-white-M-standard": "gid://shopify/ProductVariant/56937179316555",
-  "hoodie-white-M-photo-stitch": "gid://shopify/ProductVariant/56937179349323",
-  "hoodie-white-M-pet-head": "gid://shopify/ProductVariant/56937179382091",
-  "hoodie-white-L-outline": "gid://shopify/ProductVariant/56937193275723",
-  "hoodie-white-L-standard": "gid://shopify/ProductVariant/56937193308491",
-  "hoodie-white-L-photo-stitch": "gid://shopify/ProductVariant/56937193341259",
-  "hoodie-white-L-pet-head": "gid://shopify/ProductVariant/56937193374027",
+  "hoodie-white-S-outline": "56937179152715",
+  "hoodie-white-S-standard": "56937179185483",
+  "hoodie-white-S-photo-stitch": "56937179218251",
+  "hoodie-white-S-pet-head": "56937179251019",
+  "hoodie-white-M-outline": "56937179283787",
+  "hoodie-white-M-standard": "56937179316555",
+  "hoodie-white-M-photo-stitch": "56937179349323",
+  "hoodie-white-M-pet-head": "56937179382091",
+  "hoodie-white-L-outline": "56937193275723",
+  "hoodie-white-L-standard": "56937193308491",
+  "hoodie-white-L-photo-stitch": "56937193341259",
+  "hoodie-white-L-pet-head": "56937193374027",
   // Cap Black
-  "cap-black-S-outline": "gid://shopify/ProductVariant/56937206317387",
-  "cap-black-S-standard": "gid://shopify/ProductVariant/56937206350155",
-  "cap-black-S-photo-stitch": "gid://shopify/ProductVariant/56937206382923",
-  "cap-black-S-pet-head": "gid://shopify/ProductVariant/56937206415691",
-  "cap-black-M-outline": "gid://shopify/ProductVariant/56937206448459",
-  "cap-black-M-standard": "gid://shopify/ProductVariant/56937206481227",
-  "cap-black-M-photo-stitch": "gid://shopify/ProductVariant/56937206513995",
-  "cap-black-M-pet-head": "gid://shopify/ProductVariant/56937206546763",
+  "cap-black-S-outline": "56937206317387",
+  "cap-black-S-standard": "56937206350155",
+  "cap-black-S-photo-stitch": "56937206382923",
+  "cap-black-S-pet-head": "56937206415691",
+  "cap-black-M-outline": "56937206448459",
+  "cap-black-M-standard": "56937206481227",
+  "cap-black-M-photo-stitch": "56937206513995",
+  "cap-black-M-pet-head": "56937206546763",
   // Cap White
-  "cap-white-S-outline": "gid://shopify/ProductVariant/56937204482379",
-  "cap-white-S-standard": "gid://shopify/ProductVariant/56937204515147",
-  "cap-white-S-photo-stitch": "gid://shopify/ProductVariant/56937204547915",
-  "cap-white-S-pet-head": "gid://shopify/ProductVariant/56937204580683",
-  "cap-white-M-outline": "gid://shopify/ProductVariant/56937204613451",
-  "cap-white-M-standard": "gid://shopify/ProductVariant/56937204646219",
-  "cap-white-M-photo-stitch": "gid://shopify/ProductVariant/56937204678987",
-  "cap-white-M-pet-head": "gid://shopify/ProductVariant/56937204711755",
+  "cap-white-S-outline": "56937204482379",
+  "cap-white-S-standard": "56937204515147",
+  "cap-white-S-photo-stitch": "56937204547915",
+  "cap-white-S-pet-head": "56937204580683",
+  "cap-white-M-outline": "56937204613451",
+  "cap-white-M-standard": "56937204646219",
+  "cap-white-M-photo-stitch": "56937204678987",
+  "cap-white-M-pet-head": "56937204711755",
 };
 
 // Pricing based on product, style, and size
@@ -505,7 +501,7 @@ export default function TinyThreadStudio() {
     setShowConfirmCart(true);
   }, [designs.length, toast]);
 
-  // Handle Add to Cart
+  // Handle Add to Cart - uses Shopify's cart/add URL to add to the REAL browser cart
   const handleAddToCart = useCallback(async () => {
     if (designs.length === 0) {
       toast({ title: "No design", description: "Please upload and generate a design first." });
@@ -520,15 +516,7 @@ export default function TinyThreadStudio() {
 
     setIsAddingToCart(true);
     try {
-      // 1. Build design specs
-      const designSpecs = designs.map(d => ({
-        view: d.view,
-        style: d.style,
-        size: d.size,
-        sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) + "mm" : "unknown",
-      }));
-
-      // 2. Get variant ID based on product, color, size, and style
+      // Get the correct variant ID based on product + color + size + style
       const variantKey = `${product}-${color}-${size}-${style}`;
       const variantId = VARIANT_IDS[variantKey];
       
@@ -536,83 +524,38 @@ export default function TinyThreadStudio() {
         throw new Error("Unknown product variant: " + variantKey);
       }
 
-      console.log("[v0] Creating cart with variant:", variantId);
+      // Build design specs for cart properties
+      const designSpecs = designs.map(d => ({
+        view: d.view,
+        style: d.style,
+        size: d.size,
+        sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
+      }));
 
-      // 3. Create Shopify cart via Storefront API
-      const mutation = `
-        mutation cartCreate($input: CartInput!) {
-          cartCreate(input: $input) {
-            cart {
-              id
-              checkoutUrl
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
+      // Build the cart/add URL with properties
+      const params = new URLSearchParams();
+      params.set("id", variantId);
+      params.set("quantity", "1");
+      params.set("properties[Embroidery Style]", designSpecs.map(d => d.style).join(", "));
+      params.set("properties[Embroidery Size]", designSpecs.map(d => `${d.size} (${d.sizeMm}mm)`).join(", "));
+      params.set("properties[Placement]", designSpecs.map(d => d.view).join(", "));
+      params.set("properties[Design Count]", String(designs.length));
+      params.set("return_to", "/?added=true");
 
-      const variables = {
-        input: {
-          lines: [
-            {
-              merchandiseId: variantId,
-              quantity: 1,
-              attributes: [
-                { key: "Embroidery Style", value: designSpecs.map(d => d.style).join(", ") },
-                { key: "Embroidery Size", value: designSpecs.map(d => `${d.size} (${d.sizeMm})`).join(", ") },
-                { key: "Placement", value: designSpecs.map(d => d.view).join(", ") },
-                { key: "Design Count", value: String(designs.length) },
-                { key: "Price", value: "€" + currentPrice },
-              ]
-            }
-          ]
-        }
-      };
-
-      console.log("[v0] Sending to Shopify...");
-
-      const res = await fetch(`https://${SHOPIFY_STORE}/api/2024-01/graphql.json`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
-        },
-        body: JSON.stringify({ query: mutation, variables }),
-      });
-
-      const data = await res.json();
-      console.log("[v0] Shopify response:", JSON.stringify(data));
-
-      const cart = data?.data?.cartCreate?.cart;
-      const errors = data?.data?.cartCreate?.userErrors;
-
-      if (errors && errors.length > 0) {
-        throw new Error(errors.map((e: { message: string }) => e.message).join(", "));
-      }
-
-      if (cart?.checkoutUrl) {
-        console.log("[v0] Success! Redirecting to:", cart.checkoutUrl);
-        const encodedCheckout = encodeURIComponent(cart.checkoutUrl);
-        window.location.href = "https://tinythread-2.myshopify.com?added=true&checkout=" + encodedCheckout;
-      } else {
-        throw new Error("No checkout URL returned from Shopify");
-      }
+      // Redirect to Shopify cart/add — this adds to the REAL browser cart
+      window.location.href = "https://tinythread.shop/cart/add?" + params.toString();
 
     } catch (error: unknown) {
-      console.error("[v0] Add to cart error:", error);
+      console.error("[ADD TO CART] Error:", error);
       const errorMessage = error instanceof Error ? error.message : "Something went wrong. Please try again.";
       toast({ 
         title: "Error adding to cart", 
         description: errorMessage,
         variant: "destructive"
       });
-    } finally {
       setIsAddingToCart(false);
     }
-  }, [designs, product, color, toast]);
+  }, [designs, product, color, size, style, toast]);
 
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
