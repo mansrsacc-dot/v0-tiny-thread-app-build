@@ -705,12 +705,23 @@ export default function TinyThreadStudio() {
 
             {/* Design Overlays */}
             {currentDesignsForView.map(design => {
-              const imageToShow = showStitched && design.removeBackground
+              // Helper to proxy cross-origin images for html2canvas
+              const getDisplayUrl = (url: string) => {
+                if (!url) return url;
+                if (url.startsWith("data:")) return url; // already base64
+                if (url.includes("replicate.delivery") || url.includes("pbxt.replicate.delivery")) {
+                  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+                }
+                return url;
+              };
+              
+              const rawImageToShow = showStitched && design.removeBackground
                 ? design.processedImages[design.style] || design.generatedImages[design.style]
                 : showStitched
                   ? design.generatedImages[design.style]
                   : design.originalImage;
 
+              const imageToShow = getDisplayUrl(rawImageToShow);
               if (!imageToShow) return null;
 
               return (
