@@ -577,23 +577,30 @@ export default function TinyThreadStudio() {
       
       // Generate placement image using client-side canvas + image proxy
       try {
+        console.log("[v0] Starting placement image generation...");
         const firstDesign = designs.find(d => d.rawImageUrl || d.processedImages[d.style]);
+        console.log("[v0] First design found:", firstDesign ? "yes" : "no");
+        
         if (firstDesign) {
           const designImageUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
+          console.log("[v0] Design image URL:", designImageUrl?.substring(0, 80));
 
           // Get garment image URL from DOM
           const garmentImgEl = document.querySelector("img[alt*='hoodie'], img[alt*='cap'], img[alt*='Hoodie'], img[alt*='Cap']") as HTMLImageElement;
           const garmentSrc = garmentImgEl?.src || "";
+          console.log("[v0] Garment image URL:", garmentSrc?.substring(0, 80));
 
           if (garmentSrc && designImageUrl) {
             // Load images via proxy to bypass CORS
             const proxyGarment = `/api/image-proxy?url=${encodeURIComponent(garmentSrc)}`;
             const proxyDesign = `/api/image-proxy?url=${encodeURIComponent(designImageUrl)}`;
+            console.log("[v0] Loading images via proxy...");
 
             const [garmentImg, designImg] = await Promise.all([
               loadImage(proxyGarment),
               loadImage(proxyDesign),
             ]);
+            console.log("[v0] Images loaded. Garment:", garmentImg.width, "x", garmentImg.height, "Design:", designImg.width, "x", designImg.height);
 
             // Create canvas and composite
             const canvas = document.createElement("canvas");
@@ -613,15 +620,17 @@ export default function TinyThreadStudio() {
             const centerY = Math.round(1000 * (35 + posY) / 100);
             const drawX = Math.round(centerX - designCanvasSize / 2);
             const drawY = Math.round(centerY - designCanvasSize / 2);
+            console.log("[v0] Drawing design at:", drawX, drawY, "size:", designCanvasSize);
 
             // Draw design on garment
             ctx.drawImage(designImg, drawX, drawY, designCanvasSize, designCanvasSize);
 
             // Get base64
             const placementBase64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+            console.log("[v0] Composite done! Base64 length:", placementBase64.length);
 
             // Send to designer
-            await fetch("/api/send-placement", {
+            const sendRes = await fetch("/api/send-placement", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -636,10 +645,16 @@ export default function TinyThreadStudio() {
                 })),
               }),
             });
+            const sendData = await sendRes.json();
+            console.log("[v0] Placement email sent:", JSON.stringify(sendData));
+          } else {
+            console.log("[v0] Missing garmentSrc or designImageUrl");
           }
+        } else {
+          console.log("[v0] No design with rawImageUrl or processedImages found");
         }
       } catch (e) {
-        console.log("[PLACEMENT] Canvas generation failed, continuing");
+        console.error("[v0] Placement generation failed:", e);
       }
       
       params.set("return_to", "/?added=true");
