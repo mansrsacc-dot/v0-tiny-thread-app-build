@@ -9,6 +9,17 @@ import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper to load an image with CORS support
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 // Product variant IDs - map from product+color+size+style to numeric variant ID
 const VARIANT_IDS: Record<string, string> = {
   // Hoodie Black
@@ -564,49 +575,71 @@ export default function TinyThreadStudio() {
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
-      // Generate placement image on server using Jimp and send to designer
+      // Generate placement image using client-side canvas + image proxy
       try {
         const firstDesign = designs.find(d => d.rawImageUrl || d.processedImages[d.style]);
         if (firstDesign) {
-          const garmentRef = `${product}-${color}-${firstDesign.view}`;
-          const designUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
-          
-          // Generate the placement composite on server
-          const placementRes = await fetch("/api/generate-placement", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              garmentRef: garmentRef,
-              designImageUrl: designUrl,
-              positionX: firstDesign.position.x,
-              positionY: firstDesign.position.y,
-              designSizePx: firstDesign.currentSizePx || 150,
-            })
-          });
-          
-          const placementData = await placementRes.json();
-          
-          if (placementData.base64) {
-            // Send placement email to designer
+          const designImageUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
+
+          // Get garment image URL from DOM
+          const garmentImgEl = document.querySelector("img[alt*='hoodie'], img[alt*='cap'], img[alt*='Hoodie'], img[alt*='Cap']") as HTMLImageElement;
+          const garmentSrc = garmentImgEl?.src || "";
+
+          if (garmentSrc && designImageUrl) {
+            // Load images via proxy to bypass CORS
+            const proxyGarment = `/api/image-proxy?url=${encodeURIComponent(garmentSrc)}`;
+            const proxyDesign = `/api/image-proxy?url=${encodeURIComponent(designImageUrl)}`;
+
+            const [garmentImg, designImg] = await Promise.all([
+              loadImage(proxyGarment),
+              loadImage(proxyDesign),
+            ]);
+
+            // Create canvas and composite
+            const canvas = document.createElement("canvas");
+            canvas.width = 800;
+            canvas.height = 1000;
+            const ctx = canvas.getContext("2d")!;
+
+            // Draw garment
+            ctx.drawImage(garmentImg, 0, 0, 800, 1000);
+
+            // Calculate design position and size
+            const designSizePx = firstDesign.currentSizePx || 150;
+            const designCanvasSize = Math.round((designSizePx / 780) * 800);
+            const posX = firstDesign.position?.x || 0;
+            const posY = firstDesign.position?.y || 0;
+            const centerX = Math.round(800 * (50 + posX) / 100);
+            const centerY = Math.round(1000 * (35 + posY) / 100);
+            const drawX = Math.round(centerX - designCanvasSize / 2);
+            const drawY = Math.round(centerY - designCanvasSize / 2);
+
+            // Draw design on garment
+            ctx.drawImage(designImg, drawX, drawY, designCanvasSize, designCanvasSize);
+
+            // Get base64
+            const placementBase64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+
+            // Send to designer
             await fetch("/api/send-placement", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                placementBase64: placementData.base64,
-                product: product,
+                placementBase64,
+                product,
                 garmentColor: color,
                 designs: designs.map(d => ({
                   view: d.view,
                   style: d.style,
                   size: d.size,
                   sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
-                }))
-              })
+                })),
+              }),
             });
           }
         }
       } catch (e) {
-        console.log("[PLACEMENT] Generation failed, continuing");
+        console.log("[PLACEMENT] Canvas generation failed, continuing");
       }
       
       params.set("return_to", "/?added=true");
