@@ -50,39 +50,12 @@ export async function POST(req: NextRequest) {
       
       console.log("[WEBHOOK] Item:", item.title, "Style:", style, "Size:", size);
       
-      // Step 1: Vectorize the design image if available
-      let epsBase64 = null;
-      if (designImageUrl) {
-        try {
-          console.log("[WEBHOOK] Vectorizing design...");
-          const imageResponse = await fetch(designImageUrl);
-          const imageBlob = await imageResponse.blob();
-          
-          const formData = new FormData();
-          formData.append("image", imageBlob, "design.png");
-          formData.append("output.format", "eps");
-          
-          const vecResponse = await fetch("https://vectorizer.ai/api/v1/vectorize", {
-            method: "POST",
-            headers: {
-              "Authorization": "Basic " + btoa("vkhpaa5kmksrknd:snt3ii13v1s63o4554clpecm68n87t27g580qvfq50qr143dp4h4")
-            },
-            body: formData
-          });
-          
-          if (vecResponse.ok) {
-            const epsBuffer = await vecResponse.arrayBuffer();
-            epsBase64 = Buffer.from(epsBuffer).toString("base64");
-            console.log("[WEBHOOK] Vectorization complete, EPS size:", epsBase64.length);
-          } else {
-            console.log("[WEBHOOK] Vectorization failed:", vecResponse.status);
-          }
-        } catch (e) {
-          console.log("[WEBHOOK] Vectorization error:", e);
-        }
-      }
+      // Build vectorize URL for on-demand EPS download (no inline vectorization to avoid timeouts)
+      const vectorizeUrl = designImageUrl 
+        ? `https://v0-tiny-thread-app-build.vercel.app/api/vectorize-and-send?image=${encodeURIComponent(designImageUrl)}&order=${orderNumber}`
+        : null;
       
-      // Step 2: Send email to designer
+      // Send email to designer (fast - no vectorization)
       const emailBody = {
         from: "TinyThread Orders <onboarding@resend.dev>",
         to: ["karvelsm@gmail.com"],
@@ -124,18 +97,20 @@ export async function POST(req: NextRequest) {
               <p style="margin-top: 8px; font-size: 13px;"><strong>Position:</strong><br>${positionInfo}</p>
             ` : ''}
             
-            ${epsBase64 ? '<p>EPS vector file attached to this email.</p>' : '<p>EPS vectorization was not available for this order.</p>'}
+            ${vectorizeUrl ? `
+              <p style="margin-top: 16px;">
+                <a href="${vectorizeUrl}" style="display: inline-block; padding: 12px 24px; background: #f59e0b; color: black; font-weight: bold; border-radius: 8px; text-decoration: none;">
+                  Download EPS Vector File
+                </a>
+              </p>
+              <p style="font-size: 12px; color: #666;">Click the button above to generate and download the vectorized EPS file on-demand.</p>
+            ` : '<p style="color: #999;">No design image available for vectorization.</p>'}
             
             <hr style="border: 1px solid #eee; margin-top: 24px;">
             <p style="color: #999; font-size: 12px;">This is an automated message from TinyThread Studio.</p>
           </div>
         `,
-        attachments: epsBase64 ? [
-          {
-            filename: `order-${orderNumber}-design.eps`,
-            content: epsBase64,
-          }
-        ] : []
+        attachments: []
       };
       
       console.log("[WEBHOOK] Sending email to designer...");
