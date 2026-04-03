@@ -24,11 +24,18 @@ export async function POST(req: NextRequest) {
       const garmentRef = properties.find((p: { name: string; value: string }) => p.name === "_garment")?.value || null;
       const positions = properties.find((p: { name: string; value: string }) => p.name === "_positions")?.value || "[]";
       
-      // Build garment mockup URL from our app's public mockups folder
-      let garmentImageUrl = null;
-      if (garmentRef) {
-        garmentImageUrl = `https://v0-tiny-thread-app-build.vercel.app/mockups/${garmentRef}.jpg`;
-      }
+      // Garment image URLs stored on Vercel Blob
+      const GARMENT_URLS: Record<string, string> = {
+        "hoodie-black-front": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-black-front-L8JNMTYtT2Xneu4ym3Ax12fau4pIHq.jpg",
+        "hoodie-black-back": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-black-back-Lfr4AB79XMlYiUB9Qa9V4CSpdwQJQM.jpg",
+        "hoodie-white-front": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-white-front-k4zZvfmeQ2iVRi7MzQy94KPnW4ebyY.jpg",
+        "hoodie-white-back": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-white-back.jpg-X5I6sYplyDPZPlPnUEP1gK81mtIe8Q.jpeg",
+        "cap-black-front": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cap-black-front.jpg-MIVejSe8JWwmgLY47q8dnpjKC393xd.jpeg",
+        "cap-white-front": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cap-white-front-kYisZ76gyCeeLb3IYogIXdTJo7mXkO.jpg",
+      };
+      
+      // Get garment image URL from the mapping
+      const garmentImageUrl = garmentRef ? GARMENT_URLS[garmentRef] || null : null;
       
       // Parse position info for designer
       let positionInfo = "";
@@ -99,24 +106,23 @@ export async function POST(req: NextRequest) {
             </table>
             
             <h3>Garment & Design:</h3>
-            <div style="display: flex; gap: 16px; align-items: flex-start;">
+            <table><tr>
               ${garmentImageUrl ? `
-                <div style="text-align: center;">
+                <td style="padding: 8px; text-align: center; vertical-align: top;">
                   <img src="${garmentImageUrl}" alt="Garment" style="max-width: 250px; border: 1px solid #ddd; border-radius: 8px;">
-                  <p style="font-size: 12px; color: #666; margin-top: 4px;">Garment</p>
-                </div>
+                  <p style="font-size: 12px; color: #666;">Garment (place design on ${placement || 'front'})</p>
+                </td>
               ` : ''}
               ${designImageUrl ? `
-                <div style="text-align: center;">
+                <td style="padding: 8px; text-align: center; vertical-align: top;">
                   <img src="${designImageUrl}" alt="Design" style="max-width: 250px; border: 1px solid #ddd; border-radius: 8px;">
-                  <p style="font-size: 12px; color: #666; margin-top: 4px;">Generated Design</p>
-                </div>
-              ` : '<p><em>No design image attached</em></p>'}
-            </div>
+                  <p style="font-size: 12px; color: #666;">Design to embroider (${style} — ${size})</p>
+                </td>
+              ` : '<td><p><em>No design image attached</em></p></td>'}
+            </tr></table>
             ${positionInfo ? `
               <p style="margin-top: 8px; font-size: 13px;"><strong>Position:</strong><br>${positionInfo}</p>
             ` : ''}
-            <p style="margin-top: 4px; font-size: 13px;"><strong>Placement:</strong> ${placement} — <strong>Size:</strong> ${size}</p>
             
             ${epsBase64 ? '<p>EPS vector file attached to this email.</p>' : '<p>EPS vectorization was not available for this order.</p>'}
             
