@@ -151,16 +151,6 @@ export default function TinyThreadStudio() {
   const currentDesignsForView = designs.filter(d => d.view === view);
   const currentPrice = PRICING[product]?.[style]?.[size] || 0;
 
-  // Load html2canvas for mockup capture
-  useEffect(() => {
-    if (!document.querySelector('script[src*="html2canvas"]')) {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      script.async = true;
-      document.head.appendChild(script);
-    }
-  }, []);
-
   // Check if first visit and show welcome popup
   useEffect(() => {
     if (typeof window !== "undefined" && !localStorage.getItem("tinythread_visited")) {
@@ -507,46 +497,6 @@ export default function TinyThreadStudio() {
     }
   }, [selectedDesign, removeImageBackground, color]);
 
-  // Capture mockup image using html2canvas for designer email
-  const captureMockupImage = async (): Promise<string | null> => {
-    try {
-      // Wait for html2canvas to be available
-      const h2c = (window as unknown as { html2canvas?: (el: HTMLElement, opts: Record<string, unknown>) => Promise<HTMLCanvasElement> }).html2canvas;
-      if (!h2c) {
-        console.error("[CAPTURE] html2canvas not loaded");
-        return null;
-      }
-
-      // Find the garment preview container
-      const previewEl = document.querySelector('[data-testid="garment-preview"]') as HTMLElement;
-      if (!previewEl) {
-        console.error("[CAPTURE] Preview element not found");
-        return null;
-      }
-
-      // Capture it
-      const canvas = await h2c(previewEl, {
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#141414",
-        scale: 2,
-        logging: false,
-        onclone: (doc: Document) => {
-          // Force all images in the cloned document to have crossOrigin
-          const images = doc.querySelectorAll("img");
-          images.forEach(img => {
-            img.crossOrigin = "anonymous";
-          });
-        }
-      });
-
-      return canvas.toDataURL("image/jpeg", 0.9);
-    } catch (e) {
-      console.error("[CAPTURE] html2canvas failed:", e);
-      return null;
-    }
-  };
-
   // Show confirmation popup before adding to cart
   const handleAddToCartClick = useCallback(() => {
     if (designs.length === 0) {
@@ -614,29 +564,49 @@ export default function TinyThreadStudio() {
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
-      // Capture and send placement image from DOM
+      // Generate placement image on server using Jimp and send to designer
       try {
-        const placementImage = await captureMockupImage();
-        if (placementImage) {
-          const base64Data = placementImage.replace(/^data:image\/\w+;base64,/, "");
-          await fetch("/api/send-placement", {
+        const firstDesign = designs.find(d => d.rawImageUrl || d.processedImages[d.style]);
+        if (firstDesign) {
+          const garmentRef = `${product}-${color}-${firstDesign.view}`;
+          const designUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
+          
+          // Generate the placement composite on server
+          const placementRes = await fetch("/api/generate-placement", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              placementBase64: base64Data,
-              product,
-              garmentColor: color,
-              designs: designs.map(d => ({
-                view: d.view,
-                style: d.style,
-                size: d.size,
-                sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
-              }))
+              garmentRef: garmentRef,
+              designImageUrl: designUrl,
+              positionX: firstDesign.position.x,
+              positionY: firstDesign.position.y,
+              designSizePx: firstDesign.currentSizePx || 150,
             })
           });
+          
+          const placementData = await placementRes.json();
+          
+          if (placementData.base64) {
+            // Send placement email to designer
+            await fetch("/api/send-placement", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                placementBase64: placementData.base64,
+                product: product,
+                garmentColor: color,
+                designs: designs.map(d => ({
+                  view: d.view,
+                  style: d.style,
+                  size: d.size,
+                  sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
+                }))
+              })
+            });
+          }
         }
       } catch (e) {
-        console.log("[CAPTURE] Failed, continuing");
+        console.log("[PLACEMENT] Generation failed, continuing");
       }
       
       params.set("return_to", "/?added=true");
