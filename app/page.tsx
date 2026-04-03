@@ -9,6 +9,17 @@ import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper to load an image with CORS support
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 // Product variant IDs - map from product+color+size+style to numeric variant ID
 const VARIANT_IDS: Record<string, string> = {
   // Hoodie Black
@@ -150,16 +161,6 @@ export default function TinyThreadStudio() {
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
   const currentPrice = PRICING[product]?.[style]?.[size] || 0;
-
-  // Load html2canvas for mockup capture
-  useEffect(() => {
-    if (!document.querySelector('script[src*="html2canvas"]')) {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      script.async = true;
-      document.head.appendChild(script);
-    }
-  }, []);
 
   // Check if first visit and show welcome popup
   useEffect(() => {
@@ -507,46 +508,6 @@ export default function TinyThreadStudio() {
     }
   }, [selectedDesign, removeImageBackground, color]);
 
-  // Capture mockup image using html2canvas for designer email
-  const captureMockupImage = async (): Promise<string | null> => {
-    try {
-      // Wait for html2canvas to be available
-      const h2c = (window as unknown as { html2canvas?: (el: HTMLElement, opts: Record<string, unknown>) => Promise<HTMLCanvasElement> }).html2canvas;
-      if (!h2c) {
-        console.error("[CAPTURE] html2canvas not loaded");
-        return null;
-      }
-
-      // Find the garment preview container
-      const previewEl = document.querySelector('[data-testid="garment-preview"]') as HTMLElement;
-      if (!previewEl) {
-        console.error("[CAPTURE] Preview element not found");
-        return null;
-      }
-
-      // Capture it
-      const canvas = await h2c(previewEl, {
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#141414",
-        scale: 2,
-        logging: false,
-        onclone: (doc: Document) => {
-          // Force all images in the cloned document to have crossOrigin
-          const images = doc.querySelectorAll("img");
-          images.forEach(img => {
-            img.crossOrigin = "anonymous";
-          });
-        }
-      });
-
-      return canvas.toDataURL("image/jpeg", 0.9);
-    } catch (e) {
-      console.error("[CAPTURE] html2canvas failed:", e);
-      return null;
-    }
-  };
-
   // Show confirmation popup before adding to cart
   const handleAddToCartClick = useCallback(() => {
     if (designs.length === 0) {
@@ -614,29 +575,71 @@ export default function TinyThreadStudio() {
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
-      // Capture and send placement image from DOM
+      // Generate placement image using client-side canvas + image proxy
       try {
-        const placementImage = await captureMockupImage();
-        if (placementImage) {
-          const base64Data = placementImage.replace(/^data:image\/\w+;base64,/, "");
-          await fetch("/api/send-placement", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              placementBase64: base64Data,
-              product,
-              garmentColor: color,
-              designs: designs.map(d => ({
-                view: d.view,
-                style: d.style,
-                size: d.size,
-                sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
-              }))
-            })
-          });
+        const firstDesign = designs.find(d => d.rawImageUrl || d.processedImages[d.style]);
+        if (firstDesign) {
+          const designImageUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
+
+          // Get garment image URL from DOM
+          const garmentImgEl = document.querySelector("img[alt*='hoodie'], img[alt*='cap'], img[alt*='Hoodie'], img[alt*='Cap']") as HTMLImageElement;
+          const garmentSrc = garmentImgEl?.src || "";
+
+          if (garmentSrc && designImageUrl) {
+            // Load images via proxy to bypass CORS
+            const proxyGarment = `/api/image-proxy?url=${encodeURIComponent(garmentSrc)}`;
+            const proxyDesign = `/api/image-proxy?url=${encodeURIComponent(designImageUrl)}`;
+
+            const [garmentImg, designImg] = await Promise.all([
+              loadImage(proxyGarment),
+              loadImage(proxyDesign),
+            ]);
+
+            // Create canvas and composite
+            const canvas = document.createElement("canvas");
+            canvas.width = 800;
+            canvas.height = 1000;
+            const ctx = canvas.getContext("2d")!;
+
+            // Draw garment
+            ctx.drawImage(garmentImg, 0, 0, 800, 1000);
+
+            // Calculate design position and size
+            const designSizePx = firstDesign.currentSizePx || 150;
+            const designCanvasSize = Math.round((designSizePx / 780) * 800);
+            const posX = firstDesign.position?.x || 0;
+            const posY = firstDesign.position?.y || 0;
+            const centerX = Math.round(800 * (50 + posX) / 100);
+            const centerY = Math.round(1000 * (35 + posY) / 100);
+            const drawX = Math.round(centerX - designCanvasSize / 2);
+            const drawY = Math.round(centerY - designCanvasSize / 2);
+
+            // Draw design on garment
+            ctx.drawImage(designImg, drawX, drawY, designCanvasSize, designCanvasSize);
+
+            // Get base64
+            const placementBase64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+
+            // Send to designer
+            await fetch("/api/send-placement", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                placementBase64,
+                product,
+                garmentColor: color,
+                designs: designs.map(d => ({
+                  view: d.view,
+                  style: d.style,
+                  size: d.size,
+                  sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
+                })),
+              }),
+            });
+          }
         }
       } catch (e) {
-        console.log("[CAPTURE] Failed, continuing");
+        console.log("[PLACEMENT] Canvas generation failed, continuing");
       }
       
       params.set("return_to", "/?added=true");
@@ -701,6 +704,7 @@ export default function TinyThreadStudio() {
               alt={`${product} ${color} ${view}`}
               className="w-full h-full object-contain"
               crossOrigin="anonymous"
+              data-testid="garment-mockup"
             />
 
             {/* Design Overlays */}
