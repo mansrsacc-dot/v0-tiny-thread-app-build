@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       contentType: "image/png",
     });
 
-    return NextResponse.json({ id: blob.url });
+    return NextResponse.json({ url: blob.url });
   } catch (error) {
     console.error("Store mockup error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

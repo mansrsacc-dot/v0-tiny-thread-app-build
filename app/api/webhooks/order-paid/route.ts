@@ -21,12 +21,9 @@ export async function POST(req: NextRequest) {
       const placement = properties.find((p: { name: string; value: string }) => p.name === "Placement")?.value || "Unknown";
       const designCount = properties.find((p: { name: string; value: string }) => p.name === "Design Count")?.value || "1";
       const designImageUrl = properties.find((p: { name: string; value: string }) => p.name === "_design_image")?.value || null;
-      const mockupId = properties.find((p: { name: string; value: string }) => p.name === "_mockup_id")?.value || null;
+      const mockupUrl = properties.find((p: { name: string; value: string }) => p.name === "_mockup_url")?.value || null;
       
-      // Mockup URL is stored in Vercel Blob, so mockupId IS the URL
-      const mockupImageUrl = mockupId && mockupId.startsWith("http") ? mockupId : null;
-      
-      console.log("[WEBHOOK] Item:", item.title, "Style:", style, "Size:", size, "Mockup:", mockupImageUrl ? "Yes" : "No");
+      console.log("[WEBHOOK] Item:", item.title, "Style:", style, "Size:", size);
       
       // Step 1: Vectorize the design image if available
       let epsBase64 = null;
@@ -83,9 +80,9 @@ export async function POST(req: NextRequest) {
               <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Price</td><td style="padding: 8px; border: 1px solid #ddd;">${item.price}</td></tr>
             </table>
             
-            ${mockupImageUrl ? `
+            ${mockupUrl ? `
               <h3>Design Placement on Garment:</h3>
-              <img src="${mockupImageUrl}" alt="Mockup Preview" style="max-width: 400px; border: 1px solid #ddd; border-radius: 8px;">
+              <img src="${mockupUrl}" alt="Mockup Preview" style="max-width: 400px; border: 1px solid #ddd; border-radius: 8px;">
             ` : ''}
             
             ${designImageUrl ? `
