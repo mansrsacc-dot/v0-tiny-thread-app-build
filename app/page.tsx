@@ -151,6 +151,16 @@ export default function TinyThreadStudio() {
   const currentDesignsForView = designs.filter(d => d.view === view);
   const currentPrice = PRICING[product]?.[style]?.[size] || 0;
 
+  // Load html2canvas for mockup capture
+  useEffect(() => {
+    if (!document.querySelector('script[src*="html2canvas"]')) {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
   // Check if first visit and show welcome popup
   useEffect(() => {
     if (typeof window !== "undefined" && !localStorage.getItem("tinythread_visited")) {
@@ -497,91 +507,45 @@ export default function TinyThreadStudio() {
     }
   }, [selectedDesign, removeImageBackground, color]);
 
-  // Capture mockup image from the DOM for designer email
-  const captureMockupImage = useCallback(async (): Promise<string | null> => {
+  // Capture mockup image using html2canvas for designer email
+  const captureMockupImage = async (): Promise<string | null> => {
     try {
-      const previewEl = document.querySelector('[data-testid="garment-preview"]') as HTMLElement;
-      if (!previewEl) {
-        console.error("[CAPTURE] No preview element found");
+      // Wait for html2canvas to be available
+      const h2c = (window as unknown as { html2canvas?: (el: HTMLElement, opts: Record<string, unknown>) => Promise<HTMLCanvasElement> }).html2canvas;
+      if (!h2c) {
+        console.error("[CAPTURE] html2canvas not loaded");
         return null;
       }
 
-      const canvas = document.createElement("canvas");
-      const rect = previewEl.getBoundingClientRect();
-      canvas.width = rect.width * 2; // 2x for retina quality
-      canvas.height = rect.height * 2;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-      ctx.scale(2, 2);
-
-      // Step 1: Draw the garment image
-      const garmentImgEl = previewEl.querySelector("img") as HTMLImageElement;
-      if (garmentImgEl && garmentImgEl.complete && garmentImgEl.naturalWidth > 0) {
-        ctx.drawImage(garmentImgEl, 0, 0, rect.width, rect.height);
-      } else {
-        // Try loading it fresh
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        await new Promise<void>((resolve) => {
-          img.onload = () => {
-            ctx.drawImage(img, 0, 0, rect.width, rect.height);
-            resolve();
-          };
-          img.onerror = () => resolve();
-          img.src = garmentImgEl?.src || "";
-        });
+      // Find the garment preview container
+      const previewEl = document.querySelector('[data-testid="garment-preview"]') as HTMLElement;
+      if (!previewEl) {
+        console.error("[CAPTURE] Preview element not found");
+        return null;
       }
 
-      // Step 2: Draw each design overlay by reading actual DOM positions
-      const overlays = previewEl.querySelectorAll("[data-testid^='overlay-']");
-      for (const overlay of overlays) {
-        const overlayEl = overlay as HTMLElement;
-        const overlayRect = overlayEl.getBoundingClientRect();
-        
-        // Find the image inside the overlay
-        const imgEl = overlayEl.querySelector("img") as HTMLImageElement;
-        if (!imgEl) continue;
-
-        // Wait for image if not loaded
-        if (!imgEl.complete) {
-          await new Promise<void>(resolve => {
-            imgEl.onload = () => resolve();
-            imgEl.onerror = () => resolve();
-            setTimeout(resolve, 2000);
+      // Capture it
+      const canvas = await h2c(previewEl, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#141414",
+        scale: 2,
+        logging: false,
+        onclone: (doc: Document) => {
+          // Force all images in the cloned document to have crossOrigin
+          const images = doc.querySelectorAll("img");
+          images.forEach(img => {
+            img.crossOrigin = "anonymous";
           });
         }
-
-        const x = overlayRect.left - rect.left;
-        const y = overlayRect.top - rect.top;
-        const w = overlayRect.width;
-        const h = overlayRect.height;
-
-        ctx.drawImage(imgEl, x, y, w, h);
-
-        // Draw amber dashed border
-        ctx.strokeStyle = "#f59e0b";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 3]);
-        ctx.strokeRect(x, y, w, h);
-        ctx.setLineDash([]);
-      }
-
-      // Step 3: Draw specs bar
-      ctx.fillStyle = "rgba(0,0,0,0.8)";
-      ctx.fillRect(0, rect.height - 30, rect.width, 30);
-      ctx.fillStyle = "#f59e0b";
-      ctx.font = "bold 12px system-ui, sans-serif";
-      const specText = designs.map(d => 
-        `${d.view.toUpperCase()} | ${d.style} | ${d.size} | ~${d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100}mm`
-      ).join("  •  ");
-      ctx.fillText(`${product.toUpperCase()} | ${color.toUpperCase()} | ${specText}`, 8, rect.height - 12);
+      });
 
       return canvas.toDataURL("image/jpeg", 0.9);
     } catch (e) {
-      console.error("[CAPTURE] Failed:", e);
+      console.error("[CAPTURE] html2canvas failed:", e);
       return null;
     }
-  }, [designs, product, color]);
+  };
 
   // Show confirmation popup before adding to cart
   const handleAddToCartClick = useCallback(() => {
@@ -690,7 +654,7 @@ export default function TinyThreadStudio() {
       });
       setIsAddingToCart(false);
     }
-  }, [designs, product, color, size, style, view, toast, captureMockupImage]);
+  }, [designs, product, color, size, style, view, toast]);
 
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
@@ -736,6 +700,7 @@ export default function TinyThreadStudio() {
               src={getGarmentImage()}
               alt={`${product} ${color} ${view}`}
               className="w-full h-full object-contain"
+              crossOrigin="anonymous"
             />
 
             {/* Design Overlays */}
@@ -770,6 +735,7 @@ export default function TinyThreadStudio() {
                     alt="Design"
                     className="w-full h-full object-contain pointer-events-none"
                     draggable={false}
+                    crossOrigin="anonymous"
                   />
                   
                   {selectedDesignId === design.id && (
