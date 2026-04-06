@@ -9,17 +9,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Helper to load an image with CORS support
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
 // Product variant IDs - map from product+color+size+style to numeric variant ID
 const VARIANT_IDS: Record<string, string> = {
   // Hoodie Black
@@ -575,87 +564,40 @@ export default function TinyThreadStudio() {
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
-      // Generate placement image using client-side canvas + image proxy
+      // --- Send placement image to designer ---
       try {
-        console.log("[v0] Starting placement image generation...");
-        const firstDesign = designs.find(d => d.rawImageUrl || d.processedImages[d.style]);
-        console.log("[v0] First design found:", firstDesign ? "yes" : "no");
-        
+        const firstDesign = designs.find((d) => d.rawImageUrl || d.processedImages[d.style]);
         if (firstDesign) {
-          const designImageUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
-          console.log("[v0] Design image URL:", designImageUrl?.substring(0, 80));
+          const designUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
 
-          // Get garment image URL from DOM
-          const garmentImgEl = document.querySelector("img[alt*='hoodie'], img[alt*='cap'], img[alt*='Hoodie'], img[alt*='Cap']") as HTMLImageElement;
-          const garmentSrc = garmentImgEl?.src || "";
-          console.log("[v0] Garment image URL:", garmentSrc?.substring(0, 80));
+          // Find garment image element to get its Vercel blob URL
+          const garmentEl = document.querySelector("img[alt*='hoodie'], img[alt*='cap'], img[alt*='Hoodie'], img[alt*='Cap'], img[alt*='garment']") as HTMLImageElement | null;
+          const garmentUrl = garmentEl?.src || "";
 
-          if (garmentSrc && designImageUrl) {
-            // Load images via proxy to bypass CORS
-            const proxyGarment = `/api/image-proxy?url=${encodeURIComponent(garmentSrc)}`;
-            const proxyDesign = `/api/image-proxy?url=${encodeURIComponent(designImageUrl)}`;
-            console.log("[v0] Loading images via proxy...");
-
-            const [garmentImg, designImg] = await Promise.all([
-              loadImage(proxyGarment),
-              loadImage(proxyDesign),
-            ]);
-            console.log("[v0] Images loaded. Garment:", garmentImg.width, "x", garmentImg.height, "Design:", designImg.width, "x", designImg.height);
-
-            // Create canvas and composite
-            const canvas = document.createElement("canvas");
-            canvas.width = 800;
-            canvas.height = 1000;
-            const ctx = canvas.getContext("2d")!;
-
-            // Draw garment
-            ctx.drawImage(garmentImg, 0, 0, 800, 1000);
-
-            // Calculate design position and size
-            const designSizePx = firstDesign.currentSizePx || 150;
-            const designCanvasSize = Math.round((designSizePx / 780) * 800);
-            const posX = firstDesign.position?.x || 0;
-            const posY = firstDesign.position?.y || 0;
-            const centerX = Math.round(800 * (50 + posX) / 100);
-            const centerY = Math.round(1000 * (35 + posY) / 100);
-            const drawX = Math.round(centerX - designCanvasSize / 2);
-            const drawY = Math.round(centerY - designCanvasSize / 2);
-            console.log("[v0] Drawing design at:", drawX, drawY, "size:", designCanvasSize);
-
-            // Draw design on garment
-            ctx.drawImage(designImg, drawX, drawY, designCanvasSize, designCanvasSize);
-
-            // Get base64
-            const placementBase64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
-            console.log("[v0] Composite done! Base64 length:", placementBase64.length);
-
-            // Send to designer
-            const sendRes = await fetch("/api/send-placement", {
+          if (garmentUrl && designUrl) {
+            // Fire and forget — don't block the cart redirect
+            fetch("/api/send-placement", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                placementBase64,
+                garmentUrl,
+                designImageUrl: designUrl,
+                positionX: firstDesign.position?.x || 0,
+                positionY: firstDesign.position?.y || 0,
+                designSizePx: firstDesign.currentSizePx || 150,
                 product,
                 garmentColor: color,
-                designs: designs.map(d => ({
-                  view: d.view,
-                  style: d.style,
-                  size: d.size,
-                  sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
-                })),
+                style: firstDesign.style || "outline",
+                size: firstDesign.size || "M",
+                placement: firstDesign.view || "front",
               }),
-            });
-            const sendData = await sendRes.json();
-            console.log("[v0] Placement email sent:", JSON.stringify(sendData));
-          } else {
-            console.log("[v0] Missing garmentSrc or designImageUrl");
+            }).then(r => r.json()).then(d => console.log("[CART] Placement email:", d)).catch(e => console.error("[CART] Placement error:", e));
           }
-        } else {
-          console.log("[v0] No design with rawImageUrl or processedImages found");
         }
       } catch (e) {
-        console.error("[v0] Placement generation failed:", e);
+        console.error("[CART] Placement failed:", e);
       }
+      // --- End placement ---
       
       params.set("return_to", "/?added=true");
 
