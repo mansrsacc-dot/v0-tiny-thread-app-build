@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { toPng } from "html-to-image";
 
 // Product variant IDs - map from product+color+size+style to numeric variant ID
 const VARIANT_IDS: Record<string, string> = {
@@ -564,38 +565,44 @@ export default function TinyThreadStudio() {
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
-      // --- Send placement image to designer ---
+      // --- Screenshot the preview and email to designer ---
       try {
-        const firstDesign = designs.find((d) => d.rawImageUrl || d.processedImages[d.style]);
-        if (firstDesign) {
-          const designUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
+        const previewEl = document.querySelector("[data-testid='garment-preview']") as HTMLElement;
+        if (previewEl) {
+          // Take a screenshot of the garment preview (with design on it)
+          const dataUrl = await toPng(previewEl, {
+            quality: 0.95,
+            pixelRatio: 2,
+            cacheBust: true,
+            fetchRequestInit: { mode: "cors" },
+            skipAutoScale: true,
+          });
+          const base64 = dataUrl.split(",")[1];
 
-          // Find garment image element to get its Vercel blob URL
-          const garmentEl = document.querySelector("img[alt*='hoodie'], img[alt*='cap'], img[alt*='Hoodie'], img[alt*='Cap'], img[alt*='garment']") as HTMLImageElement | null;
-          const garmentUrl = garmentEl?.src || "";
-
-          if (garmentUrl && designUrl) {
-            // Fire and forget — don't block the cart redirect
+          if (base64 && base64.length > 1000) {
+            // Send the screenshot to the designer
             fetch("/api/send-placement", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                garmentUrl,
-                designImageUrl: designUrl,
-                positionX: firstDesign.position?.x || 0,
-                positionY: firstDesign.position?.y || 0,
-                designSizePx: firstDesign.currentSizePx || 150,
+                placementBase64: base64,
                 product,
                 garmentColor: color,
-                style: firstDesign.style || "outline",
-                size: firstDesign.size || "M",
-                placement: firstDesign.view || "front",
+                style: designs[0]?.style || "outline",
+                size: designs[0]?.size || "M",
+                designSizePx: designs[0]?.currentSizePx || 150,
+                placement: designs[0]?.view || "front",
+                positionX: designs[0]?.position?.x || 0,
+                positionY: designs[0]?.position?.y || 0,
               }),
-            }).then(r => r.json()).then(d => console.log("[CART] Placement email:", d)).catch(e => console.error("[CART] Placement error:", e));
+            })
+              .then((r) => r.json())
+              .then((d) => console.log("[CART] Placement email sent:", d))
+              .catch((e) => console.error("[CART] Placement email error:", e));
           }
         }
       } catch (e) {
-        console.error("[CART] Placement failed:", e);
+        console.error("[CART] Screenshot failed:", e);
       }
       // --- End placement ---
       
