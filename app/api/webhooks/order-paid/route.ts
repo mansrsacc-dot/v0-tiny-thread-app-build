@@ -36,6 +36,50 @@ export async function POST(req: NextRequest) {
       
       // Get garment image URL from the mapping
       const garmentImageUrl = garmentRef ? GARMENT_URLS[garmentRef] || null : null;
+
+      // --- COMPOSITE: Merge design onto garment as ONE image ---
+      let placementBase64: string | null = null;
+      if (garmentImageUrl && designImageUrl) {
+        try {
+          const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : "https://v0-tiny-thread-app-build.vercel.app";
+
+          let posX = 0, posY = 0, designSizePx = 150;
+          try {
+            const posData = JSON.parse(positions);
+            if (posData.length > 0) {
+              posX = posData[0].x || 0;
+              posY = posData[0].y || 0;
+              designSizePx = posData[0].size || 150;
+            }
+          } catch {}
+
+          const compositeRes = await fetch(`${baseUrl}/api/composite-image`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              garmentUrl: garmentImageUrl,
+              designImageUrl,
+              positionX: posX,
+              positionY: posY,
+              designSizePx,
+            }),
+          });
+
+          if (compositeRes.ok) {
+            const compositeData = await compositeRes.json();
+            if (compositeData.base64) {
+              placementBase64 = compositeData.base64;
+              console.log("[WEBHOOK] Composite image generated, base64 length:", placementBase64!.length);
+            }
+          } else {
+            console.error("[WEBHOOK] Composite failed:", compositeRes.status);
+          }
+        } catch (compErr) {
+          console.error("[WEBHOOK] Composite error:", compErr);
+        }
+      }
       
       // Parse position info for designer
       let positionInfo = "";
@@ -78,21 +122,11 @@ export async function POST(req: NextRequest) {
               <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Price</td><td style="padding: 8px; border: 1px solid #ddd;">${item.price}</td></tr>
             </table>
             
-            <h3>Garment & Design:</h3>
-            <table><tr>
-              ${garmentImageUrl ? `
-                <td style="padding: 8px; text-align: center; vertical-align: top;">
-                  <img src="${garmentImageUrl}" alt="Garment" style="max-width: 250px; border: 1px solid #ddd; border-radius: 8px;">
-                  <p style="font-size: 12px; color: #666;">Garment (place design on ${placement || 'front'})</p>
-                </td>
-              ` : ''}
-              ${designImageUrl ? `
-                <td style="padding: 8px; text-align: center; vertical-align: top;">
-                  <img src="${designImageUrl}" alt="Design" style="max-width: 250px; border: 1px solid #ddd; border-radius: 8px;">
-                  <p style="font-size: 12px; color: #666;">Design to embroider (${style} — ${size})</p>
-                </td>
-              ` : '<td><p><em>No design image attached</em></p></td>'}
-            </tr></table>
+            <h3>Design Placement on Garment:</h3>
+            ${placementBase64
+              ? `<p style="font-size: 13px; color: #666;">See attached <strong>placement.png</strong> — shows exact design position on the garment.</p>`
+              : `<p style="color: #999;">Placement image could not be generated.</p>`
+            }
             ${positionInfo ? `
               <p style="margin-top: 8px; font-size: 13px;"><strong>Position:</strong><br>${positionInfo}</p>
             ` : ''}
@@ -110,7 +144,13 @@ export async function POST(req: NextRequest) {
             <p style="color: #999; font-size: 12px;">This is an automated message from TinyThread Studio.</p>
           </div>
         `,
-        attachments: []
+        attachments: [
+          ...(placementBase64 ? [{
+            filename: "placement.png",
+            content: placementBase64,
+            content_type: "image/png",
+          }] : []),
+        ]
       };
       
       console.log("[WEBHOOK] Sending email to designer...");
