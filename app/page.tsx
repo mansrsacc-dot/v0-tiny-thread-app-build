@@ -349,42 +349,68 @@ export default function TinyThreadStudio() {
     }
   }, [selectedDesignId]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent, designId: string) => {
+  const getPointerPos = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
+    if ('touches' in e && e.touches.length > 0) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    if ('changedTouches' in e && e.changedTouches.length > 0) {
+      return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    }
+    if ('clientX' in e) {
+      return { x: e.clientX, y: e.clientY };
+    }
+    return { x: 0, y: 0 };
+  };
+
+  const handlePointerDown = useCallback((e: React.MouseEvent | React.TouchEvent, designId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedDesignId(designId);
     const design = designs.find(d => d.id === designId);
+    const pos = getPointerPos(e);
     if (design) {
       setDragState({
         isDragging: true,
-        startX: e.clientX,
-        startY: e.clientY,
+        startX: pos.x,
+        startY: pos.y,
         startPosX: design.position.x,
         startPosY: design.position.y,
       });
     }
   }, [designs]);
 
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent, designId: string) => {
+  // Keep old name as alias for backward compat
+  const handleMouseDown = handlePointerDown;
+
+  const handleResizePointerDown = useCallback((e: React.MouseEvent | React.TouchEvent, designId: string) => {
     e.preventDefault();
     e.stopPropagation();
     const design = designs.find(d => d.id === designId);
+    const pos = getPointerPos(e);
     if (design) {
       setResizeState({
         isResizing: true,
-        startX: e.clientX,
-        startY: e.clientY,
+        startX: pos.x,
+        startY: pos.y,
         startSize: design.currentSizePx,
       });
     }
   }, [designs]);
 
+  const handleResizeMouseDown = handleResizePointerDown;
+
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+      const pos = 'touches' in e && e.touches.length > 0
+        ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        : 'clientX' in e ? { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY } : null;
+      if (!pos) return;
+
       if (dragState?.isDragging && selectedDesignId && previewRef.current) {
+        e.preventDefault();
         const rect = previewRef.current.getBoundingClientRect();
-        const deltaX = ((e.clientX - dragState.startX) / rect.width) * 100;
-        const deltaY = ((e.clientY - dragState.startY) / rect.height) * 100;
+        const deltaX = ((pos.x - dragState.startX) / rect.width) * 100;
+        const deltaY = ((pos.y - dragState.startY) / rect.height) * 100;
         
         setDesigns(prev => prev.map(d => {
           if (d.id === selectedDesignId) {
@@ -401,9 +427,10 @@ export default function TinyThreadStudio() {
       }
 
       if (resizeState?.isResizing && selectedDesignId) {
+        e.preventDefault();
         const design = designs.find(d => d.id === selectedDesignId);
         if (design) {
-          const delta = e.clientX - resizeState.startX;
+          const delta = pos.x - resizeState.startX;
           const constraints = SIZE_CONSTRAINTS[design.size];
           const newSize = Math.max(constraints.min, Math.min(constraints.max, resizeState.startSize + delta));
           
@@ -417,17 +444,23 @@ export default function TinyThreadStudio() {
       }
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       setDragState(null);
       setResizeState(null);
     };
 
     if (dragState?.isDragging || resizeState?.isResizing) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("mousemove", handlePointerMove);
+      window.addEventListener("mouseup", handlePointerUp);
+      window.addEventListener("touchmove", handlePointerMove, { passive: false });
+      window.addEventListener("touchend", handlePointerUp);
+      window.addEventListener("touchcancel", handlePointerUp);
       return () => {
-        window.removeEventListener("mousemove", handleMouseMove);
-        window.removeEventListener("mouseup", handleMouseUp);
+        window.removeEventListener("mousemove", handlePointerMove);
+        window.removeEventListener("mouseup", handlePointerUp);
+        window.removeEventListener("touchmove", handlePointerMove);
+        window.removeEventListener("touchend", handlePointerUp);
+        window.removeEventListener("touchcancel", handlePointerUp);
       };
     }
   }, [dragState, resizeState, selectedDesignId, designs]);
@@ -701,6 +734,7 @@ export default function TinyThreadStudio() {
                     selectedDesignId === design.id && "ring-2 ring-amber-400"
                   )}
                   onMouseDown={(e) => handleMouseDown(e, design.id)}
+                  onTouchStart={(e) => handlePointerDown(e, design.id)}
                 >
                   <img
                     src={imageToShow}
@@ -728,6 +762,7 @@ export default function TinyThreadStudio() {
                       {/* Resize Handle */}
                       <div
                         onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
+                        onTouchStart={(e) => handleResizePointerDown(e, design.id)}
                         className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-sm cursor-se-resize"
                       />
                       
@@ -1148,6 +1183,7 @@ export default function TinyThreadStudio() {
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleFileUpload(file);
+                  e.target.value = "";
                 }}
                 className="hidden"
               />
@@ -1214,16 +1250,6 @@ export default function TinyThreadStudio() {
                   + Add embroidery to another spot
                 </button>
               )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileUpload(file);
-                }}
-                className="hidden"
-              />
             </div>
           )}
 
