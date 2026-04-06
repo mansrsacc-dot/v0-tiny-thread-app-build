@@ -1,3 +1,4 @@
+import { ImageResponse } from "next/og";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -37,13 +38,12 @@ export async function POST(req: NextRequest) {
       // Get garment image URL from the mapping
       const garmentImageUrl = garmentRef ? GARMENT_URLS[garmentRef] || null : null;
 
-      // --- COMPOSITE: Merge design onto garment as ONE image ---
+      // --- COMPOSITE: Merge design onto garment as ONE image (inline, no external API call) ---
       let placementBase64: string | null = null;
       if (garmentImageUrl && designImageUrl) {
         try {
-          const baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : "https://v0-tiny-thread-app-build.vercel.app";
+          const W = 800;
+          const H = 1000;
 
           let posX = 0, posY = 0, designSizePx = 150;
           try {
@@ -55,27 +55,33 @@ export async function POST(req: NextRequest) {
             }
           } catch {}
 
-          const compositeRes = await fetch(`${baseUrl}/api/composite-image`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              garmentUrl: garmentImageUrl,
-              designImageUrl,
-              positionX: posX,
-              positionY: posY,
-              designSizePx,
-            }),
-          });
+          const designSize = Math.round((designSizePx / 780) * W);
+          const left = Math.round(W * (50 + posX) / 100 - designSize / 2);
+          const top = Math.round(H * (35 + posY) / 100 - designSize / 2);
 
-          if (compositeRes.ok) {
-            const compositeData = await compositeRes.json();
-            if (compositeData.base64) {
-              placementBase64 = compositeData.base64;
-              console.log("[WEBHOOK] Composite image generated, base64 length:", placementBase64!.length);
-            }
-          } else {
-            console.error("[WEBHOOK] Composite failed:", compositeRes.status);
-          }
+          const compositeImage = new ImageResponse(
+            (
+              <div style={{ width: W, height: H, position: "relative", display: "flex" }}>
+                <img
+                  src={garmentImageUrl}
+                  width={W}
+                  height={H}
+                  style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }}
+                />
+                <img
+                  src={designImageUrl}
+                  width={designSize}
+                  height={designSize}
+                  style={{ position: "absolute", left: left, top: top, width: designSize, height: designSize }}
+                />
+              </div>
+            ),
+            { width: W, height: H }
+          );
+
+          const arrayBuffer = await compositeImage.arrayBuffer();
+          placementBase64 = Buffer.from(arrayBuffer).toString("base64");
+          console.log("[WEBHOOK] Composite OK, base64 length:", placementBase64.length);
         } catch (compErr) {
           console.error("[WEBHOOK] Composite error:", compErr);
         }
@@ -99,7 +105,7 @@ export async function POST(req: NextRequest) {
         ? `https://v0-tiny-thread-app-build.vercel.app/api/vectorize-and-send?image=${encodeURIComponent(designImageUrl)}&order=${orderNumber}`
         : null;
       
-      // Send email to designer (fast - no vectorization)
+      // Send email to designer
       const emailBody = {
         from: "TinyThread Orders <onboarding@resend.dev>",
         to: ["karvelsm@gmail.com"],
