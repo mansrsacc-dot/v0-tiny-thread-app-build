@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
+    const body = await req.json();
     const {
       garmentUrl,
       designImageUrl,
@@ -13,12 +14,16 @@ export async function POST(req: NextRequest) {
       style = "outline",
       size = "M",
       placement = "front",
-    } = await req.json();
+    } = body;
 
-    // Step 1: Call our composite-image route to generate the composited image
-    const protocol = process.env.VERCEL_URL ? "https" : "http";
-    const host = process.env.VERCEL_URL || "localhost:3000";
-    const baseUrl = `${protocol}://${host}`;
+    if (!garmentUrl || !designImageUrl) {
+      return NextResponse.json({ error: "Missing image URLs" }, { status: 400 });
+    }
+
+    // STEP 1: Call /api/composite-image to merge design onto garment
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000";
 
     const compositeRes = await fetch(`${baseUrl}/api/composite-image`, {
       method: "POST",
@@ -32,17 +37,25 @@ export async function POST(req: NextRequest) {
       }),
     });
 
+    if (!compositeRes.ok) {
+      const errText = await compositeRes.text();
+      console.error("[SEND-PLACEMENT] Composite route failed:", compositeRes.status, errText);
+      return NextResponse.json({ error: "Composite failed: " + errText }, { status: 500 });
+    }
+
     const compositeData = await compositeRes.json();
 
     if (!compositeData.base64) {
-      console.error("[SEND-PLACEMENT] Composite failed:", compositeData);
-      return NextResponse.json({ error: "Composite failed", details: compositeData }, { status: 500 });
+      console.error("[SEND-PLACEMENT] No base64 returned from composite route");
+      return NextResponse.json({ error: "No composite image returned" }, { status: 500 });
     }
 
-    // Step 2: Calculate size in mm
+    console.log("[SEND-PLACEMENT] Got composited image, base64 length:", compositeData.base64.length);
+
+    // STEP 2: Calculate embroidery size in mm
     const sizeMm = Math.round((designSizePx / 780) * 700);
 
-    // Step 3: Send email with ONE composited image
+    // STEP 3: Send ONE email with ONE composited image attachment
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333; border-bottom: 2px solid #f59e0b; padding-bottom: 8px;">
@@ -50,7 +63,7 @@ export async function POST(req: NextRequest) {
         </h2>
         <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
           <tr>
-            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">Product</td>
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 140px;">Product</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${product}</td>
           </tr>
           <tr>
@@ -88,7 +101,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         from: "TinyThread <onboarding@resend.dev>",
         to: ["karvelsm@gmail.com"],
-        subject: `TinyThread — ${product} ${garmentColor} — ${style} ${size}`,
+        subject: "TinyThread — " + product + " " + garmentColor + " — " + style + " " + size,
         html: emailHtml,
         attachments: [
           {
@@ -101,12 +114,15 @@ export async function POST(req: NextRequest) {
     });
 
     const emailData = await emailRes.json();
-    console.log("[SEND-PLACEMENT] Email response:", JSON.stringify(emailData));
+    console.log("[SEND-PLACEMENT] Resend response:", JSON.stringify(emailData));
+
+    if (!emailRes.ok) {
+      return NextResponse.json({ error: "Email failed", details: emailData }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, emailId: emailData.id });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[SEND-PLACEMENT] Error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error: any) {
+    console.error("[SEND-PLACEMENT] Error:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
