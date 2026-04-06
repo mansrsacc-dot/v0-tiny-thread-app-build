@@ -50,6 +50,53 @@ export async function POST(req: NextRequest) {
       
       console.log("[WEBHOOK] Item:", item.title, "Style:", style, "Size:", size);
       
+      // Generate composited placement image
+      let placementBase64: string | null = null;
+      try {
+        const protocol = process.env.VERCEL_URL ? "https" : "http";
+        const host = process.env.VERCEL_URL || "localhost:3000";
+        const baseUrl = `${protocol}://${host}`;
+
+        // Parse position data for compositing
+        let positionX = 0;
+        let positionY = 0;
+        let designSizePx = 150;
+        try {
+          const posData = JSON.parse(positions);
+          if (posData.length > 0) {
+            positionX = posData[0].x || 0;
+            positionY = posData[0].y || 0;
+            designSizePx = posData[0].size || 150;
+          }
+        } catch {}
+
+        if (garmentImageUrl && designImageUrl) {
+          const compositeRes = await fetch(`${baseUrl}/api/composite-image`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              garmentUrl: garmentImageUrl,
+              designImageUrl,
+              positionX,
+              positionY,
+              designSizePx,
+            }),
+          });
+
+          if (compositeRes.ok) {
+            const compositeData = await compositeRes.json();
+            if (compositeData.base64) {
+              placementBase64 = compositeData.base64;
+              console.log("[WEBHOOK] Composite image generated, length:", placementBase64.length);
+            }
+          } else {
+            console.error("[WEBHOOK] Composite failed:", compositeRes.status);
+          }
+        }
+      } catch (err) {
+        console.error("[WEBHOOK] Composite error:", err);
+      }
+
       // Build vectorize URL for on-demand EPS download (no inline vectorization to avoid timeouts)
       const vectorizeUrl = designImageUrl 
         ? `https://v0-tiny-thread-app-build.vercel.app/api/vectorize-and-send?image=${encodeURIComponent(designImageUrl)}&order=${orderNumber}`
@@ -78,21 +125,11 @@ export async function POST(req: NextRequest) {
               <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Price</td><td style="padding: 8px; border: 1px solid #ddd;">${item.price}</td></tr>
             </table>
             
-            <h3>Garment & Design:</h3>
-            <table><tr>
-              ${garmentImageUrl ? `
-                <td style="padding: 8px; text-align: center; vertical-align: top;">
-                  <img src="${garmentImageUrl}" alt="Garment" style="max-width: 250px; border: 1px solid #ddd; border-radius: 8px;">
-                  <p style="font-size: 12px; color: #666;">Garment (place design on ${placement || 'front'})</p>
-                </td>
-              ` : ''}
-              ${designImageUrl ? `
-                <td style="padding: 8px; text-align: center; vertical-align: top;">
-                  <img src="${designImageUrl}" alt="Design" style="max-width: 250px; border: 1px solid #ddd; border-radius: 8px;">
-                  <p style="font-size: 12px; color: #666;">Design to embroider (${style} — ${size})</p>
-                </td>
-              ` : '<td><p><em>No design image attached</em></p></td>'}
-            </tr></table>
+            <h3>Design Placement:</h3>
+            ${placementBase64 
+              ? `<p style="color: #666; font-size: 13px;">See attached: <strong>placement.png</strong> — shows exact design position on garment.</p>`
+              : `<p style="color: #999;">Placement image not available.</p>`
+            }
             ${positionInfo ? `
               <p style="margin-top: 8px; font-size: 13px;"><strong>Position:</strong><br>${positionInfo}</p>
             ` : ''}
@@ -110,7 +147,11 @@ export async function POST(req: NextRequest) {
             <p style="color: #999; font-size: 12px;">This is an automated message from TinyThread Studio.</p>
           </div>
         `,
-        attachments: []
+        attachments: placementBase64 ? [{
+          filename: "placement.png",
+          content: placementBase64,
+          content_type: "image/png",
+        }] : []
       };
       
       console.log("[WEBHOOK] Sending email to designer...");
