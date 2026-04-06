@@ -118,6 +118,7 @@ interface Design {
   currentHistoryIndex: Record<string, number>;
   regenerationCount: number;
   rawImageUrl: string | null;
+  rotation: number;
 }
 
 export default function TinyThreadStudio() {
@@ -315,6 +316,7 @@ export default function TinyThreadStudio() {
         currentHistoryIndex: {},
         regenerationCount: 0,
         rawImageUrl: null,
+        rotation: 0,
       };
 
       setDesigns(prev => [...prev, newDesign]);
@@ -725,7 +727,7 @@ export default function TinyThreadStudio() {
                     position: "absolute",
                     left: `${design.position.x}%`,
                     top: `${design.position.y}%`,
-                    transform: "translate(-50%, -50%)",
+                    transform: `translate(-50%, -50%) rotate(${design.rotation || 0}deg)`,
                     width: design.currentSizePx,
                     height: design.currentSizePx,
                   }}
@@ -735,6 +737,8 @@ export default function TinyThreadStudio() {
                   )}
                   onMouseDown={(e) => handleMouseDown(e, design.id)}
                   onTouchStart={(e) => handlePointerDown(e, design.id)}
+                  // Prevent page scroll when dragging design on mobile
+                  onTouchMove={(e) => e.preventDefault()}
                 >
                   <img
                     src={imageToShow}
@@ -759,12 +763,38 @@ export default function TinyThreadStudio() {
                         </svg>
                       </button>
                       
+                      {/* Rotate Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDesigns(prev => prev.map(d => 
+                            d.id === design.id ? { ...d, rotation: (d.rotation || 0) + 90 } : d
+                          ));
+                        }}
+                        onTouchEnd={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setDesigns(prev => prev.map(d => 
+                            d.id === design.id ? { ...d, rotation: (d.rotation || 0) + 90 } : d
+                          ));
+                        }}
+                        className="absolute -top-2 -left-2 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center text-black hover:bg-amber-300"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+
                       {/* Resize Handle */}
                       <div
                         onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
                         onTouchStart={(e) => handleResizePointerDown(e, design.id)}
-                        className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-sm cursor-se-resize"
-                      />
+                        className="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-400 rounded-sm cursor-se-resize flex items-center justify-center"
+                      >
+                        <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 20l16-16M12 20h8v-8" />
+                        </svg>
+                      </div>
                       
                       {/* Size Indicator */}
                       <div className={cn(
@@ -1176,19 +1206,21 @@ export default function TinyThreadStudio() {
                   JPG, PNG — max 10MB
                 </p>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileUpload(file);
-                  e.target.value = "";
-                }}
-                className="hidden"
-              />
             </div>
           )}
+
+          {/* File input - always in DOM so hoodie click works */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFileUpload(file);
+              e.target.value = "";
+            }}
+            className="hidden"
+          />
 
           {/* Design Layers */}
           {designs.length > 0 && (
