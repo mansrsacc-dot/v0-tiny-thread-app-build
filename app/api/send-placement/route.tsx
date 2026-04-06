@@ -1,3 +1,4 @@
+import { ImageResponse } from "next/og";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -20,42 +21,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing image URLs" }, { status: 400 });
     }
 
-    // STEP 1: Call /api/composite-image to merge design onto garment
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
+    // --- COMPOSITING: Use ImageResponse (built into Next.js) to overlay design on garment ---
+    const W = 800;
+    const H = 1000;
+    const designSize = Math.round((designSizePx / 780) * W);
+    const left = Math.round(W * (50 + positionX) / 100 - designSize / 2);
+    const top = Math.round(H * (35 + positionY) / 100 - designSize / 2);
 
-    const compositeRes = await fetch(`${baseUrl}/api/composite-image`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        garmentUrl,
-        designImageUrl,
-        positionX,
-        positionY,
-        designSizePx,
-      }),
-    });
+    const compositeImage = new ImageResponse(
+      (
+        <div style={{ width: W, height: H, position: "relative", display: "flex" }}>
+          <img
+            src={garmentUrl}
+            width={W}
+            height={H}
+            style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }}
+          />
+          <img
+            src={designImageUrl}
+            width={designSize}
+            height={designSize}
+            style={{ position: "absolute", left: left, top: top, width: designSize, height: designSize }}
+          />
+        </div>
+      ),
+      { width: W, height: H }
+    );
 
-    if (!compositeRes.ok) {
-      const errText = await compositeRes.text();
-      console.error("[SEND-PLACEMENT] Composite route failed:", compositeRes.status, errText);
-      return NextResponse.json({ error: "Composite failed: " + errText }, { status: 500 });
-    }
+    const arrayBuffer = await compositeImage.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    // --- END COMPOSITING ---
 
-    const compositeData = await compositeRes.json();
-
-    if (!compositeData.base64) {
-      console.error("[SEND-PLACEMENT] No base64 returned from composite route");
-      return NextResponse.json({ error: "No composite image returned" }, { status: 500 });
-    }
-
-    console.log("[SEND-PLACEMENT] Got composited image, base64 length:", compositeData.base64.length);
-
-    // STEP 2: Calculate embroidery size in mm
+    // --- EMAIL: Send ONE image to designer ---
     const sizeMm = Math.round((designSizePx / 780) * 700);
 
-    // STEP 3: Send ONE email with ONE composited image attachment
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333; border-bottom: 2px solid #f59e0b; padding-bottom: 8px;">
@@ -106,7 +105,7 @@ export async function POST(req: NextRequest) {
         attachments: [
           {
             filename: "placement.png",
-            content: compositeData.base64,
+            content: base64,
             content_type: "image/png",
           },
         ],
@@ -114,12 +113,6 @@ export async function POST(req: NextRequest) {
     });
 
     const emailData = await emailRes.json();
-    console.log("[SEND-PLACEMENT] Resend response:", JSON.stringify(emailData));
-
-    if (!emailRes.ok) {
-      return NextResponse.json({ error: "Email failed", details: emailData }, { status: 500 });
-    }
-
     return NextResponse.json({ success: true, emailId: emailData.id });
   } catch (error: any) {
     console.error("[SEND-PLACEMENT] Error:", error.message);
