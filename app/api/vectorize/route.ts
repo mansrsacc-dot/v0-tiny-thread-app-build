@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     // Send to Vectorizer.AI
     const formData = new FormData();
     formData.append("image", imageBlob, "design.png");
-    formData.append("output.format", "eps");
+    formData.append("output.format", "ai");
     formData.append("processing.max_colors", "16");
     formData.append("output.gap_filler.enabled", "false");
 
@@ -32,10 +32,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Vectorization failed" }, { status: 500 });
     }
 
-    const epsBuffer = await response.arrayBuffer();
-    const epsBase64 = "data:application/postscript;base64," + Buffer.from(epsBuffer).toString("base64");
+    const aiBuffer = await response.arrayBuffer();
+    const aiBase64 = "data:application/illustrator;base64," + Buffer.from(aiBuffer).toString("base64");
 
-    return NextResponse.json({ epsUrl: epsBase64 });
+    return NextResponse.json({ epsUrl: aiBase64 });
   } catch (error) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
