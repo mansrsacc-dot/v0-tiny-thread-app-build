@@ -17,6 +17,8 @@ export async function POST(req: NextRequest) {
     const formData = new FormData();
     formData.append("image", imageBlob, "design.png");
     formData.append("output.format", "eps");
+    formData.append("processing.max_colors", "16");
+    formData.append("output.gap_filler.enabled", "false");
 
     const response = await fetch("https://vectorizer.ai/api/v1/vectorize", {
       method: "POST",
