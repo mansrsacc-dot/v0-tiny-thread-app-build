@@ -141,10 +141,10 @@ export async function POST(req: NextRequest) {
             ${vectorizeUrl ? `
               <p style="margin-top: 16px;">
                 <a href="${vectorizeUrl}" style="display: inline-block; padding: 12px 24px; background: #f59e0b; color: black; font-weight: bold; border-radius: 8px; text-decoration: none;">
-                  Download EPS Vector File
+                  Download Vector File (SVG)
                 </a>
               </p>
-              <p style="font-size: 12px; color: #666;">Click the button above to generate and download the vectorized EPS file on-demand.</p>
+              <p style="font-size: 12px; color: #666;">Click the button above to generate and download the vectorized file on-demand.</p>
             ` : '<p style="color: #999;">No design image available for vectorization.</p>'}
             
             <hr style="border: 1px solid #eee; margin-top: 24px;">
