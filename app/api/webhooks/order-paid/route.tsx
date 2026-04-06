@@ -56,8 +56,9 @@ export async function POST(req: NextRequest) {
           } catch {}
 
           const designSize = Math.round((designSizePx / 780) * W);
-          const left = Math.round(W * (50 + posX) / 100 - designSize / 2);
-          const top = Math.round(H * (35 + posY) / 100 - designSize / 2);
+          // posX/posY are absolute percentages (e.g. x=50 means center, y=35 means upper chest)
+          const left = Math.round(W * posX / 100 - designSize / 2);
+          const top = Math.round(H * posY / 100 - designSize / 2);
 
           const compositeImage = new ImageResponse(
             (
