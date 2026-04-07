@@ -73,6 +73,14 @@ const PRICING: Record<string, Record<string, Record<string, number>>> = {
   }
 };
 
+// Back embroidery surcharge by style
+const BACK_SURCHARGE: Record<string, number> = {
+  outline: 20,
+  standard: 25,
+  "photo-stitch": 35,
+  "pet-head": 35,
+};
+
 // Guide content in English and Latvian
 const GUIDE_CONTENT = {
   en: [
@@ -150,7 +158,10 @@ export default function TinyThreadStudio() {
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
-  const currentPrice = PRICING[product]?.[style]?.[size] || 0;
+  const basePrice = PRICING[product]?.[style]?.[size] || 0;
+  const hasBackDesign = designs.some(d => d.view === "back");
+  const backSurcharge = hasBackDesign ? (BACK_SURCHARGE[designs.find(d => d.view === "back")?.style || style] || 0) : 0;
+  const currentPrice = basePrice + backSurcharge;
 
   // Check if first visit and show welcome popup
   useEffect(() => {
@@ -581,21 +592,26 @@ export default function TinyThreadStudio() {
       params.set("properties[Placement]", designSpecs.map(d => d.view).join(", "));
       params.set("properties[Design Count]", String(designs.length));
       
-      // Add the raw Replicate URL so webhook can vectorize it (~97 chars, not base64)
-      const firstWithRawUrl = designs.find(d => d.rawImageUrl);
-      if (firstWithRawUrl?.rawImageUrl) {
-        params.set("properties[_design_image]", firstWithRawUrl.rawImageUrl);
-      }
+      // Add design image URLs for each side
+      const frontDesign = designs.find(d => d.view === "front");
+      const backDesign = designs.find(d => d.view === "back");
       
-      // Pass garment reference for webhook to look up garment image
-      params.set("properties[_garment]", `${product}-${color}-${view}`);
+      if (frontDesign?.rawImageUrl) {
+        params.set("properties[_design_image]", frontDesign.rawImageUrl);
+        params.set("properties[_garment]", `${product}-${color}-front`);
+      }
+      if (backDesign?.rawImageUrl) {
+        params.set("properties[_design_image_back]", backDesign.rawImageUrl);
+        params.set("properties[_garment_back]", `${product}-${color}-back`);
+      }
       
       // Pass design position info for the designer
       const positionInfo = designs.map(d => ({
         view: d.view,
         x: d.position.x,
         y: d.position.y,
-        size: d.currentSizePx || 150
+        size: d.currentSizePx || 150,
+        rotation: d.rotation || 0
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
@@ -1159,7 +1175,12 @@ export default function TinyThreadStudio() {
             )}
             <div className="text-center text-sm mt-2">
               <span className={theme === "dark" ? "text-white/40" : "text-gray-500"}>Price: </span>
-              <span className="text-amber-400 font-bold text-lg">{currentPrice > 0 ? `€${currentPrice}` : "—"}</span>
+              <span className="text-amber-400 font-bold text-lg">
+                {currentPrice > 0 ? `€${currentPrice}` : "—"}
+              </span>
+              {backSurcharge > 0 && (
+                <span className="text-amber-400/60 text-xs ml-1">(incl. back +€{backSurcharge})</span>
+              )}
             </div>
           </div>
 
@@ -1269,19 +1290,30 @@ export default function TinyThreadStudio() {
                   </div>
                 ))}
               </div>
-              {designs.length < 2 && (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
-                    theme === "dark"
-                      ? "border-neutral-700 text-neutral-400 hover:border-neutral-600"
-                      : "border-gray-300 text-gray-500 hover:border-gray-400"
-                  )}
-                >
-                  + Add embroidery to another spot
-                </button>
-              )}
+              {/* Show "Add to back/front" button only for hoodies, max 1 per side */}
+              {product === "hoodie" && designs.length === 1 && (() => {
+                const existingView = designs[0]?.view;
+                const otherView = existingView === "front" ? "back" : "front";
+                const hasOtherSide = designs.some(d => d.view === otherView);
+                if (hasOtherSide) return null;
+                const surcharge = BACK_SURCHARGE[style] || 20;
+                return (
+                  <button
+                    onClick={() => {
+                      setView(otherView as "front" | "back");
+                      setTimeout(() => fileInputRef.current?.click(), 100);
+                    }}
+                    className={cn(
+                      "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
+                      theme === "dark"
+                        ? "border-amber-700/50 text-amber-400 hover:border-amber-600 hover:bg-amber-900/20"
+                        : "border-amber-300 text-amber-600 hover:border-amber-400 hover:bg-amber-50"
+                    )}
+                  >
+                    + Add embroidery to the {otherView} (+€{surcharge})
+                  </button>
+                );
+              })()}
             </div>
           )}
 
