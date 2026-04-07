@@ -55,6 +55,32 @@ const VARIANT_IDS: Record<string, string> = {
   "cap-white-M-standard": "56937204646219",
   "cap-white-M-photo-stitch": "56937204678987",
   "cap-white-M-pet-head": "56937204711755",
+  // Hoodie Black — Front + Back
+  "hoodie-black-S-outline-fb": "56975651111243",
+  "hoodie-black-S-standard-fb": "56975651144011",
+  "hoodie-black-S-photo-stitch-fb": "56975651176779",
+  "hoodie-black-S-pet-head-fb": "56975651209547",
+  "hoodie-black-M-outline-fb": "56975651242315",
+  "hoodie-black-M-standard-fb": "56975651275083",
+  "hoodie-black-M-photo-stitch-fb": "56975651307851",
+  "hoodie-black-M-pet-head-fb": "56975651340619",
+  "hoodie-black-L-outline-fb": "56975651373387",
+  "hoodie-black-L-standard-fb": "56975651406155",
+  "hoodie-black-L-photo-stitch-fb": "56975651438923",
+  "hoodie-black-L-pet-head-fb": "56975651471691",
+  // Hoodie White — Front + Back
+  "hoodie-white-S-outline-fb": "56975651504459",
+  "hoodie-white-S-standard-fb": "56975651537227",
+  "hoodie-white-S-photo-stitch-fb": "56975651569995",
+  "hoodie-white-S-pet-head-fb": "56975651602763",
+  "hoodie-white-M-outline-fb": "56975651635531",
+  "hoodie-white-M-standard-fb": "56975651668299",
+  "hoodie-white-M-photo-stitch-fb": "56975651701067",
+  "hoodie-white-M-pet-head-fb": "56975651733835",
+  "hoodie-white-L-outline-fb": "56975651766603",
+  "hoodie-white-L-standard-fb": "56975651799371",
+  "hoodie-white-L-photo-stitch-fb": "56975651832139",
+  "hoodie-white-L-pet-head-fb": "56975651864907",
 };
 
 // Pricing based on product, style, and size
@@ -567,8 +593,11 @@ export default function TinyThreadStudio() {
 
     setIsAddingToCart(true);
     try {
-      // Get the correct variant ID based on product + color + size + style
-      const variantKey = `${product}-${color}-${size}-${style}`;
+      // Get the correct variant ID based on product + color + size + style + placement
+      const hasFrontAndBack = designs.some(d => d.view === "front") && designs.some(d => d.view === "back");
+      const variantKey = hasFrontAndBack
+        ? `${product}-${color}-${size}-${style}-fb`
+        : `${product}-${color}-${size}-${style}`;
       const variantId = VARIANT_IDS[variantKey];
       
       if (!variantId) {
