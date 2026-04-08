@@ -322,6 +322,28 @@ export default function TinyThreadStudio() {
     }
   }, [color, removeImageBackground]);
 
+  const compressImage = (base64: string, maxWidth = 1024): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) {
+          h = Math.round(h * maxWidth / w);
+          w = maxWidth;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => resolve(base64);
+      img.src = base64;
+    });
+  };
+
   const handleFileUpload = useCallback((file: File) => {
     if (designs.length >= 2) {
       alert("Maximum 2 designs allowed");
@@ -329,9 +351,10 @@ export default function TinyThreadStudio() {
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      console.log("[UPLOAD] Base64 length:", base64.length);
+    reader.onloadend = async () => {
+      const rawBase64 = reader.result as string;
+      const base64 = await compressImage(rawBase64, 1024);
+      console.log("[UPLOAD] Base64 length:", base64.length, "(compressed from", rawBase64.length, ")");
       
       if (base64.length < 1000) {
         alert("Error: Image data too small");

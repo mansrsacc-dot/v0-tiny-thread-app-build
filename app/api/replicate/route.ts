@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         prompt = "make closest objects (humans,dogs,cars) whichever are most significant to picture to outlined picture with only thick bold black thread on plain white background. not too many lines. remove lines from face keep only outer silhouette of face features. maximum 8 clean bold lines per subject. like a one-line tattoo with thick visible lines. no hoodie no clothing no background objects just the subjects on solid white. no stray lines at all. no horizontal lines. no ground lines. no base lines. no pedestal lines. no lines extending below the subject. no floor or surface lines. the outline must float on the background with nothing underneath it. only draw the actual subject shape nothing else. lines must be thick and clearly visible. the bottom of the subject should end cleanly with no extra lines trailing downward.";
       }
     } else if (style === "standard") {
-      prompt = "make closest objects (humans,dogs,cars) whichever are most significant to picture into a flat color vector graphic on white background. bold solid colors maximum 6 colors clean hard edges no gradients no texture no shading. like a simple app icon or vinyl sticker. no background objects just the subjects on solid white.";
+      prompt = "convert the main subject of this image into a simple flat color logo. maximum 6 solid colors, clean hard edges, no gradients, no shading, no texture. like a vinyl sticker or app icon. plain white background. only the main subject, nothing else.";
     } else if (style === "photo-stitch") {
       prompt = "make closest objects (humans,dogs,cars) whichever are most significant to picture to embroided on black background";
     } else if (style === "pet-head") {
