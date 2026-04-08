@@ -725,13 +725,8 @@ export default function TinyThreadStudio() {
             className="relative w-full h-full max-w-2xl"
             style={{ cursor: designs.length === 0 ? 'pointer' : 'default' }}
             onClick={(e) => {
-              // If no designs, trigger file upload via ref
-              if (designs.length === 0 && fileInputRef.current) {
-                fileInputRef.current.click();
-                return;
-              }
               // Only deselect if clicking directly on the preview background, not on a design overlay
-              if (e.target === e.currentTarget || e.target instanceof HTMLImageElement) {
+              if (designs.length > 0 && (e.target === e.currentTarget || e.target instanceof HTMLImageElement)) {
                 setSelectedDesignId(null);
               }
             }}
@@ -947,7 +942,7 @@ export default function TinyThreadStudio() {
             {designs.length === 0 && (
               <div 
                 className="absolute inset-0 flex items-center justify-center z-10 group cursor-pointer transition-all"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
               >
                 {/* Dark overlay that appears on hover */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 rounded-lg" />
