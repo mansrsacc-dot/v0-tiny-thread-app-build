@@ -9,6 +9,104 @@ import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+// Translations
+const T: Record<string, Record<string, string>> = {
+  en: {
+    product: "PRODUCT",
+    color: "COLOR",
+    view: "VIEW",
+    front: "Front",
+    back: "Back",
+    size: "SIZE",
+    style: "STYLE",
+    price: "Price",
+    uploadPhoto: "UPLOAD PHOTO",
+    dropImage: "Drop image or browse",
+    maxFileSize: "JPG, PNG - max 10MB",
+    clickToUpload: "Click to upload your photo",
+    fileFormats: "JPG, PNG - max 10MB",
+    generating: "Generating embroidery...",
+    regenerate: "Regenerate",
+    left: "left",
+    addToCart: "Add to Cart",
+    addToBack: "Add embroidery to the back",
+    addToFront: "Add embroidery to the front",
+    designLayers: "DESIGN LAYERS",
+    removeBackground: "Remove background",
+    original: "Original",
+    stitched: "Stitched",
+    howItWorks: "How It Works",
+    outline: "Outline",
+    outlineDesc: "Elegant line-art style",
+    outlineBest: "Best for: portraits, minimalist designs, signatures",
+    standard: "Standard Logo",
+    standardDesc: "Clean, sharp embroidery",
+    standardBest: "Best for: logos, text, badges",
+    photoStitch: "Photo Stitch",
+    photoStitchDesc: "Ultra-detailed thread painting",
+    photoStitchBest: "Best for: portraits, pets, cars",
+    petHead: "Pet Head",
+    petHeadDesc: "Embroidered pet face portrait",
+    petHeadBest: "Best for: single pet close-up",
+    inclBack: "incl. back",
+    welcome: "Welcome to TinyThread Studio",
+    welcomeDesc: "Create your custom embroidered garment in minutes",
+    welcomeLang: "Want to learn how the studio works? Choose your language:",
+    englishGuide: "English Guide",
+    latvianGuide: "Latvie\u0161u ce\u013Cvedis",
+    skipGuide: "Skip - I'll figure it out",
+    hoodie: "Hoodie",
+    cap: "Cap",
+  },
+  lv: {
+    product: "PRODUKTS",
+    color: "KR\u0100SA",
+    view: "SKATS",
+    front: "Priek\u0161a",
+    back: "Aizmugure",
+    size: "IZM\u0112RS",
+    style: "STILS",
+    price: "Cena",
+    uploadPhoto: "AUGŠUPIELĀDĒ FOTO",
+    dropImage: "Ievelc vai izvēlies failu",
+    maxFileSize: "JPG, PNG - maks. 10MB",
+    clickToUpload: "Nospied, lai augšupielādētu foto",
+    fileFormats: "JPG, PNG - maks. 10MB",
+    generating: "Ģenerē izšuvumu...",
+    regenerate: "Ģenerēt vēlreiz",
+    left: "atlicis",
+    addToCart: "Pievienot grozam",
+    addToBack: "Pievienot izšuvumu aizmugurē",
+    addToFront: "Pievienot izšuvumu priekšā",
+    designLayers: "DIZAINA SLĀŅI",
+    removeBackground: "Noņemt fonu",
+    original: "Oriģināls",
+    stitched: "Izšuvums",
+    howItWorks: "Kā tas strādā",
+    outline: "Kontūra",
+    outlineDesc: "Elegants līniju stils",
+    outlineBest: "Piemērots: portreti, minimālistiski dizaini",
+    standard: "Standarta Logo",
+    standardDesc: "Tīrs, ass izšuvums",
+    standardBest: "Piemērots: logo, teksts, emblēmas",
+    photoStitch: "Foto Izšuvums",
+    photoStitchDesc: "Detalizēts diegu gleznojums",
+    photoStitchBest: "Piemērots: portreti, mājdzīvnieki, auto",
+    petHead: "Mīluļa Portrets",
+    petHeadDesc: "Izšūts mājdzīvnieka portrets",
+    petHeadBest: "Piemērots: viena mājdzīvnieka tuvplāns",
+    inclBack: "iekļ. aizmugure",
+    welcome: "Laipni lūgti TinyThread Studijā",
+    welcomeDesc: "Izveido savu pielāgoto izšuvumu dažu minūšu laikā",
+    welcomeLang: "Gribi uzzināt, kā studija strādā? Izvēlies valodu:",
+    englishGuide: "English Guide",
+    latvianGuide: "Latvie\u0161u ce\u013Cvedis",
+    skipGuide: "Izlaist",
+    hoodie: "Džemperis",
+    cap: "Cepure",
+  },
+};
+
 // Product variant IDs - map from product+color+size+style to numeric variant ID
 const VARIANT_IDS: Record<string, string> = {
   // Hoodie Black
@@ -157,6 +255,8 @@ interface Design {
 
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [lang, setLang] = useState<"en" | "lv">("en");
+  const t = T[lang] || T.en;
   const [product, setProduct] = useState<Product>("hoodie");
   const [color, setColor] = useState<Color>("black");
   const [view, setView] = useState<View>("front");
@@ -199,6 +299,13 @@ export default function TinyThreadStudio() {
   // Read URL parameters to pre-select product and color
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const urlLang = params.get("lang");
+    if (urlLang === "lv" || urlLang === "en") setLang(urlLang);
+    // Also detect from referrer or document language
+    if (!urlLang && typeof document !== "undefined") {
+      const htmlLang = document.documentElement.lang;
+      if (htmlLang?.startsWith("lv")) setLang("lv");
+    }
     const urlProduct = params.get("product");
     const urlColor = params.get("color");
     
@@ -978,7 +1085,7 @@ export default function TinyThreadStudio() {
                     </svg>
                   </div>
                   <div className="text-center">
-                    <p className="text-white font-semibold text-sm group-hover:text-amber-400 transition-colors">Click to upload your photo</p>
+                    <p className="text-white font-semibold text-sm group-hover:text-amber-400 transition-colors">{t.clickToUpload}</p>
                     <p className="text-white/40 text-xs mt-1">JPG, PNG — max 10MB</p>
                   </div>
                 </div>
@@ -990,7 +1097,7 @@ export default function TinyThreadStudio() {
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
                 <div className="flex flex-col items-center gap-3">
                   <Spinner className="w-8 h-8 text-amber-400" />
-                  <span className="text-white text-sm">Generating embroidery...</span>
+                  <span className="text-white text-sm">{t.generating}</span>
                 </div>
               </div>
             )}
@@ -1063,7 +1170,7 @@ export default function TinyThreadStudio() {
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            How It Works
+            {t.howItWorks}
           </button>
 
           {/* Product Selection */}
@@ -1088,7 +1195,7 @@ export default function TinyThreadStudio() {
                         : "border-gray-200 text-gray-700 hover:border-gray-300"
                   )}
                 >
-                  {p === "hoodie" ? "Hoodie" : "Cap"}
+                  {p === "hoodie" ? t.hoodie : t.cap}
                 </button>
               ))}
             </div>
