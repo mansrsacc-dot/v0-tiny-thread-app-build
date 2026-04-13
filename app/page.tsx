@@ -1340,8 +1340,9 @@ export default function TinyThreadStudio() {
                           )}
                         >
                           <button
-                            onClick={(e) => { e.preventDefault(); applySavedDesign(saved); }}
-                            className="w-full aspect-[4/3] block"
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); applySavedDesign(saved); }}
+                            className="w-full aspect-[4/3] block cursor-pointer"
                           >
                             <img
                               src={saved.generatedImageUrl || saved.originalImageUrl}
