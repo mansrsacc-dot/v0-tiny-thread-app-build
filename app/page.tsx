@@ -277,6 +277,13 @@ export default function TinyThreadStudio() {
   const [guideStep, setGuideStep] = useState(0);
   const [showConfirmCart, setShowConfirmCart] = useState(false);
   
+  // Customer & saved designs state
+  const [customer, setCustomer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+  const [savedDesigns, setSavedDesigns] = useState<any[]>([]);
+  const [showSavedDesigns, setShowSavedDesigns] = useState(false);
+  const [isSavingDesign, setIsSavingDesign] = useState(false);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(false);
+
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationLockRef = useRef(false);
@@ -315,7 +322,124 @@ export default function TinyThreadStudio() {
     if (urlColor === "black" || urlColor === "white") {
       setColor(urlColor);
     }
+
+    // Check for Shopify customer token
+    const customerToken = params.get("customer_token");
+    if (customerToken) {
+      fetch("/api/customer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: customerToken }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.id) {
+            setCustomer(data);
+            console.log("[AUTH] Customer logged in:", data.firstName, data.email);
+            // Load saved designs
+            loadSavedDesigns(data.id);
+          }
+        })
+        .catch(e => console.error("[AUTH] Error:", e));
+    }
   }, []);
+
+  // Load saved designs for a customer
+  const loadSavedDesigns = async (customerId: string) => {
+    setIsLoadingSaved(true);
+    try {
+      const res = await fetch(`/api/designs?customerId=${customerId}`);
+      const data = await res.json();
+      if (data.designs) {
+        setSavedDesigns(data.designs);
+        console.log("[DESIGNS] Loaded", data.designs.length, "saved designs");
+      }
+    } catch (e) {
+      console.error("[DESIGNS] Load error:", e);
+    }
+    setIsLoadingSaved(false);
+  };
+
+  // Save current design
+  const handleSaveDesign = async (design: Design) => {
+    if (!customer) {
+      toast({ title: lang === "lv" ? "Lūdzu, ielogojies" : "Please log in", description: lang === "lv" ? "Lai saglabātu dizainu, nepieciešams konts" : "You need an account to save designs" });
+      return;
+    }
+    setIsSavingDesign(true);
+    try {
+      // Store the generated image permanently (Replicate URLs expire)
+      let permanentGeneratedUrl = design.processedImages[design.style] || null;
+      if (design.rawImageUrl) {
+        try {
+          const storeRes = await fetch("/api/store-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl: design.rawImageUrl }),
+          });
+          const storeData = await storeRes.json();
+          if (storeData.base64) permanentGeneratedUrl = storeData.base64;
+        } catch {}
+      }
+
+      const res = await fetch("/api/designs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: customer.id,
+          design: {
+            originalImageUrl: design.originalImage,
+            generatedImageUrl: permanentGeneratedUrl,
+            style: design.style,
+            product,
+            garmentColor: color,
+            size: design.size,
+            position: design.position,
+            sizePx: design.currentSizePx,
+            view: design.view,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: lang === "lv" ? "Dizains saglabāts!" : "Design saved!" });
+        await loadSavedDesigns(customer.id);
+      }
+    } catch (e) {
+      console.error("[DESIGNS] Save error:", e);
+      toast({ title: "Error", description: "Failed to save design" });
+    }
+    setIsSavingDesign(false);
+  };
+
+  // Apply a saved design to the current garment
+  const applySavedDesign = (saved: any) => {
+    const newDesign: Design = {
+      id: `saved_${Date.now()}`,
+      style: saved.style || style,
+      size: saved.size || size,
+      view: saved.view || view,
+      position: saved.position || { x: 50, y: 40 },
+      currentSizePx: saved.sizePx || 150,
+      processedImages: saved.generatedImageUrl ? { [saved.style || style]: saved.generatedImageUrl } : {},
+      originalImage: saved.originalImageUrl || "",
+      generationHistory: {},
+      currentHistoryIndex: {},
+      regenerationCount: 0,
+      rawImageUrl: null,
+      rotation: 0,
+    };
+
+    setDesigns(prev => {
+      const existing = prev.filter(d => d.view !== newDesign.view);
+      return [...existing, newDesign];
+    });
+    setSelectedDesignId(newDesign.id);
+    setView(newDesign.view as View);
+    setStyle(newDesign.style as Style);
+    setShowSavedDesigns(false);
+    toast({ title: lang === "lv" ? "Dizains pielietots!" : "Design applied!" });
+  };
 
   const getGarmentImage = () => {
     if (product === "cap") {
@@ -1163,6 +1287,76 @@ export default function TinyThreadStudio() {
             </button>
           </div>
 
+          {/* Customer Login Status & My Designs */}
+          {customer ? (
+            <div className="space-y-2">
+              <div className={cn(
+                "flex items-center justify-between px-3 py-2 rounded-lg text-sm",
+                theme === "dark" ? "bg-amber-900/20 text-amber-400" : "bg-amber-50 text-amber-700"
+              )}>
+                <span>{customer.firstName}</span>
+                <button
+                  onClick={() => setShowSavedDesigns(!showSavedDesigns)}
+                  className={cn(
+                    "text-xs px-2 py-1 rounded transition-colors",
+                    theme === "dark" ? "bg-neutral-800 hover:bg-neutral-700" : "bg-white hover:bg-gray-100"
+                  )}
+                >
+                  {lang === "lv" ? "Mani dizaini" : "My Designs"} ({savedDesigns.length})
+                </button>
+              </div>
+
+              {showSavedDesigns && (
+                <div className={cn(
+                  "rounded-lg p-3 space-y-2 max-h-64 overflow-y-auto",
+                  theme === "dark" ? "bg-neutral-900 border border-neutral-800" : "bg-gray-50 border border-gray-200"
+                )}>
+                  <p className={cn("text-xs font-semibold", theme === "dark" ? "text-white/60" : "text-gray-500")}>
+                    {lang === "lv" ? "SAGLAB\u0100TIE DIZAINI" : "SAVED DESIGNS"}
+                  </p>
+                  {isLoadingSaved ? (
+                    <p className="text-xs text-center py-4 opacity-50">{lang === "lv" ? "Iel\u0101d\u0113..." : "Loading..."}</p>
+                  ) : savedDesigns.length === 0 ? (
+                    <p className="text-xs text-center py-4 opacity-50">{lang === "lv" ? "Nav saglab\u0101tu dizainu" : "No saved designs yet"}</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {savedDesigns.map((saved) => (
+                        <button
+                          key={saved.id}
+                          onClick={() => applySavedDesign(saved)}
+                          className={cn(
+                            "relative rounded-md overflow-hidden aspect-square border-2 transition-all hover:scale-105",
+                            theme === "dark" ? "border-neutral-700 hover:border-amber-400" : "border-gray-200 hover:border-amber-500"
+                          )}
+                        >
+                          <img
+                            src={saved.generatedImageUrl || saved.originalImageUrl}
+                            alt={saved.style}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] px-1 py-0.5 text-center truncate">
+                            {saved.style}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <a
+              href={`https://tinythread.shop/account/login`}
+              target="_top"
+              className={cn(
+                "block text-center text-xs py-2 rounded-lg transition-colors",
+                theme === "dark" ? "text-white/40 hover:text-white/60 hover:bg-neutral-900" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+              )}
+            >
+              {lang === "lv" ? "Ielogojies, lai saglab\u0101tu dizainus" : "Log in to save designs"}
+            </a>
+          )}
+
           {/* How It Works Button */}
           <button
             onClick={() => setShowGuide(true)}
@@ -1436,6 +1630,21 @@ export default function TinyThreadStudio() {
                         {design.view} · {design.size}
                       </div>
                     </div>
+                    {customer && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSaveDesign(design);
+                        }}
+                        disabled={isSavingDesign}
+                        className={cn("p-1 rounded transition-colors", isSavingDesign ? "opacity-50" : "hover:bg-amber-500/20 text-amber-400")}
+                        title={lang === "lv" ? "Saglab\u0101t dizainu" : "Save design"}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
