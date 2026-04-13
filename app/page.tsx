@@ -758,11 +758,27 @@ export default function TinyThreadStudio() {
       if (frontDesign?.rawImageUrl) {
         params.set("properties[_design_image]", frontDesign.rawImageUrl);
         params.set("properties[_garment]", `${product}-${color}-front`);
+        // Store original photo as a shortened base64 reference (Shopify has URL length limits)
+        // We'll send it via the placement email API instead
       }
       if (backDesign?.rawImageUrl) {
         params.set("properties[_design_image_back]", backDesign.rawImageUrl);
         params.set("properties[_garment_back]", `${product}-${color}-back`);
       }
+
+      // Send original photos to our API for the designer email (can't fit base64 in URL params)
+      try {
+        const originals: Record<string, string> = {};
+        if (frontDesign?.originalImage) originals.front = frontDesign.originalImage;
+        if (backDesign?.originalImage) originals.back = backDesign.originalImage;
+        if (Object.keys(originals).length > 0) {
+          fetch("/api/store-originals", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderRef: `${Date.now()}`, originals }),
+          }).catch(() => {});
+        }
+      } catch {}
       
       // Pass design position info for the designer
       const positionInfo = designs.map(d => ({
@@ -774,40 +790,30 @@ export default function TinyThreadStudio() {
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
-      // --- Send placement image to designer ---
+      // --- Send all design data to designer (placement + original photo + SVG vector) ---
       try {
-        const firstDesign = designs.find((d) => d.rawImageUrl || d.processedImages[d.style]);
-        if (firstDesign) {
-          const designUrl = firstDesign.rawImageUrl || firstDesign.processedImages[firstDesign.style];
+        const designData = designs.map(d => ({
+          view: d.view,
+          style: d.style,
+          designUrl: d.rawImageUrl || null,
+          garmentRef: `${product}-${color}-${d.view}`,
+          originalBase64: d.originalImage || null,
+          position: d.position,
+          sizePx: d.currentSizePx || 150,
+        }));
 
-          // Find garment image element to get its Vercel blob URL
-          const garmentEl = document.querySelector("img[alt*='hoodie'], img[alt*='cap'], img[alt*='Hoodie'], img[alt*='Cap'], img[alt*='garment']") as HTMLImageElement | null;
-          const garmentUrl = garmentEl?.src || "";
-
-          if (garmentUrl && designUrl) {
-            // Fire and forget — don't block the cart redirect
-            fetch("/api/send-placement", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                garmentUrl,
-                designImageUrl: designUrl,
-                positionX: firstDesign.position?.x || 0,
-                positionY: firstDesign.position?.y || 0,
-                designSizePx: firstDesign.currentSizePx || 150,
-                product,
-                garmentColor: color,
-                style: firstDesign.style || "outline",
-                size: firstDesign.size || "M",
-                placement: firstDesign.view || "front",
-              }),
-            }).then(r => r.json()).then(d => console.log("[CART] Placement email:", d)).catch(e => console.error("[CART] Placement error:", e));
-          }
-        }
+        fetch("/api/send-placement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ designs: designData, product, garmentColor: color, size }),
+        })
+          .then(r => r.json())
+          .then(d => console.log("[CART] Designer email sent:", d))
+          .catch(e => console.error("[CART] Designer email error:", e));
       } catch (e) {
-        console.error("[CART] Placement failed:", e);
+        console.error("[CART] Designer email failed:", e);
       }
-      // --- End placement ---
+      // --- End designer email ---
       
       params.set("return_to", "/?added=true");
 
