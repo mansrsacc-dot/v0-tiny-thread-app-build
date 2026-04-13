@@ -431,6 +431,7 @@ export default function TinyThreadStudio() {
     try {
       const savedStyle = saved.style || style;
       const savedView = saved.view || view;
+      const thumbUrl = saved.generatedImageUrl || saved.originalImageUrl || "";
       const newDesign: Design = {
         id: `saved_${Date.now()}`,
         style: savedStyle,
@@ -438,8 +439,10 @@ export default function TinyThreadStudio() {
         view: savedView,
         position: saved.position || { x: 50, y: 40 },
         currentSizePx: saved.sizePx || 150,
-        processedImages: saved.generatedImageUrl ? { [savedStyle]: saved.generatedImageUrl } : {},
-        originalImage: saved.originalImageUrl || saved.generatedImageUrl || "",
+        generatedImages: thumbUrl ? { [savedStyle]: thumbUrl } : {},
+        processedImages: thumbUrl ? { [savedStyle]: thumbUrl } : {},
+        removeBackground: false,
+        originalImage: saved.originalImageUrl || thumbUrl,
         generationHistory: {},
         currentHistoryIndex: {},
         regenerationCount: 0,
@@ -1027,11 +1030,9 @@ export default function TinyThreadStudio() {
                 return url;
               };
               
-              const rawImageToShow = showStitched && design.removeBackground
-                ? design.processedImages[design.style] || design.generatedImages[design.style]
-                : showStitched
-                  ? design.generatedImages[design.style]
-                  : design.originalImage;
+              const rawImageToShow = showStitched
+                ? (design.processedImages?.[design.style] || design.originalImage)
+                : design.originalImage;
 
               const imageToShow = getDisplayUrl(rawImageToShow);
               if (!imageToShow) return null;
