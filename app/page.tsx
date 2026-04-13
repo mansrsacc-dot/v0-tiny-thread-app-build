@@ -489,6 +489,8 @@ export default function TinyThreadStudio() {
       });
       setSelectedDesignId(newDesign.id);
       if (savedView === "front" || savedView === "back") setView(savedView);
+      if (["outline", "standard", "photo-stitch", "pet-head"].includes(savedStyle)) setStyle(savedStyle as Style);
+      if (saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
       setShowStitched(true); // Show the generated design, not the original photo
       setShowSavedDesigns(false);
       toast({ title: lang === "lv" ? "Dizains pielietots!" : "Design applied!" });
