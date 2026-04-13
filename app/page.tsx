@@ -1013,7 +1013,7 @@ export default function TinyThreadStudio() {
   }, [designs, product, color, size, style, view, toast]);
 
   return (
-    <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
+    <div className={cn("min-h-screen flex flex-col md:flex-row md:max-w-6xl md:mx-auto", theme === "dark" ? "dark" : "")}>
       {/* Garment Preview - First on mobile, Second on desktop */}
       <div className={cn(
         "w-full md:flex-1 h-[50vh] md:h-auto order-1 md:order-2 flex flex-col relative",
@@ -1040,7 +1040,7 @@ export default function TinyThreadStudio() {
           <div
             ref={previewRef}
             data-testid="garment-preview"
-            className="relative w-full max-w-lg transition-transform duration-150 bg-white rounded-lg shadow-sm"
+            className="relative w-full max-w-xl transition-transform duration-150 bg-white rounded-lg shadow-sm"
             style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})`, transformOrigin: 'center center' }}
             onClick={(e) => {
               if (designs.length > 0 && (e.target === e.currentTarget || e.target instanceof HTMLImageElement)) {
@@ -1326,7 +1326,7 @@ export default function TinyThreadStudio() {
 
       {/* Sidebar Controls - Second on mobile, First on desktop */}
       <div className={cn(
-        "w-full md:w-[280px] md:min-w-[280px] flex-1 md:flex-none order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0",
+        "w-full md:w-[300px] md:min-w-[300px] flex-1 md:flex-none order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0",
         theme === "dark" ? "bg-[#0d0d0d] border-neutral-800" : "bg-white border-gray-200"
       )}>
         <div className="p-4 space-y-6">
