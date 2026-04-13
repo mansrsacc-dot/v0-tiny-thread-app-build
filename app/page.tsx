@@ -489,6 +489,7 @@ export default function TinyThreadStudio() {
       });
       setSelectedDesignId(newDesign.id);
       if (savedView === "front" || savedView === "back") setView(savedView);
+      setShowStitched(true); // Show the generated design, not the original photo
       setShowSavedDesigns(false);
       toast({ title: lang === "lv" ? "Dizains pielietots!" : "Design applied!" });
     } catch (e) {
