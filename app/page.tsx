@@ -1037,34 +1037,33 @@ export default function TinyThreadStudio() {
         <div
           className="flex-1 flex items-center justify-center p-4 md:p-8 relative overflow-hidden"
         >
-          {/* Zoom Button */}
-          <button
-            type="button"
-            onClick={() => setZoom(z => z >= 2 ? 1 : z + 0.5)}
-            className={cn(
-              "absolute bottom-4 right-4 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all",
-              theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white/60 hover:text-white" : "bg-black/5 hover:bg-black/10 text-gray-500 hover:text-gray-800"
-            )}
-            title={zoom >= 2 ? "Reset zoom" : "Zoom in"}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              {zoom < 2 && <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 7.5v6m3-3h-6" />}
-            </svg>
-          </button>
-
           <div
             ref={previewRef}
             data-testid="garment-preview"
             className="relative w-full h-full max-w-2xl transition-transform duration-150"
-            style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})` }}
+            style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})`, transformOrigin: 'center top' }}
             onClick={(e) => {
-              // Only deselect if clicking directly on the preview background, not on a design overlay
               if (designs.length > 0 && (e.target === e.currentTarget || e.target instanceof HTMLImageElement)) {
                 setSelectedDesignId(null);
               }
             }}
           >
+            {/* Zoom Button - inside garment container, bottom right */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setZoom(z => z >= 2 ? 1 : z + 0.5); }}
+              className={cn(
+                "absolute bottom-2 right-2 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white/60 hover:text-white" : "bg-black/5 hover:bg-black/10 text-gray-500 hover:text-gray-800"
+              )}
+              style={{ transform: `scale(${1/zoom})` }}
+              title={zoom >= 2 ? "Reset zoom" : "Zoom in"}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                {zoom < 2 && <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 7.5v6m3-3h-6" />}
+              </svg>
+            </button>
             <img
               src={getGarmentImage()}
               alt={`${product} ${color} ${view}`}
