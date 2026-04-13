@@ -1035,13 +1035,13 @@ export default function TinyThreadStudio() {
 
         {/* Garment Preview */}
         <div
-          className="flex-1 flex items-center justify-center p-4 md:p-8 relative overflow-hidden"
+          className="flex-1 flex items-center justify-center relative overflow-hidden"
         >
           <div
             ref={previewRef}
             data-testid="garment-preview"
-            className="relative w-full h-full max-w-2xl transition-transform duration-150"
-            style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})`, transformOrigin: 'center top' }}
+            className="relative w-full max-w-lg transition-transform duration-150 bg-white rounded-lg shadow-sm"
+            style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})`, transformOrigin: 'center center' }}
             onClick={(e) => {
               if (designs.length > 0 && (e.target === e.currentTarget || e.target instanceof HTMLImageElement)) {
                 setSelectedDesignId(null);
