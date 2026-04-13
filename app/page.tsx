@@ -1016,7 +1016,7 @@ export default function TinyThreadStudio() {
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
       {/* Garment Preview - First on mobile, Second on desktop */}
       <div className={cn(
-        "w-full md:flex-1 h-[50vh] md:h-auto order-1 md:order-2 flex flex-col relative",
+        "w-full md:flex-1 h-[50vh] md:h-screen order-1 md:order-2 flex flex-col relative",
         theme === "dark" ? "bg-[#111]" : "bg-gray-50"
       )}>
         {/* Top Controls - Original/Stitched toggle */}
@@ -1040,7 +1040,7 @@ export default function TinyThreadStudio() {
           <div
             ref={previewRef}
             data-testid="garment-preview"
-            className="relative w-full max-w-2xl mx-auto transition-transform duration-150 bg-white rounded-lg shadow-sm"
+            className="relative w-full max-w-[520px] lg:max-w-[600px] xl:max-w-[680px] mx-auto transition-transform duration-150 bg-white rounded-lg shadow-sm"
             style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})`, transformOrigin: 'center center' }}
             onClick={(e) => {
               if (designs.length > 0 && (e.target === e.currentTarget || e.target instanceof HTMLImageElement)) {
@@ -1053,8 +1053,8 @@ export default function TinyThreadStudio() {
               type="button"
               onClick={(e) => { e.stopPropagation(); setZoom(z => z >= 2 ? 1 : z + 0.5); }}
               className={cn(
-                "absolute bottom-2 right-2 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all",
-                theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white/60 hover:text-white" : "bg-black/5 hover:bg-black/10 text-gray-500 hover:text-gray-800"
+                "absolute bottom-3 right-3 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-md",
+                "bg-black/30 hover:bg-black/50 text-white/80 hover:text-white"
               )}
               style={{ transform: `scale(${1/zoom})` }}
               title={zoom >= 2 ? "Reset zoom" : "Zoom in"}
@@ -1326,7 +1326,7 @@ export default function TinyThreadStudio() {
 
       {/* Sidebar Controls - Second on mobile, First on desktop */}
       <div className={cn(
-        "w-full md:w-[340px] md:min-w-[340px] flex-1 md:flex-none order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0",
+        "w-full md:w-72 lg:w-80 xl:w-96 md:min-w-[288px] flex-shrink-0 order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0 md:h-screen md:sticky md:top-0",
         theme === "dark" ? "bg-[#0d0d0d] border-neutral-800" : "bg-white border-gray-200"
       )}>
         <div className="p-4 space-y-6">
