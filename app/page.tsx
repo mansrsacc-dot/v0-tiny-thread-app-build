@@ -1054,7 +1054,7 @@ export default function TinyThreadStudio() {
               onClick={(e) => { e.stopPropagation(); setZoom(z => z >= 2 ? 1 : z + 0.5); }}
               className={cn(
                 "absolute bottom-3 right-3 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-md",
-                "bg-black/30 hover:bg-black/50 text-white/80 hover:text-white"
+                "bg-black hover:bg-black/80 text-white"
               )}
               style={{ transform: `scale(${1/zoom})` }}
               title={zoom >= 2 ? "Reset zoom" : "Zoom in"}
