@@ -1336,55 +1336,50 @@ export default function TinyThreadStudio() {
                     <p className="text-xs text-center py-4 opacity-50">{lang === "lv" ? "Nav saglab\u0101tu dizainu" : "No saved designs yet"}</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      {savedDesigns.map((saved) => (
-                        <div
-                          key={saved.id}
-                          className={cn(
-                            "relative rounded-lg overflow-hidden border-2 transition-all group",
-                            theme === "dark" ? "border-neutral-700 hover:border-amber-400" : "border-gray-200 hover:border-amber-500"
-                          )}
-                        >
+                      {savedDesigns.map((saved) => {
+                        const thumbSrc = saved.generatedImageUrl || saved.originalImageUrl || "";
+                        return (
                           <div
-                            role="button"
-                            tabIndex={0}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => applySavedDesign(saved)}
-                            className="w-full aspect-[4/3] cursor-pointer"
+                            key={saved.id}
+                            className={cn(
+                              "rounded-lg overflow-hidden border-2 transition-all",
+                              theme === "dark" ? "border-neutral-700 hover:border-amber-400" : "border-gray-200 hover:border-amber-500"
+                            )}
                           >
-                            <img
-                              src={saved.generatedImageUrl || saved.originalImageUrl}
-                              alt={saved.style}
-                              className="w-full h-full object-cover pointer-events-none"
-                              draggable={false}
+                            <div
+                              className="w-full aspect-[4/3] cursor-pointer overflow-hidden"
+                              style={{ backgroundImage: `url(${thumbSrc})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                              onClick={() => { applySavedDesign(saved); }}
                             />
+                            <div className="flex items-center justify-between px-2 py-1" style={{ background: theme === "dark" ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.9)" }}>
+                              <span
+                                className={cn("text-[10px] truncate flex-1 cursor-pointer", theme === "dark" ? "text-white/70" : "text-gray-600")}
+                                onClick={() => { applySavedDesign(saved); }}
+                              >
+                                {saved.style} - {saved.view}
+                              </span>
+                              <span
+                                className="text-red-400 hover:text-red-300 p-0.5 cursor-pointer"
+                                onClick={() => {
+                                  if (customer) {
+                                    fetch("/api/designs", {
+                                      method: "DELETE",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ customerId: customer.id, designId: saved.id }),
+                                    })
+                                      .then(() => loadSavedDesigns(customer.id))
+                                      .catch(() => {});
+                                  }
+                                }}
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between px-2 py-1" style={{ background: theme === "dark" ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.9)" }}>
-                            <span className={cn("text-[10px] truncate", theme === "dark" ? "text-white/70" : "text-gray-600")}>
-                              {saved.style} - {saved.view}
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (customer) {
-                                  fetch("/api/designs", {
-                                    method: "DELETE",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ customerId: customer.id, designId: saved.id }),
-                                  })
-                                    .then(() => loadSavedDesigns(customer.id))
-                                    .catch(() => {});
-                                }
-                              }}
-                              className="text-red-400 hover:text-red-300 p-0.5"
-                              title={lang === "lv" ? "Dz\u0113st" : "Delete"}
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
