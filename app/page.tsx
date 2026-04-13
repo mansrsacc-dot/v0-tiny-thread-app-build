@@ -423,6 +423,25 @@ export default function TinyThreadStudio() {
       setColor(urlColor);
     }
 
+    // Auto-login if customer_email + signature are passed from Shopify
+    const customerEmail = params.get("customer_email");
+    const emailSig = params.get("customer_sig");
+    if (customerEmail && emailSig) {
+      fetch("/api/customer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: customerEmail, emailSignature: emailSig }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.id) {
+            setCustomer(data);
+            loadSavedDesigns(data.id);
+            console.log("[AUTH] Auto-logged in:", data.firstName);
+          }
+        })
+        .catch(e => console.error("[AUTH] Auto-login error:", e));
+    }
   }, []);
 
   // Load saved designs for a customer
