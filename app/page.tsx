@@ -1380,10 +1380,15 @@ export default function TinyThreadStudio() {
                             )}
                           >
                             <div
-                              className="w-full aspect-[4/3] cursor-pointer overflow-hidden"
-                              style={{ backgroundImage: `url(${thumbSrc})`, backgroundSize: "cover", backgroundPosition: "center" }}
-                              onClick={() => { applySavedDesign(saved); }}
-                            />
+                              className="w-full aspect-[4/3] cursor-pointer overflow-hidden flex items-center justify-center"
+                              style={thumbSrc.startsWith("data:") || thumbSrc.startsWith("http") ? { backgroundImage: `url(${thumbSrc})`, backgroundSize: "cover", backgroundPosition: "center" } : {}}
+                              onClick={() => {
+                                console.log("[SAVED] Clicked design:", saved.id, saved.style);
+                                applySavedDesign(saved);
+                              }}
+                            >
+                              {!thumbSrc && <span className="text-xs opacity-30">{saved.style}</span>}
+                            </div>
                             <div className="flex items-center justify-between px-2 py-1" style={{ background: theme === "dark" ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.9)" }}>
                               <span
                                 className={cn("text-[10px] truncate flex-1 cursor-pointer", theme === "dark" ? "text-white/70" : "text-gray-600")}
