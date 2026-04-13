@@ -13,11 +13,11 @@ const GARMENT_URLS: Record<string, string> = {
 const SHOPIFY_STORE = "us173z-az.myshopify.com";
 const SHOPIFY_TOKEN = "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";
 
-async function shopifyGQL(query: string) {
+async function shopifyGQL(query: string, variables?: Record<string, unknown>) {
   const res = await fetch(`https://${SHOPIFY_STORE}/admin/api/2024-01/graphql.json`, {
     method: "POST",
     headers: { "X-Shopify-Access-Token": SHOPIFY_TOKEN, "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, variables }),
   });
   return res.json();
 }
@@ -69,9 +69,36 @@ async function vectorizeDesign(designUrl: string): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
+  let body: any;
   try {
-    const body = await req.json();
-    console.log("[WEBHOOK] Order paid:", body.id);
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const orderId = String(body.id || "");
+  console.log("[WEBHOOK] Order paid:", orderId);
+
+  // Deduplication: check if we already processed this order
+  if (orderId) {
+    try {
+      const key = `order_${orderId}`;
+      const checkResult = await shopifyGQL(`{ shop { metafield(namespace: "tinythread_processed", key: "${key}") { value } } }`);
+      if (checkResult?.data?.shop?.metafield?.value) {
+        console.log("[WEBHOOK] Already processed order", orderId, "- skipping");
+        return NextResponse.json({ success: true, skipped: true });
+      }
+      // Mark as processing immediately
+      await shopifyGQL(
+        `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message } } }`,
+        { input: [{ ownerId: "gid://shopify/Shop/103759446347", namespace: "tinythread_processed", key, value: new Date().toISOString(), type: "single_line_text_field" }] }
+      );
+    } catch (e) {
+      console.error("[WEBHOOK] Dedup check error:", e);
+    }
+  }
+
+  try {
 
     const orderNumber = body.order_number || body.name || "Unknown";
     const customerEmail = body.email || "Unknown";
