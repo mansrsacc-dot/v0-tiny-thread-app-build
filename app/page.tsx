@@ -428,31 +428,36 @@ export default function TinyThreadStudio() {
 
   // Apply a saved design to the current garment
   const applySavedDesign = (saved: any) => {
-    const newDesign: Design = {
-      id: `saved_${Date.now()}`,
-      style: saved.style || style,
-      size: saved.size || size,
-      view: saved.view || view,
-      position: saved.position || { x: 50, y: 40 },
-      currentSizePx: saved.sizePx || 150,
-      processedImages: saved.generatedImageUrl ? { [saved.style || style]: saved.generatedImageUrl } : {},
-      originalImage: saved.originalImageUrl || "",
-      generationHistory: {},
-      currentHistoryIndex: {},
-      regenerationCount: 0,
-      rawImageUrl: null,
-      rotation: 0,
-    };
+    try {
+      const savedStyle = saved.style || style;
+      const savedView = saved.view || view;
+      const newDesign: Design = {
+        id: `saved_${Date.now()}`,
+        style: savedStyle,
+        size: saved.size || size,
+        view: savedView,
+        position: saved.position || { x: 50, y: 40 },
+        currentSizePx: saved.sizePx || 150,
+        processedImages: saved.generatedImageUrl ? { [savedStyle]: saved.generatedImageUrl } : {},
+        originalImage: saved.originalImageUrl || saved.generatedImageUrl || "",
+        generationHistory: {},
+        currentHistoryIndex: {},
+        regenerationCount: 0,
+        rawImageUrl: null,
+        rotation: 0,
+      };
 
-    setDesigns(prev => {
-      const existing = prev.filter(d => d.view !== newDesign.view);
-      return [...existing, newDesign];
-    });
-    setSelectedDesignId(newDesign.id);
-    setView(newDesign.view as View);
-    setStyle(newDesign.style as Style);
-    setShowSavedDesigns(false);
-    toast({ title: lang === "lv" ? "Dizains pielietots!" : "Design applied!" });
+      setDesigns(prev => {
+        const existing = prev.filter(d => d.view !== savedView);
+        return [...existing, newDesign];
+      });
+      setSelectedDesignId(newDesign.id);
+      if (savedView === "front" || savedView === "back") setView(savedView);
+      setShowSavedDesigns(false);
+      toast({ title: lang === "lv" ? "Dizains pielietots!" : "Design applied!" });
+    } catch (e) {
+      console.error("[DESIGNS] Apply error:", e);
+    }
   };
 
   const getGarmentImage = () => {
@@ -1339,17 +1344,20 @@ export default function TinyThreadStudio() {
                             theme === "dark" ? "border-neutral-700 hover:border-amber-400" : "border-gray-200 hover:border-amber-500"
                           )}
                         >
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); applySavedDesign(saved); }}
-                            className="w-full aspect-[4/3] block cursor-pointer"
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => applySavedDesign(saved)}
+                            className="w-full aspect-[4/3] cursor-pointer"
                           >
                             <img
                               src={saved.generatedImageUrl || saved.originalImageUrl}
                               alt={saved.style}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover pointer-events-none"
+                              draggable={false}
                             />
-                          </button>
+                          </div>
                           <div className="flex items-center justify-between px-2 py-1" style={{ background: theme === "dark" ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.9)" }}>
                             <span className={cn("text-[10px] truncate", theme === "dark" ? "text-white/70" : "text-gray-600")}>
                               {saved.style} - {saved.view}
