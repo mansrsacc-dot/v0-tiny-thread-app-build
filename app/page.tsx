@@ -1036,35 +1036,22 @@ export default function TinyThreadStudio() {
         {/* Garment Preview */}
         <div
           className="flex-1 flex items-center justify-center p-4 md:p-8 relative overflow-hidden"
-          onWheel={(e) => {
-            e.preventDefault();
-            setZoom(z => Math.min(3, Math.max(0.5, z + (e.deltaY > 0 ? -0.1 : 0.1))));
-          }}
         >
-          {/* Zoom Controls */}
-          <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-lg overflow-hidden" style={{ background: theme === "dark" ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.8)" }}>
-            <button
-              type="button"
-              onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
-              className={cn("px-3 py-2 text-sm font-bold transition-colors", theme === "dark" ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-600 hover:text-black hover:bg-black/5")}
-            >
-              -
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoom(1)}
-              className={cn("px-2 py-2 text-xs font-medium transition-colors min-w-[48px] text-center", theme === "dark" ? "text-white/50 hover:text-white" : "text-gray-500 hover:text-black")}
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoom(z => Math.min(3, z + 0.25))}
-              className={cn("px-3 py-2 text-sm font-bold transition-colors", theme === "dark" ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-600 hover:text-black hover:bg-black/5")}
-            >
-              +
-            </button>
-          </div>
+          {/* Zoom Button */}
+          <button
+            type="button"
+            onClick={() => setZoom(z => z >= 2 ? 1 : z + 0.5)}
+            className={cn(
+              "absolute bottom-4 right-4 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all",
+              theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white/60 hover:text-white" : "bg-black/5 hover:bg-black/10 text-gray-500 hover:text-gray-800"
+            )}
+            title={zoom >= 2 ? "Reset zoom" : "Zoom in"}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              {zoom < 2 && <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 7.5v6m3-3h-6" />}
+            </svg>
+          </button>
 
           <div
             ref={previewRef}
