@@ -914,30 +914,27 @@ export default function TinyThreadStudio() {
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
-      // --- Send all design data to designer (placement + original photo + SVG vector) ---
+      // --- Store original photos for the webhook to use later ---
       try {
-        const designData = designs.map(d => ({
-          view: d.view,
-          style: d.style,
-          designUrl: d.rawImageUrl || null,
-          garmentRef: `${product}-${color}-${d.view}`,
-          originalBase64: d.originalImage || null,
-          position: d.position,
-          sizePx: d.currentSizePx || 150,
-        }));
+        const orderRef = `order_${Date.now()}`;
+        params.set("properties[_order_ref]", orderRef);
 
-        fetch("/api/send-placement", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ designs: designData, product, garmentColor: color, size }),
-        })
-          .then(r => r.json())
-          .then(d => console.log("[CART] Designer email sent:", d))
-          .catch(e => console.error("[CART] Designer email error:", e));
-      } catch (e) {
-        console.error("[CART] Designer email failed:", e);
-      }
-      // --- End designer email ---
+        const originals: Record<string, string> = {};
+        const frontD = designs.find(d => d.view === "front");
+        const backD = designs.find(d => d.view === "back");
+        if (frontD?.originalImage) originals.front = frontD.originalImage;
+        if (backD?.originalImage) originals.back = backD.originalImage;
+
+        if (Object.keys(originals).length > 0) {
+          // Store originals in shop metafield for webhook to retrieve
+          fetch("/api/store-originals", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderRef, originals }),
+          }).catch(() => {});
+        }
+      } catch {}
+      // --- End original photo storage ---
       
       params.set("return_to", "/?added=true");
 
