@@ -360,21 +360,25 @@ export default function TinyThreadStudio() {
     setIsLoadingSaved(false);
   };
 
-  // Create a tiny thumbnail from a base64/URL image
-  const createThumbnail = (src: string, size = 200): Promise<string> => {
+  // Create a thumbnail preserving aspect ratio
+  const createThumbnail = (src: string, maxDim = 200): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          const scale = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
         const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext("2d")!;
-        const scale = Math.max(size / img.width, size / img.height);
-        const w = img.width * scale;
-        const h = img.height * scale;
-        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.7));
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/png"));
       };
       img.onerror = () => resolve("");
       img.src = src;
