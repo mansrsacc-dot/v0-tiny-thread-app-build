@@ -288,6 +288,7 @@ export default function TinyThreadStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationLockRef = useRef(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
@@ -1033,12 +1034,43 @@ export default function TinyThreadStudio() {
         </div>
 
         {/* Garment Preview */}
-        <div className="flex-1 flex items-center justify-center p-4 md:p-8">
+        <div
+          className="flex-1 flex items-center justify-center p-4 md:p-8 relative overflow-hidden"
+          onWheel={(e) => {
+            e.preventDefault();
+            setZoom(z => Math.min(3, Math.max(0.5, z + (e.deltaY > 0 ? -0.1 : 0.1))));
+          }}
+        >
+          {/* Zoom Controls */}
+          <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-lg overflow-hidden" style={{ background: theme === "dark" ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.8)" }}>
+            <button
+              type="button"
+              onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
+              className={cn("px-3 py-2 text-sm font-bold transition-colors", theme === "dark" ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-600 hover:text-black hover:bg-black/5")}
+            >
+              -
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom(1)}
+              className={cn("px-2 py-2 text-xs font-medium transition-colors min-w-[48px] text-center", theme === "dark" ? "text-white/50 hover:text-white" : "text-gray-500 hover:text-black")}
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom(z => Math.min(3, z + 0.25))}
+              className={cn("px-3 py-2 text-sm font-bold transition-colors", theme === "dark" ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-600 hover:text-black hover:bg-black/5")}
+            >
+              +
+            </button>
+          </div>
+
           <div
             ref={previewRef}
             data-testid="garment-preview"
-            className="relative w-full h-full max-w-2xl"
-            style={{ cursor: designs.length === 0 ? 'pointer' : 'default' }}
+            className="relative w-full h-full max-w-2xl transition-transform duration-150"
+            style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})` }}
             onClick={(e) => {
               // Only deselect if clicking directly on the preview background, not on a design overlay
               if (designs.length > 0 && (e.target === e.currentTarget || e.target instanceof HTMLImageElement)) {
