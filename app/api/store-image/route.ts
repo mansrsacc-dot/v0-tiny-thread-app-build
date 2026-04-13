@@ -1,37 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 
-// Store images as base64 data URLs in the design metadata
-// For a production system, use Vercel Blob or S3
-// For now, we proxy through this route to fetch and return permanent URLs
-
-// This route fetches an image from a URL (e.g. Replicate) and returns it as base64
-// The base64 can then be stored in the design metadata
+// POST /api/store-image
+// Takes an image URL (e.g. Replicate) or base64, uploads to Vercel Blob, returns permanent URL
 export async function POST(req: NextRequest) {
   try {
-    const { imageUrl, maxWidth = 800 } = await req.json();
+    const { imageUrl, base64Data, filename } = await req.json();
 
-    if (!imageUrl) {
-      return NextResponse.json({ error: "Missing imageUrl" }, { status: 400 });
+    let buffer: Buffer;
+    let contentType = "image/png";
+    const name = filename || `design_${Date.now()}.png`;
+
+    if (base64Data) {
+      // Handle base64 data URL or raw base64
+      const raw = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
+      buffer = Buffer.from(raw, "base64");
+      if (base64Data.includes("image/jpeg")) contentType = "image/jpeg";
+    } else if (imageUrl) {
+      if (imageUrl.startsWith("data:")) {
+        const raw = imageUrl.split(",")[1] || "";
+        buffer = Buffer.from(raw, "base64");
+        if (imageUrl.includes("image/jpeg")) contentType = "image/jpeg";
+      } else {
+        // Fetch from URL
+        const res = await fetch(imageUrl);
+        if (!res.ok) {
+          return NextResponse.json({ error: `Failed to fetch: ${res.status}` }, { status: 502 });
+        }
+        const arrayBuf = await res.arrayBuffer();
+        buffer = Buffer.from(arrayBuf);
+        contentType = res.headers.get("content-type") || "image/png";
+      }
+    } else {
+      return NextResponse.json({ error: "Missing imageUrl or base64Data" }, { status: 400 });
     }
 
-    // If it's already a base64 data URL, just return it (truncated if needed)
-    if (imageUrl.startsWith("data:")) {
-      return NextResponse.json({ base64: imageUrl });
-    }
+    // Upload to Vercel Blob
+    const blob = await put(name, buffer, {
+      access: "public",
+      contentType,
+    });
 
-    // Fetch the image
-    const res = await fetch(imageUrl);
-    if (!res.ok) {
-      return NextResponse.json({ error: `Failed to fetch: ${res.status}` }, { status: 502 });
-    }
+    console.log(`[STORE-IMAGE] Uploaded to Blob: ${blob.url} (${buffer.length} bytes)`);
 
-    const buffer = await res.arrayBuffer();
-    const contentType = res.headers.get("content-type") || "image/png";
-    const base64 = `data:${contentType};base64,${Buffer.from(buffer).toString("base64")}`;
-
-    console.log(`[STORE-IMAGE] Stored image: ${buffer.byteLength} bytes`);
-
-    return NextResponse.json({ base64 });
+    return NextResponse.json({ url: blob.url, size: buffer.length });
   } catch (error: any) {
     console.error("[STORE-IMAGE] Error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });

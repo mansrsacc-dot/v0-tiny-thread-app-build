@@ -385,7 +385,7 @@ export default function TinyThreadStudio() {
     });
   };
 
-  // Save current design
+  // Save current design - uploads full images to permanent storage
   const handleSaveDesign = async (design: Design) => {
     if (!customer) {
       toast({ title: lang === "lv" ? "L\u016bdzu, ielogojies" : "Please log in", description: lang === "lv" ? "Lai saglab\u0101tu dizainu, nepiecie\u0161ams konts" : "You need an account to save designs" });
@@ -393,10 +393,37 @@ export default function TinyThreadStudio() {
     }
     setIsSavingDesign(true);
     try {
-      // Create tiny thumbnails for storage (full images are too large for metafields)
-      const generatedSrc = design.processedImages[design.style] || design.rawImageUrl || "";
-      const thumbnail = await createThumbnail(generatedSrc);
-      const originalThumb = await createThumbnail(design.originalImage);
+      // Upload the generated design to Vercel Blob (permanent URL)
+      let permanentGeneratedUrl = "";
+      const generatedSrc = design.rawImageUrl || design.processedImages?.[design.style] || "";
+      if (generatedSrc) {
+        const uploadRes = await fetch("/api/store-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            generatedSrc.startsWith("data:") || generatedSrc.startsWith("/")
+              ? { base64Data: generatedSrc, filename: `gen_${customer.id}_${Date.now()}.png` }
+              : { imageUrl: generatedSrc, filename: `gen_${customer.id}_${Date.now()}.png` }
+          ),
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.url) permanentGeneratedUrl = uploadData.url;
+      }
+
+      // Upload the original photo to Vercel Blob
+      let permanentOriginalUrl = "";
+      if (design.originalImage) {
+        const origRes = await fetch("/api/store-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64Data: design.originalImage, filename: `orig_${customer.id}_${Date.now()}.jpg` }),
+        });
+        const origData = await origRes.json();
+        if (origData.url) permanentOriginalUrl = origData.url;
+      }
+
+      // Create a small thumbnail for the grid display
+      const thumbnail = await createThumbnail(permanentGeneratedUrl || generatedSrc);
 
       const res = await fetch("/api/designs", {
         method: "POST",
@@ -404,8 +431,9 @@ export default function TinyThreadStudio() {
         body: JSON.stringify({
           customerId: customer.id,
           design: {
-            originalImageUrl: originalThumb,
-            generatedImageUrl: thumbnail,
+            originalImageUrl: permanentOriginalUrl,
+            generatedImageUrl: permanentGeneratedUrl,
+            thumbnailUrl: thumbnail,
             style: design.style,
             product,
             garmentColor: color,
@@ -435,7 +463,7 @@ export default function TinyThreadStudio() {
     try {
       const savedStyle = saved.style || style;
       const savedView = saved.view || view;
-      const thumbUrl = saved.generatedImageUrl || saved.originalImageUrl || "";
+      const fullUrl = saved.generatedImageUrl || saved.thumbnailUrl || saved.originalImageUrl || "";
       const newDesign: Design = {
         id: `saved_${Date.now()}`,
         style: savedStyle,
@@ -443,10 +471,10 @@ export default function TinyThreadStudio() {
         view: savedView,
         position: saved.position || { x: 50, y: 40 },
         currentSizePx: saved.sizePx || 150,
-        generatedImages: thumbUrl ? { [savedStyle]: thumbUrl } : {},
-        processedImages: thumbUrl ? { [savedStyle]: thumbUrl } : {},
+        generatedImages: fullUrl ? { [savedStyle]: fullUrl } : {},
+        processedImages: fullUrl ? { [savedStyle]: fullUrl } : {},
         removeBackground: false,
-        originalImage: saved.originalImageUrl || thumbUrl,
+        originalImage: saved.originalImageUrl || fullUrl,
         generationHistory: {},
         currentHistoryIndex: {},
         regenerationCount: 0,
@@ -1342,7 +1370,7 @@ export default function TinyThreadStudio() {
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {savedDesigns.map((saved) => {
-                        const thumbSrc = saved.generatedImageUrl || saved.originalImageUrl || "";
+                        const thumbSrc = saved.thumbnailUrl || saved.generatedImageUrl || saved.originalImageUrl || "";
                         return (
                           <div
                             key={saved.id}
