@@ -394,8 +394,9 @@ export default function TinyThreadStudio() {
     setIsSavingDesign(true);
     try {
       // Upload the generated design to Vercel Blob (permanent URL)
+      // Prefer processedImages (background removed) over rawImageUrl
       let permanentGeneratedUrl = "";
-      const generatedSrc = design.rawImageUrl || design.processedImages?.[design.style] || "";
+      const generatedSrc = design.processedImages?.[design.style] || design.rawImageUrl || "";
       if (generatedSrc) {
         const uploadRes = await fetch("/api/store-image", {
           method: "POST",
