@@ -253,106 +253,6 @@ interface Design {
   rotation: number;
 }
 
-// Login form component
-function LoginForm({ lang, theme, onLogin }: { lang: string; theme: string; onLogin: (customer: any) => void }) {
-  const [showForm, setShowForm] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async () => {
-    if (!email || !password) return;
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/customer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        setError(lang === "lv" ? "Nepareizs e-pasts vai parole" : "Invalid email or password");
-      } else {
-        onLogin(data);
-      }
-    } catch {
-      setError(lang === "lv" ? "K\u013c\u016bda. M\u0113\u0123ini v\u0113lreiz." : "Error. Please try again.");
-    }
-    setLoading(false);
-  };
-
-  if (!showForm) {
-    return (
-      <button
-        onClick={() => setShowForm(true)}
-        className={cn(
-          "w-full text-center text-xs py-2 rounded-lg transition-colors",
-          theme === "dark" ? "text-white/40 hover:text-white/60 hover:bg-neutral-900" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-        )}
-      >
-        {lang === "lv" ? "Ielogojies, lai saglab\u0101tu dizainus" : "Log in to save designs"}
-      </button>
-    );
-  }
-
-  return (
-    <div className={cn(
-      "rounded-lg p-3 space-y-2",
-      theme === "dark" ? "bg-neutral-900 border border-neutral-800" : "bg-gray-50 border border-gray-200"
-    )}>
-      <p className={cn("text-xs font-semibold", theme === "dark" ? "text-white/60" : "text-gray-500")}>
-        {lang === "lv" ? "PIETEIKTIES" : "LOG IN"}
-      </p>
-      <input
-        type="email"
-        placeholder={lang === "lv" ? "E-pasts" : "Email"}
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className={cn(
-          "w-full px-3 py-2 text-sm rounded-md outline-none",
-          theme === "dark" ? "bg-neutral-800 text-white border border-neutral-700 focus:border-amber-500" : "bg-white text-gray-900 border border-gray-300 focus:border-amber-500"
-        )}
-      />
-      <input
-        type="password"
-        placeholder={lang === "lv" ? "Parole" : "Password"}
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-        className={cn(
-          "w-full px-3 py-2 text-sm rounded-md outline-none",
-          theme === "dark" ? "bg-neutral-800 text-white border border-neutral-700 focus:border-amber-500" : "bg-white text-gray-900 border border-gray-300 focus:border-amber-500"
-        )}
-      />
-      {error && <p className="text-xs text-red-400">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          onClick={handleLogin}
-          disabled={loading || !email || !password}
-          className={cn(
-            "flex-1 py-2 text-sm font-medium rounded-md transition-colors",
-            loading ? "opacity-50" : "",
-            "bg-amber-500 text-black hover:bg-amber-400"
-          )}
-        >
-          {loading ? "..." : (lang === "lv" ? "Ien\u0101kt" : "Log in")}
-        </button>
-        <button
-          onClick={() => setShowForm(false)}
-          className={cn(
-            "px-3 py-2 text-sm rounded-md transition-colors",
-            theme === "dark" ? "text-white/50 hover:bg-neutral-800" : "text-gray-500 hover:bg-gray-100"
-          )}
-        >
-          ✕
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [lang, setLang] = useState<"en" | "lv">("en");
@@ -1444,9 +1344,7 @@ export default function TinyThreadStudio() {
                 </div>
               )}
             </div>
-          ) : (
-            <LoginForm lang={lang} theme={theme} onLogin={(c) => { setCustomer(c); loadSavedDesigns(c.id); }} />
-          )}
+          ) : null}
 
           {/* How It Works Button */}
           <button

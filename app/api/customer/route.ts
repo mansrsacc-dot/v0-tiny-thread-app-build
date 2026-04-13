@@ -17,12 +17,13 @@ async function storefrontQuery(query: string, variables: Record<string, unknown>
   return res.json();
 }
 
-// Simple hash function for email signature
+// HMAC-SHA256 to match Shopify's {{ email | hmac_sha256: secret }} Liquid filter
 async function hashEmail(email: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(email.toLowerCase() + EMAIL_SECRET);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+  const keyData = encoder.encode(EMAIL_SECRET);
+  const key = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(email));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
 }
 
 export async function POST(req: NextRequest) {
