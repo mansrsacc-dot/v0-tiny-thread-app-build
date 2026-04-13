@@ -360,27 +360,39 @@ export default function TinyThreadStudio() {
     setIsLoadingSaved(false);
   };
 
+  // Create a tiny thumbnail from a base64/URL image
+  const createThumbnail = (src: string, size = 80): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d")!;
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.5));
+      };
+      img.onerror = () => resolve("");
+      img.src = src;
+    });
+  };
+
   // Save current design
   const handleSaveDesign = async (design: Design) => {
     if (!customer) {
-      toast({ title: lang === "lv" ? "Lūdzu, ielogojies" : "Please log in", description: lang === "lv" ? "Lai saglabātu dizainu, nepieciešams konts" : "You need an account to save designs" });
+      toast({ title: lang === "lv" ? "L\u016bdzu, ielogojies" : "Please log in", description: lang === "lv" ? "Lai saglab\u0101tu dizainu, nepiecie\u0161ams konts" : "You need an account to save designs" });
       return;
     }
     setIsSavingDesign(true);
     try {
-      // Store the generated image permanently (Replicate URLs expire)
-      let permanentGeneratedUrl = design.processedImages[design.style] || null;
-      if (design.rawImageUrl) {
-        try {
-          const storeRes = await fetch("/api/store-image", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl: design.rawImageUrl }),
-          });
-          const storeData = await storeRes.json();
-          if (storeData.base64) permanentGeneratedUrl = storeData.base64;
-        } catch {}
-      }
+      // Create tiny thumbnails for storage (full images are too large for metafields)
+      const generatedSrc = design.processedImages[design.style] || design.rawImageUrl || "";
+      const thumbnail = await createThumbnail(generatedSrc);
+      const originalThumb = await createThumbnail(design.originalImage);
 
       const res = await fetch("/api/designs", {
         method: "POST",
@@ -388,8 +400,8 @@ export default function TinyThreadStudio() {
         body: JSON.stringify({
           customerId: customer.id,
           design: {
-            originalImageUrl: design.originalImage,
-            generatedImageUrl: permanentGeneratedUrl,
+            originalImageUrl: originalThumb,
+            generatedImageUrl: thumbnail,
             style: design.style,
             product,
             garmentColor: color,
@@ -402,8 +414,10 @@ export default function TinyThreadStudio() {
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: lang === "lv" ? "Dizains saglabāts!" : "Design saved!" });
+        toast({ title: lang === "lv" ? "Dizains saglab\u0101ts!" : "Design saved!" });
         await loadSavedDesigns(customer.id);
+      } else {
+        toast({ title: lang === "lv" ? "K\u013c\u016bda" : "Error", description: data.error || "Failed to save" });
       }
     } catch (e) {
       console.error("[DESIGNS] Save error:", e);
@@ -1670,6 +1684,32 @@ export default function TinyThreadStudio() {
                 );
               })()}
             </div>
+          )}
+
+          {/* Save Design Button */}
+          {customer && designs.length > 0 && (
+            <button
+              onClick={() => {
+                const activeDesign = designs.find(d => d.id === selectedDesignId) || designs[0];
+                if (activeDesign) handleSaveDesign(activeDesign);
+              }}
+              disabled={isSavingDesign}
+              className={cn(
+                "w-full py-2.5 text-sm font-medium rounded-lg border transition-all flex items-center justify-center gap-2",
+                isSavingDesign ? "opacity-50" : "",
+                theme === "dark"
+                  ? "border-amber-700/50 text-amber-400 hover:bg-amber-900/20"
+                  : "border-amber-300 text-amber-600 hover:bg-amber-50"
+              )}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              {isSavingDesign
+                ? (lang === "lv" ? "Saglab\u0101..." : "Saving...")
+                : (lang === "lv" ? "Saglab\u0101t dizainu" : "Save Design")
+              }
+            </button>
           )}
 
           {/* Add to Cart Button - Desktop (in sidebar flow) */}
