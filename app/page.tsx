@@ -997,6 +997,68 @@ export default function TinyThreadStudio() {
       
       params.set("return_to", "/?added=true");
 
+      // --- Auto-save designs on purchase (fire and forget) ---
+      if (customer) {
+        for (const design of designs) {
+          try {
+            const genSrc = design.processedImages?.[design.style] || design.rawImageUrl || "";
+            // Upload generated image to permanent storage
+            const uploadRes = await fetch("/api/store-image", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(
+                genSrc.startsWith("data:") || genSrc.startsWith("/")
+                  ? { base64Data: genSrc, filename: `auto_gen_${customer.id}_${Date.now()}.png` }
+                  : { imageUrl: genSrc, filename: `auto_gen_${customer.id}_${Date.now()}.png` }
+              ),
+            });
+            const uploadData = await uploadRes.json();
+            const permanentGenUrl = uploadData.url || "";
+
+            // Upload original photo
+            let permanentOrigUrl = "";
+            if (design.originalImage) {
+              const origRes = await fetch("/api/store-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ base64Data: design.originalImage, filename: `auto_orig_${customer.id}_${Date.now()}.jpg` }),
+              });
+              const origData = await origRes.json();
+              permanentOrigUrl = origData.url || "";
+            }
+
+            // Create thumbnail for grid
+            const thumb = await createThumbnail(permanentGenUrl || genSrc);
+
+            // Save to designs API
+            await fetch("/api/designs", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customerId: customer.id,
+                design: {
+                  originalImageUrl: permanentOrigUrl,
+                  generatedImageUrl: permanentGenUrl,
+                  thumbnailUrl: thumb,
+                  style: design.style,
+                  product,
+                  garmentColor: color,
+                  size: design.size,
+                  position: design.position,
+                  sizePx: design.currentSizePx,
+                  view: design.view,
+                  autoSaved: true,
+                },
+              }),
+            });
+            console.log("[AUTO-SAVE] Saved design:", design.style, design.view);
+          } catch (e) {
+            console.error("[AUTO-SAVE] Failed:", e);
+          }
+        }
+      }
+      // --- End auto-save ---
+
       // Redirect to Shopify cart/add — this adds to the REAL browser cart
       window.location.href = "https://tinythread.shop/cart/add?" + params.toString();
 
