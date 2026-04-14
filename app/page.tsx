@@ -1114,7 +1114,7 @@ export default function TinyThreadStudio() {
           <div
             ref={previewRef}
             data-testid="garment-preview"
-            className="relative w-full max-w-[520px] lg:max-w-[600px] xl:max-w-[680px] mx-auto transition-transform duration-150 bg-white rounded-lg shadow-sm"
+            className="relative w-full max-w-[85%] mx-auto transition-transform duration-150 bg-white rounded-lg shadow-sm"
             style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})`, transformOrigin: 'center center' }}
             onClick={(e) => {
               if (designs.length > 0 && (e.target === e.currentTarget || e.target instanceof HTMLImageElement)) {
