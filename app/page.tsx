@@ -543,8 +543,8 @@ export default function TinyThreadStudio() {
               }
             }
           } else if (styleType === "standard") {
-            // Remove bright green background (#00FF00 green screen)
-            if (g > 180 && r < 100 && b < 100) {
+            // Remove green screen background - wide range to catch all greens
+            if (g > 100 && g > r * 1.4 && g > b * 1.4) {
               data[i + 3] = 0;
             }
           } else if (styleType === "photo-stitch" || styleType === "pet-head") {
