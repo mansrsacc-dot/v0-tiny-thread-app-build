@@ -138,12 +138,21 @@ export async function POST(req: NextRequest) {
           if (val) {
             const originals = JSON.parse(val);
             if (originals.front) {
-              const data = originals.front.includes(",") ? originals.front.split(",")[1] : originals.front;
-              frontOriginalBase64 = data;
+              if (originals.front.startsWith("http")) {
+                // It's a URL (from saved designs) - fetch and convert to base64
+                const res = await fetch(originals.front);
+                if (res.ok) frontOriginalBase64 = Buffer.from(await res.arrayBuffer()).toString("base64");
+              } else {
+                frontOriginalBase64 = originals.front.includes(",") ? originals.front.split(",")[1] : originals.front;
+              }
             }
             if (originals.back) {
-              const data = originals.back.includes(",") ? originals.back.split(",")[1] : originals.back;
-              backOriginalBase64 = data;
+              if (originals.back.startsWith("http")) {
+                const res = await fetch(originals.back);
+                if (res.ok) backOriginalBase64 = Buffer.from(await res.arrayBuffer()).toString("base64");
+              } else {
+                backOriginalBase64 = originals.back.includes(",") ? originals.back.split(",")[1] : originals.back;
+              }
             }
           }
         } catch (e) { console.error("[WEBHOOK] Failed to load originals:", e); }
