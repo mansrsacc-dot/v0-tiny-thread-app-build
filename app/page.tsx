@@ -955,14 +955,20 @@ export default function TinyThreadStudio() {
       const frontDesign = designs.find(d => d.view === "front");
       const backDesign = designs.find(d => d.view === "back");
       
-      if (frontDesign?.rawImageUrl) {
-        params.set("properties[_design_image]", frontDesign.rawImageUrl);
+      // Get design image URL - check rawImageUrl (fresh generation), processedImages, then generatedImages
+      const getDesignUrl = (d: Design | undefined) => {
+        if (!d) return null;
+        return d.rawImageUrl || d.processedImages?.[d.style] || d.generatedImages?.[d.style] || null;
+      };
+
+      const frontUrl = getDesignUrl(frontDesign);
+      if (frontUrl) {
+        params.set("properties[_design_image]", frontUrl);
         params.set("properties[_garment]", `${product}-${color}-front`);
-        // Store original photo as a shortened base64 reference (Shopify has URL length limits)
-        // We'll send it via the placement email API instead
       }
-      if (backDesign?.rawImageUrl) {
-        params.set("properties[_design_image_back]", backDesign.rawImageUrl);
+      const backUrl = getDesignUrl(backDesign);
+      if (backUrl) {
+        params.set("properties[_design_image_back]", backUrl);
         params.set("properties[_garment_back]", `${product}-${color}-back`);
       }
 
@@ -970,7 +976,9 @@ export default function TinyThreadStudio() {
       try {
         const originals: Record<string, string> = {};
         if (frontDesign?.originalImage) originals.front = frontDesign.originalImage;
+        else if (frontUrl && frontUrl.startsWith("http")) originals.front = frontUrl;
         if (backDesign?.originalImage) originals.back = backDesign.originalImage;
+        else if (backUrl && backUrl.startsWith("http")) originals.back = backUrl;
         if (Object.keys(originals).length > 0) {
           fetch("/api/store-originals", {
             method: "POST",
