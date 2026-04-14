@@ -1296,7 +1296,7 @@ export default function TinyThreadStudio() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                   </svg>
                                 </button>
-                                <span className="text-xs text-neutral-400 min-w-[28px] text-center">
+                                <span className="text-sm text-neutral-400 min-w-[28px] text-center">
                                   {currentIndex + 1}/{history.length}
                                 </span>
                                 <button
@@ -1366,7 +1366,7 @@ export default function TinyThreadStudio() {
         {/* Footer Badges - Hidden on mobile */}
         <div className="hidden md:flex justify-center gap-4 p-4">
           <div className={cn(
-            "px-3 py-1.5 rounded text-xs font-medium uppercase tracking-wider",
+            "px-3 py-1.5 rounded text-sm font-semibold uppercase tracking-wide",
             theme === "dark" ? "bg-neutral-800 text-neutral-400" : "bg-white text-gray-500 shadow-sm"
           )}>
             {product.toUpperCase()} · {color.toUpperCase()} · {view.toUpperCase()}
@@ -1384,10 +1384,10 @@ export default function TinyThreadStudio() {
 
       {/* Sidebar Controls - Second on mobile, First on desktop */}
       <div className={cn(
-        "w-full md:w-72 lg:w-80 xl:w-96 md:min-w-[288px] flex-shrink-0 order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0 md:h-screen md:sticky md:top-0",
+        "w-full md:w-80 lg:w-[360px] xl:w-[400px] md:min-w-[320px] flex-shrink-0 order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0 md:h-screen md:sticky md:top-0",
         theme === "dark" ? "bg-[#0d0d0d] border-neutral-800" : "bg-white border-gray-200"
       )}>
-        <div className="p-4 space-y-6">
+        <div className="p-5 space-y-5">
           {/* Header */}
           <div className="flex items-center justify-between">
             <a href="https://tinythread.shop" className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
@@ -1523,7 +1523,7 @@ export default function TinyThreadStudio() {
 
           {/* Product Selection */}
           <div className="space-y-2">
-            <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+            <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
               Product
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -1551,7 +1551,7 @@ export default function TinyThreadStudio() {
 
           {/* Color Selection */}
           <div className="space-y-2">
-            <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+            <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
               Color
             </label>
             <div className="flex gap-3">
@@ -1574,7 +1574,7 @@ export default function TinyThreadStudio() {
           {/* View Selection */}
           {product === "hoodie" && (
             <div className="space-y-2">
-              <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+              <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                 View
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -1600,7 +1600,7 @@ export default function TinyThreadStudio() {
 
           {/* Size Selection */}
           <div className="space-y-2">
-            <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+            <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
               Size
             </label>
             <div className={cn("grid gap-2", product === "cap" ? "grid-cols-2" : "grid-cols-3")}>
@@ -1633,7 +1633,7 @@ export default function TinyThreadStudio() {
                   )}
                 >
                   <div className={cn("text-lg font-semibold", size === s ? "text-amber-400" : theme === "dark" ? "text-white" : "text-gray-900")}>{s}</div>
-                  <div className={cn("text-[10px]", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
+                  <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
                 </button>
               ))}
             </div>
@@ -1641,7 +1641,7 @@ export default function TinyThreadStudio() {
 
           {/* Style Selection */}
           <div className="space-y-2">
-            <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+            <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
               Style
             </label>
             <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
@@ -1677,7 +1677,7 @@ export default function TinyThreadStudio() {
             )}
             <div className="text-center text-sm mt-2">
               <span className={theme === "dark" ? "text-white/40" : "text-gray-500"}>Price: </span>
-              <span className="text-amber-400 font-bold text-lg">
+              <span className="text-amber-400 font-bold text-xl">
                 {currentPrice > 0 ? `€${currentPrice}` : "—"}
               </span>
               {backSurcharge > 0 && (
@@ -1688,7 +1688,7 @@ export default function TinyThreadStudio() {
 
           {/* Remove Background Toggle */}
           <div className="flex items-center justify-between">
-            <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+            <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
               Remove Background
             </label>
             <Switch
@@ -1701,7 +1701,7 @@ export default function TinyThreadStudio() {
           {/* Upload Photo */}
           {designs.length === 0 && (
             <div className="space-y-2">
-              <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+              <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                 Upload Photo
               </label>
               <div
@@ -1748,7 +1748,7 @@ export default function TinyThreadStudio() {
           {/* Design Layers */}
           {designs.length > 0 && (
             <div className="space-y-2">
-              <label className={cn("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+              <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                 Design Layers
               </label>
               <div className="space-y-2">
@@ -1877,7 +1877,7 @@ export default function TinyThreadStudio() {
                 <>Add to Cart — €{currentPrice}</>
               )}
             </Button>
-            <p className={cn("text-[10px] text-center", theme === "dark" ? "text-white/30" : "text-gray-400")}>
+            <p className={cn("text-xs text-center", theme === "dark" ? "text-white/30" : "text-gray-400")}>
               Your design files will be sent to our embroidery artists
             </p>
           </div>
