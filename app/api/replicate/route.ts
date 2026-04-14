@@ -18,11 +18,7 @@ export async function POST(req: NextRequest) {
         prompt = "make closest objects (humans,dogs,cars) whichever are most significant to picture to outlined picture with only thick bold black thread on plain white background. not too many lines. remove lines from face keep only outer silhouette of face features. maximum 8 clean bold lines per subject. like a one-line tattoo with thick visible lines. no hoodie no clothing no background objects just the subjects on solid white. no stray lines at all. no horizontal lines. no ground lines. no base lines. no pedestal lines. no lines extending below the subject. no floor or surface lines. the outline must float on the background with nothing underneath it. only draw the actual subject shape nothing else. lines must be thick and clearly visible. the bottom of the subject should end cleanly with no extra lines trailing downward.";
       }
     } else if (style === "standard") {
-      if (garmentColor === "black") {
-        prompt = "convert the main subject of this image into a simple flat color logo on a solid black background. keep all original colors including white. maximum 8 solid colors, clean hard edges, no gradients, no shading, no texture. like an embroidered patch or vinyl sticker. solid black background. only the main subject, nothing else. preserve white elements as white.";
-      } else {
-        prompt = "convert the main subject of this image into a simple flat color logo on a solid white background. keep all original colors including black. maximum 8 solid colors, clean hard edges, no gradients, no shading, no texture. like an embroidered patch or vinyl sticker. solid white background. only the main subject, nothing else. preserve black elements as black.";
-      }
+      prompt = "convert the main subject of this image into a simple flat color logo on a solid bright green (#00FF00) background. keep ALL original colors exactly as they are including white and black. maximum 8 solid colors, clean hard edges, no gradients, no shading, no texture. like an embroidered patch or vinyl sticker. the background MUST be solid bright green (#00FF00) and nothing else. only the main subject on the green background.";
     } else if (style === "photo-stitch") {
       prompt = "make closest objects (humans,dogs,cars) whichever are most significant to picture to embroided on black background";
     } else if (style === "pet-head") {
