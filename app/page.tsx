@@ -1099,6 +1099,18 @@ export default function TinyThreadStudio() {
         <div
           className="flex-1 flex items-center justify-center relative overflow-hidden p-4 md:p-6"
         >
+          {/* Zoom Button */}
+          <button
+            type="button"
+            onClick={() => setZoom(z => z >= 2 ? 1 : z + 0.5)}
+            className="absolute bottom-6 right-6 z-30 w-10 h-10 rounded-full flex items-center justify-center shadow-lg bg-black hover:bg-black/80 text-white transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              {zoom < 2 && <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 7.5v6m3-3h-6" />}
+            </svg>
+          </button>
+
           <div
             ref={previewRef}
             data-testid="garment-preview"
@@ -1110,22 +1122,6 @@ export default function TinyThreadStudio() {
               }
             }}
           >
-            {/* Zoom Button - inside garment container, bottom right */}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setZoom(z => z >= 2 ? 1 : z + 0.5); }}
-              className={cn(
-                "absolute bottom-3 right-3 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-md",
-                "bg-black hover:bg-black/80 text-white"
-              )}
-              style={{ transform: `scale(${1/zoom})` }}
-              title={zoom >= 2 ? "Reset zoom" : "Zoom in"}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                {zoom < 2 && <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 7.5v6m3-3h-6" />}
-              </svg>
-            </button>
             <img
               src={getGarmentImage()}
               alt={`${product} ${color} ${view}`}
@@ -1331,7 +1327,7 @@ export default function TinyThreadStudio() {
               );
             })}
 
-            {/* Upload Prompt Overlay */}
+          {/* Upload Prompt Overlay */}
             {designs.length === 0 && (
               <div 
                 className="absolute inset-0 flex items-center justify-center z-10 group cursor-pointer transition-all"
