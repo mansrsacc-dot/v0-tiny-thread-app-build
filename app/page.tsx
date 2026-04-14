@@ -543,10 +543,10 @@ export default function TinyThreadStudio() {
               }
             }
           } else if (styleType === "standard") {
-            // Remove green screen background - wide range to catch all greens
-            if (g > 100 && g > r * 1.4 && g > b * 1.4) {
-              data[i + 3] = 0;
-            }
+            // Standard Logo uses server-side AI bg removal (handled separately)
+            // Return as-is here, the caller handles it
+            resolve(imageUrl);
+            return;
           } else if (styleType === "photo-stitch" || styleType === "pet-head") {
             if (r < threshold && g < threshold && b < threshold) {
               data[i + 3] = 0;
@@ -583,7 +583,23 @@ export default function TinyThreadStudio() {
       if (data.imageUrl) {
         // Save the raw Replicate URL before background removal (for vectorization webhook)
         const rawReplicateUrl = data.imageUrl;
-        const processed = await removeImageBackground(data.imageUrl, styleType, color);
+        let processed: string;
+        if (styleType === "standard") {
+          // Use AI-based background removal for Standard Logo (preserves all colors)
+          try {
+            const bgRes = await fetch("/api/remove-bg", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ imageUrl: data.imageUrl }),
+            });
+            const bgData = await bgRes.json();
+            processed = bgData.imageUrl || data.imageUrl;
+          } catch {
+            processed = data.imageUrl;
+          }
+        } else {
+          processed = await removeImageBackground(data.imageUrl, styleType, color);
+        }
         
         setDesigns(prev => prev.map(d => {
           if (d.id === designId) {
