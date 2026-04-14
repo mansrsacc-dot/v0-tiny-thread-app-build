@@ -582,7 +582,9 @@ export default function TinyThreadStudio() {
       if (data.imageUrl) {
         // Save the raw Replicate URL before background removal (for vectorization webhook)
         const rawReplicateUrl = data.imageUrl;
-        const processed = await removeImageBackground(data.imageUrl, styleType, color);
+        // Skip background removal for Standard Logo - bg already matches garment color
+        const skipBgRemoval = styleType === "standard";
+        const processed = skipBgRemoval ? data.imageUrl : await removeImageBackground(data.imageUrl, styleType, color);
         
         setDesigns(prev => prev.map(d => {
           if (d.id === designId) {
