@@ -20,9 +20,9 @@ export async function POST(req: NextRequest) {
     } else if (style === "standard") {
       prompt = "convert the main subject of this image into a simple flat color vector graphic. keep ALL original colors exactly as they are including white and black. maximum 8 solid colors, clean hard edges, no gradients, no shading, no texture, no stitching, no thread texture. flat smooth solid colors only, like a clean vector graphic. solid white background. only the main subject.";
     } else if (style === "photo-stitch") {
-      prompt = "make closest objects (humans,dogs,cars) whichever are most significant to picture to embroided on black background";
+      prompt = "take the closest and most significant subjects from this photo (humans, dogs, cars, etc). Keep the exact same shape, proportions, and all features identical to the original photo. Convert into a clean digital illustration with simplified smooth color areas and defined edges. Slightly stylized, not photorealistic. Solid black background. No texture, no brush strokes, no grain, no noise. Only the main subjects, no background objects.";
     } else if (style === "pet-head") {
-      prompt = "take only the head of the main animal or pet in this picture and create a detailed embroidered portrait of just the head on black background. show only the head and face with dense colorful thread stitches following fur direction. photorealistic thread painting embroidery of the pet head only. no body no background just the head floating on solid black.";
+      prompt = "extract just the head of the pet from this photo. Keep the exact same facial expression, tongue position, eye shape, and all facial features identical to the original photo. Create a clean smooth digital portrait of just the pet head on solid black background. Head and face only, no body. Smooth clean colors, no texture, no brush strokes, no grain. Sharp clean edges. Do not change or alter any facial features.";
     } else {
       prompt = "make closest objects whichever are most significant to picture into an artistic rendering. no background objects.";
     }
