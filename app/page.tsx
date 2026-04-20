@@ -48,6 +48,9 @@ const T: Record<string, Record<string, string>> = {
     petHead: "Pet Head",
     petHeadDesc: "Embroidered pet face portrait",
     petHeadBest: "Best for: single pet close-up",
+    car: "Car",
+    carDesc: "Detailed car portrait",
+    carBest: "Best for: cars, motorcycles, vehicles",
     inclBack: "incl. back",
     welcome: "Welcome to TinyThread Studio",
     welcomeDesc: "Create your custom embroidered garment in minutes",
@@ -95,6 +98,9 @@ const T: Record<string, Record<string, string>> = {
     petHead: "Mīluļa Portrets",
     petHeadDesc: "Izšūts mājdzīvnieka portrets",
     petHeadBest: "Piemērots: viena mājdzīvnieka tuvplāns",
+    car: "Auto",
+    carDesc: "Detalizēts auto portrets",
+    carBest: "Piemērots: auto, motocikli, transportlīdzekļi",
     inclBack: "iekļ. aizmugure",
     welcome: "Laipni lūgti TinyThread Studijā",
     welcomeDesc: "Izveido savu pielāgoto izšuvumu dažu minūšu laikā",
@@ -188,12 +194,14 @@ const PRICING: Record<string, Record<string, Record<string, number>>> = {
     standard:       { S: 69, M: 79, L: 109 },
     "photo-stitch": { S: 79, M: 89, L: 129 },
     "pet-head":     { S: 79, M: 89, L: 129 },
+    car:            { S: 79, M: 89, L: 129 },
   },
   cap: {
     outline:        { S: 39, M: 49 },
     standard:       { S: 45, M: 55 },
     "photo-stitch": { S: 55, M: 65 },
     "pet-head":     { S: 55, M: 65 },
+    car:            { S: 55, M: 65 },
   }
 };
 
@@ -203,6 +211,7 @@ const BACK_SURCHARGE: Record<string, number> = {
   standard: 25,
   "photo-stitch": 35,
   "pet-head": 35,
+  car: 35,
 };
 
 // Guide content in English and Latvian
@@ -491,7 +500,7 @@ export default function TinyThreadStudio() {
       });
       setSelectedDesignId(newDesign.id);
       if (savedView === "front" || savedView === "back") setView(savedView);
-      if (["outline", "standard", "photo-stitch", "pet-head"].includes(savedStyle)) setStyle(savedStyle as Style);
+      if (["outline", "standard", "photo-stitch", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
       if (saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
       setShowStitched(true); // Show the generated design, not the original photo
       setShowSavedDesigns(false);
@@ -926,9 +935,11 @@ export default function TinyThreadStudio() {
     try {
       // Get the correct variant ID based on product + color + size + style + placement
       const hasFrontAndBack = designs.some(d => d.view === "front") && designs.some(d => d.view === "back");
+      // Map car style to photo-stitch variants until car variants are created
+      const variantStyle = style === "car" ? "photo-stitch" : style;
       const variantKey = hasFrontAndBack
-        ? `${product}-${color}-${size}-${style}-fb`
-        : `${product}-${color}-${size}-${style}`;
+        ? `${product}-${color}-${size}-${variantStyle}-fb`
+        : `${product}-${color}-${size}-${variantStyle}`;
       const variantId = VARIANT_IDS[variantKey];
       
       if (!variantId) {
@@ -1666,23 +1677,23 @@ export default function TinyThreadStudio() {
           </div>
 
           {/* What to Expect - Before/After Example */}
-          {!designs.length && (
+          {!designs.length && (style === "pet-head" || style === "car") && (
             <div className={cn("rounded-xl overflow-hidden border", theme === "dark" ? "border-neutral-800 bg-neutral-900/50" : "border-gray-200 bg-gray-50")}>
               <div className={cn("px-3 py-2 text-center", theme === "dark" ? "bg-neutral-800/50" : "bg-gray-100")}>
                 <p className={cn("text-xs font-semibold uppercase tracking-wider", theme === "dark" ? "text-neutral-400" : "text-gray-500")}>
-                  {lang === "lv" ? "No foto l\u012Bdz izš\u016Bumam" : "From photo to stitch"}
+                  {lang === "lv" ? "No foto l\u012Bdz iz\u0161\u016Bumam" : "From photo to stitch"}
                 </p>
               </div>
               <div className="flex items-center gap-2 p-3">
                 <div className="flex-1 relative">
-                  <img src="https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_before.jpg" alt="Before" className="w-full aspect-square object-cover rounded-lg" />
+                  <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_before.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_before.jpg"} alt="Before" className="w-full aspect-square object-cover rounded-lg" />
                   <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-white/70" : "bg-white/80 text-gray-600")}>
                     {lang === "lv" ? "Foto" : "Photo"}
                   </div>
                 </div>
                 <div className={cn("text-lg flex-shrink-0", theme === "dark" ? "text-neutral-600" : "text-gray-300")}>→</div>
                 <div className="flex-1 relative">
-                  <img src="https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_after.jpg" alt="After" className="w-full aspect-square object-cover rounded-lg" />
+                  <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_after.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_after.jpg"} alt="After" className="w-full aspect-square object-cover rounded-lg" />
                   <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-amber-400" : "bg-white/80 text-amber-600")}>
                     {lang === "lv" ? "Rezult\u0101ts" : "Result"}
                   </div>

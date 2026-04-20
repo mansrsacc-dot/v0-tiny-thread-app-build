@@ -23,7 +23,7 @@ export type Product = "hoodie" | "cap";
 export type Color = "black" | "white";
 export type View = "front" | "back";
 export type Size = "S" | "M" | "L";
-export type Style = "outline" | "standard" | "photo-stitch" | "pet-head";
+export type Style = "outline" | "standard" | "photo-stitch" | "pet-head" | "car";
 
 export const SIZE_CONSTRAINTS = {
   S: { min: 60, max: 130, label: "45-100mm" },
@@ -55,5 +55,11 @@ export const STYLES = [
     name: "Pet Head",
     description: "Embroidered pet face portrait",
     bestFor: "single pet close-up",
+  },
+  {
+    id: "car" as Style,
+    name: "Car",
+    description: "Detailed car portrait",
+    bestFor: "cars, motorcycles, vehicles",
   },
 ] as const;

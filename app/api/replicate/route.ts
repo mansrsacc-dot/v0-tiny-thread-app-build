@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
       prompt = "take the closest and most significant subjects from this photo (humans, dogs, cars, etc). Keep the exact same shape, proportions, and all features identical to the original photo. Convert into a clean digital illustration with simplified smooth color areas and defined edges. Slightly stylized, not photorealistic. Solid black background. No texture, no brush strokes, no grain, no noise. Only the main subjects, no background objects.";
     } else if (style === "pet-head") {
       prompt = "extract just the head of the pet from this photo. Keep the exact same facial expression, tongue position, eye shape, and all facial features identical to the original photo. Create a clean smooth digital portrait of just the pet head on solid black background. Head and face only, no body. Smooth clean colors, no texture, no brush strokes, no grain. Sharp clean edges. Do not change or alter any facial features.";
+    } else if (style === "car") {
+      prompt = "take the car or vehicle from this photo. Keep the exact same shape, proportions, body lines, wheels, and all details identical to the original photo. Convert into a clean digital illustration with simplified smooth color areas and defined edges. Slightly stylized, not photorealistic. Solid black background. No texture, no brush strokes, no grain, no noise. Only the vehicle, no background objects, no people, no scenery.";
     } else {
       prompt = "make closest objects whichever are most significant to picture into an artistic rendering. no background objects.";
     }
