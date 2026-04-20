@@ -1665,6 +1665,32 @@ export default function TinyThreadStudio() {
             </div>
           </div>
 
+          {/* What to Expect - Before/After Example */}
+          {!designs.length && (
+            <div className={cn("rounded-xl overflow-hidden border", theme === "dark" ? "border-neutral-800 bg-neutral-900/50" : "border-gray-200 bg-gray-50")}>
+              <div className={cn("px-3 py-2 text-center", theme === "dark" ? "bg-neutral-800/50" : "bg-gray-100")}>
+                <p className={cn("text-xs font-semibold uppercase tracking-wider", theme === "dark" ? "text-neutral-400" : "text-gray-500")}>
+                  {lang === "lv" ? "No foto l\u012Bdz izš\u016Bumam" : "From photo to stitch"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 p-3">
+                <div className="flex-1 relative">
+                  <img src="https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_before.jpg" alt="Before" className="w-full aspect-square object-cover rounded-lg" />
+                  <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-white/70" : "bg-white/80 text-gray-600")}>
+                    {lang === "lv" ? "Foto" : "Photo"}
+                  </div>
+                </div>
+                <div className={cn("text-lg flex-shrink-0", theme === "dark" ? "text-neutral-600" : "text-gray-300")}>→</div>
+                <div className="flex-1 relative">
+                  <img src="https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_after.jpg" alt="After" className="w-full aspect-square object-cover rounded-lg" />
+                  <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-amber-400" : "bg-white/80 text-amber-600")}>
+                    {lang === "lv" ? "Rezult\u0101ts" : "Result"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Style Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
