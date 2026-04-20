@@ -283,6 +283,11 @@ export default function TinyThreadStudio() {
   const [showSavedDesigns, setShowSavedDesigns] = useState(false);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -340,8 +345,14 @@ export default function TinyThreadStudio() {
             loadSavedDesigns(data.id);
             console.log("[AUTH] Auto-logged in:", data.firstName);
           }
+          setAuthChecking(false);
         })
-        .catch(e => console.error("[AUTH] Auto-login error:", e));
+        .catch(e => {
+          console.error("[AUTH] Auto-login error:", e);
+          setAuthChecking(false);
+        });
+    } else {
+      setAuthChecking(false);
     }
   }, []);
 
@@ -359,6 +370,29 @@ export default function TinyThreadStudio() {
       console.error("[DESIGNS] Load error:", e);
     }
     setIsLoadingSaved(false);
+  };
+
+  // Handle email+password login
+  const handleLogin = async () => {
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      const res = await fetch("/api/customer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setLoginError(lang === "lv" ? "Nepareizs e-pasts vai parole" : "Invalid email or password");
+      } else if (data.id) {
+        setCustomer(data);
+        loadSavedDesigns(data.id);
+      }
+    } catch (e) {
+      setLoginError(lang === "lv" ? "Savienojuma k\u013C\u016Bda" : "Connection error");
+    }
+    setLoginLoading(false);
   };
 
   // Create a thumbnail preserving aspect ratio
@@ -1098,6 +1132,81 @@ export default function TinyThreadStudio() {
       setIsAddingToCart(false);
     }
   }, [designs, product, color, size, style, view, toast]);
+
+  // Auth gate: show loading or login screen if not authenticated
+  if (authChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#111]">
+        <div className="text-center">
+          <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white/60 text-sm">{lang === "lv" ? "Iel\u0101d\u0113..." : "Loading..."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#111] px-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-white tracking-tight">TinyThread</h1>
+            <p className="text-white/50 text-sm mt-2">
+              {lang === "lv" ? "Ielogojies, lai izveidotu savu dizainu" : "Log in to create your design"}
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">
+                {lang === "lv" ? "E-pasts" : "Email"}
+              </label>
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={e => setLoginEmail(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleLogin()}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-amber-400/50 transition-colors"
+                placeholder={lang === "lv" ? "tavs@epasts.lv" : "your@email.com"}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">
+                {lang === "lv" ? "Parole" : "Password"}
+              </label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={e => setLoginPassword(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleLogin()}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-amber-400/50 transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+            {loginError && (
+              <p className="text-red-400 text-sm text-center">{loginError}</p>
+            )}
+            <button
+              onClick={handleLogin}
+              disabled={loginLoading || !loginEmail || !loginPassword}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:bg-white/10 disabled:text-white/30 text-black font-semibold rounded-lg text-sm transition-colors"
+            >
+              {loginLoading
+                ? (lang === "lv" ? "Ieej..." : "Logging in...")
+                : (lang === "lv" ? "Ieiet" : "Log in")
+              }
+            </button>
+            <p className="text-center text-white/30 text-xs">
+              {lang === "lv" ? "Nav konta?" : "Don't have an account?"}{" "}
+              <a href="https://tinythread.shop/account/register" className="text-amber-400 hover:text-amber-300 transition-colors">
+                {lang === "lv" ? "Re\u0123istr\u0113ties" : "Sign up"}
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
