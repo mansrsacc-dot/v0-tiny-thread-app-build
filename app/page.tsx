@@ -42,9 +42,6 @@ const T: Record<string, Record<string, string>> = {
     standard: "Standard Logo",
     standardDesc: "Clean, sharp embroidery",
     standardBest: "Best for: logos, text, badges",
-    photoStitch: "Photo Stitch",
-    photoStitchDesc: "Ultra-detailed thread painting",
-    photoStitchBest: "Best for: portraits, pets, cars",
     petHead: "Pet Head",
     petHeadDesc: "Embroidered pet face portrait",
     petHeadBest: "Best for: single pet close-up",
@@ -92,9 +89,6 @@ const T: Record<string, Record<string, string>> = {
     standard: "Standarta Logo",
     standardDesc: "Tīrs, ass izšuvums",
     standardBest: "Piemērots: logo, teksts, emblēmas",
-    photoStitch: "Foto Izšuvums",
-    photoStitchDesc: "Detalizēts diegu gleznojums",
-    photoStitchBest: "Piemērots: portreti, mājdzīvnieki, auto",
     petHead: "Mīluļa Portrets",
     petHeadDesc: "Izšūts mājdzīvnieka portrets",
     petHeadBest: "Piemērots: viena mājdzīvnieka tuvplāns",
@@ -192,14 +186,12 @@ const PRICING: Record<string, Record<string, Record<string, number>>> = {
   hoodie: {
     outline:        { S: 59, M: 69, L: 99 },
     standard:       { S: 69, M: 79, L: 109 },
-    "photo-stitch": { S: 79, M: 89, L: 129 },
     "pet-head":     { S: 79, M: 89, L: 129 },
     car:            { S: 79, M: 89, L: 129 },
   },
   cap: {
     outline:        { S: 39, M: 49 },
     standard:       { S: 45, M: 55 },
-    "photo-stitch": { S: 55, M: 65 },
     "pet-head":     { S: 55, M: 65 },
     car:            { S: 55, M: 65 },
   }
@@ -209,7 +201,6 @@ const PRICING: Record<string, Record<string, Record<string, number>>> = {
 const BACK_SURCHARGE: Record<string, number> = {
   outline: 20,
   standard: 25,
-  "photo-stitch": 35,
   "pet-head": 35,
   car: 35,
 };
@@ -270,7 +261,7 @@ export default function TinyThreadStudio() {
   const [color, setColor] = useState<Color>("black");
   const [view, setView] = useState<View>("front");
   const [size, setSize] = useState<Size>("S");
-  const [style, setStyle] = useState<Style>("photo-stitch");
+  const [style, setStyle] = useState<Style>("outline");
   const [removeBackground, setRemoveBackground] = useState(true);
   const [designs, setDesigns] = useState<Design[]>([]);
   const [selectedDesignId, setSelectedDesignId] = useState<string | null>(null);
@@ -500,7 +491,7 @@ export default function TinyThreadStudio() {
       });
       setSelectedDesignId(newDesign.id);
       if (savedView === "front" || savedView === "back") setView(savedView);
-      if (["outline", "standard", "photo-stitch", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
+      if (["outline", "standard", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
       if (saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
       setShowStitched(true); // Show the generated design, not the original photo
       setShowSavedDesigns(false);
@@ -557,7 +548,7 @@ export default function TinyThreadStudio() {
             // Return as-is here, the caller handles it
             resolve(imageUrl);
             return;
-          } else if (styleType === "photo-stitch" || styleType === "pet-head") {
+          } else if (styleType === "pet-head" || styleType === "car") {
             if (r < threshold && g < threshold && b < threshold) {
               data[i + 3] = 0;
             }
@@ -935,8 +926,8 @@ export default function TinyThreadStudio() {
     try {
       // Get the correct variant ID based on product + color + size + style + placement
       const hasFrontAndBack = designs.some(d => d.view === "front") && designs.some(d => d.view === "back");
-      // Map car style to photo-stitch variants until car variants are created
-      const variantStyle = style === "car" ? "photo-stitch" : style;
+      // Map car style to pet-head variants until car variants are created
+      const variantStyle = style === "car" ? "pet-head" : style;
       const variantKey = hasFrontAndBack
         ? `${product}-${color}-${size}-${variantStyle}-fb`
         : `${product}-${color}-${size}-${variantStyle}`;

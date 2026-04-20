@@ -19,8 +19,6 @@ export async function POST(req: NextRequest) {
       }
     } else if (style === "standard") {
       prompt = "convert the main subject of this image into a simple flat color vector graphic. keep ALL original colors exactly as they are including white and black. maximum 8 solid colors, clean hard edges, no gradients, no shading, no texture, no stitching, no thread texture. flat smooth solid colors only, like a clean vector graphic. solid white background. only the main subject.";
-    } else if (style === "photo-stitch") {
-      prompt = "take the closest and most significant subjects from this photo (humans, dogs, cars, etc). Keep the exact same shape, proportions, and all features identical to the original photo. Convert into a clean digital illustration with simplified smooth color areas and defined edges. Slightly stylized, not photorealistic. Solid black background. No texture, no brush strokes, no grain, no noise. Only the main subjects, no background objects.";
     } else if (style === "pet-head") {
       prompt = "extract just the head of the pet from this photo. Keep the exact same facial expression, tongue position, eye shape, and all facial features identical to the original photo. Create a clean smooth digital portrait of just the pet head on solid black background. Head and face only, no body. Smooth clean colors, no texture, no brush strokes, no grain. Sharp clean edges. Do not change or alter any facial features.";
     } else if (style === "car") {
