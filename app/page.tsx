@@ -283,7 +283,7 @@ export default function TinyThreadStudio() {
   const [showSavedDesigns, setShowSavedDesigns] = useState(false);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
-  const [authChecking, setAuthChecking] = useState(true);
+
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -341,14 +341,8 @@ export default function TinyThreadStudio() {
             loadSavedDesigns(data.id);
             console.log("[AUTH] Auto-logged in:", data.firstName);
           }
-          setAuthChecking(false);
         })
-        .catch(e => {
-          console.error("[AUTH] Auto-login error:", e);
-          setAuthChecking(false);
-        });
-    } else {
-      setAuthChecking(false);
+        .catch(e => console.error("[AUTH] Auto-login error:", e));
     }
   }, []);
 
@@ -1105,46 +1099,6 @@ export default function TinyThreadStudio() {
       setIsAddingToCart(false);
     }
   }, [designs, product, color, size, style, view, toast]);
-
-  // Auth gate: show loading or login screen if not authenticated
-  if (authChecking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#111]">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/60 text-sm">{lang === "lv" ? "Iel\u0101d\u0113..." : "Loading..."}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!customer) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#111] px-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-white tracking-tight">TinyThread</h1>
-            <p className="text-white/50 text-sm mt-2">
-              {lang === "lv" ? "Ielogojies, lai izveidotu savu dizainu" : "Log in to create your design"}
-            </p>
-          </div>
-          <a
-            href="https://tinythread.shop/pages/dizaineris"
-            className="inline-flex items-center justify-center gap-2 w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-sm transition-colors"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            {lang === "lv" ? "Ieiet ar Shopify" : "Log in with Shopify"}
-          </a>
-          <p className="text-white/30 text-xs mt-4">
-            {lang === "lv" ? "Nav konta?" : "Don't have an account?"}{" "}
-            <a href="https://tinythread.shop/account/register" className="text-amber-400 hover:text-amber-300 transition-colors">
-              {lang === "lv" ? "Re\u0123istr\u0113ties" : "Sign up"}
-            </a>
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
