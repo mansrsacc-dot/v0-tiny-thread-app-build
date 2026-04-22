@@ -68,7 +68,7 @@ const T: Record<Lang, Record<string, string>> = {
     notReady: "Nav gatavs",
     notReadyDesc: "Lūdzu, pagaidi, kamēr tiek izģenerēts izšuvuma priekšskatījums.",
     errorCart: "Kļūda pievienojot grozam",
-    errorGeneric: t.errorGeneric,
+    errorGeneric: "Kaut kas nogāja greizi. Lūdzu, mēģini vēlreiz.",
     error: "Kļūda",
     failedSave: "Neizdevās saglabāt dizainu",
     designSaved: "Dizains saglabāts!",
