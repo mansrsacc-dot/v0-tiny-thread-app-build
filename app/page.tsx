@@ -9,56 +9,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Translations
-const T: Record<string, Record<string, string>> = {
-  en: {
-    product: "PRODUCT",
-    color: "COLOR",
-    view: "VIEW",
-    front: "Front",
-    back: "Back",
-    size: "SIZE",
-    style: "STYLE",
-    price: "Price",
-    uploadPhoto: "UPLOAD PHOTO",
-    dropImage: "Drop image or browse",
-    maxFileSize: "JPG, PNG - max 10MB",
-    clickToUpload: "Click to upload your photo",
-    fileFormats: "JPG, PNG - max 10MB",
-    generating: "Generating embroidery...",
-    regenerate: "Regenerate",
-    left: "left",
-    addToCart: "Add to Cart",
-    addToBack: "Add embroidery to the back",
-    addToFront: "Add embroidery to the front",
-    designLayers: "DESIGN LAYERS",
-    removeBackground: "Remove background",
-    original: "Original",
-    stitched: "Stitched",
-    howItWorks: "How It Works",
-    outline: "Outline",
-    outlineDesc: "Elegant line-art style",
-    outlineBest: "Best for: portraits, minimalist designs, signatures",
-    standard: "Standard Logo",
-    standardDesc: "Clean, sharp embroidery",
-    standardBest: "Best for: logos, text, badges",
-    petHead: "Pet Head",
-    petHeadDesc: "Embroidered pet face portrait",
-    petHeadBest: "Best for: single pet close-up",
-    car: "Car",
-    carDesc: "Detailed car portrait",
-    carBest: "Best for: cars, motorcycles, vehicles",
-    inclBack: "incl. back",
-    welcome: "Welcome to TinyThread Studio",
-    welcomeDesc: "Create your custom embroidered garment in minutes",
-    welcomeLang: "Want to learn how the studio works? Choose your language:",
-    englishGuide: "English Guide",
-    latvianGuide: "Latvie\u0161u ce\u013Cvedis",
-    skipGuide: "Skip - I'll figure it out",
-    hoodie: "Hoodie",
-    cap: "Cap",
-  },
-  lv: {
+// Translations (Latvian only)
+const t: Record<string, string> = {
     product: "PRODUKTS",
     color: "KR\u0100SA",
     view: "SKATS",
@@ -104,7 +56,6 @@ const T: Record<string, Record<string, string>> = {
     skipGuide: "Izlaist",
     hoodie: "Džemperis",
     cap: "Cepure",
-  },
 };
 
 // Product variant IDs - map from product+color+size+style to numeric variant ID
@@ -205,9 +156,9 @@ const BACK_SURCHARGE: Record<string, number> = {
   car: 35,
 };
 
-// Guide content in English and Latvian
+// Guide content (Latvian only, wrapped in object for backward compat with GUIDE_CONTENT[guideLang])
 const GUIDE_CONTENT = {
-  en: [
+  lv_en_unused: [
     { title: "Choose Your Product & Color", text: "Start by selecting your garment — Hoodie or Cap — and pick your color. Your embroidery will be crafted onto this exact piece.", icon: "👕" },
     { title: "Pick Your Embroidery Size", text: "S (45–100mm) — Small and subtle, perfect for chest logos.\nM (100–150mm) — Standard size, most popular choice.\nL (150–250mm) — Large and bold, a statement piece.\n\nYou can resize within your selected range by dragging the corner handle.", icon: "📐" },
     { title: "Understand the Styles", text: "Outline — Clean minimal line art. Best with clear subjects, strong silhouettes. Avoid busy backgrounds.\n\nStandard Logo — Bold flat-color graphic like a sticker. Best for logos, text, badges. Avoid detailed photos.\n\nPhoto Stitch — Ultra-detailed thread painting. Best with clear well-lit photos of any subject. Avoid blurry or dark images.\n\nPet Head — Embroidered pet face portrait. Use a close-up of ONE pet's face looking at the camera. Avoid multiple pets or full body shots.", icon: "🎨" },
@@ -215,15 +166,15 @@ const GUIDE_CONTENT = {
     { title: "Preview & Adjust", text: "See how your embroidery will look on the garment. Toggle between Original and Stitched view to compare.\n\nNot happy? Click Regenerate for a new variation (up to 4 times). Drag to reposition, resize within your selected range.", icon: "✨" },
     { title: "Front & Back Embroidery", text: "You can add embroidery to both the front and back of your hoodie. Each side is a separate design with its own style, size, and placement.\n\nThis is completely optional — most customers start with just the front. If you'd like both sides, simply create your front design first, then add another design for the back.", icon: "↔️" },
     { title: "Add to Cart & Order", text: "Happy with your design? Click 'Add to Cart' to place your order. We'll handcraft your unique piece in our Riga studio using professional equipment and premium thread.", icon: "🛒" },
-    { title: "Important to Know", text: "The preview you see in the studio is a digital approximation of your embroidery. The final handcrafted result may vary slightly in color, detail, and texture.\n\nThis is the beauty of real embroidery — each piece is unique, crafted with care by our artists in Riga. No two pieces are exactly alike, just like real craftsmanship should be.\n\nIf you have any questions, contact us at info@tinythread.shop", icon: "💎" }
+    { title: "Important", text: "unused", icon: "💎" }
   ],
   lv: [
-    { title: "Izvēlies produktu un krāsu", text: "Sāc ar apģērba izvēli — Hoodie vai Cepure — un izvēlies krāsu. Tavs izšuvums tiks veidots tieši uz šī izstrādājuma.", icon: "👕" },
+    { title: "Izvēlies produktu un krāsu", text: "Sāc ar apģērba izvēli — Džemperis vai Cepure — un izvēlies krāsu. Tavs izšuvums tiks veidots tieši uz šī izstrādājuma.", icon: "👕" },
     { title: "Izvēlies izšuvuma izmēru", text: "S (45–100mm) — Mazs un neuzkrītošs, ideāls krūšu logotipam.\nM (100–150mm) — Standarta izmērs, populārākā izvēle.\nL (150–250mm) — Liels un izteiksmīgs, pamanāms akcents.\n\nTu vari mainīt izmēru izvēlētajā diapazonā, velkot stūra rokturi.", icon: "📐" },
-    { title: "Izproti stilus", text: "Outline — Tīrs minimāls līniju zīmējums. Labākās bildes: skaidri objekti ar izteiktu siluetu. Izvairīties no aizņemtiem foniem.\n\nStandard Logo — Spilgta plakana grafika kā uzlīme. Labākās bildes: logo, teksts, nozīmītes. Izvairīties no detalizētām fotogrāfijām.\n\nPhoto Stitch — Ļoti detalizēta diegu glezna. Labākās bildes: skaidras, labi apgaismotas fotogrāfijas. Izvairīties no izplūdušām bildēm.\n\nPet Head — Mājdzīvnieka sejas portrets. Izmanto viena dzīvnieka sejas tuvplānu. Izvairīties no vairākiem dzīvniekiem vai pilna ķermeņa foto.", icon: "🎨" },
+    { title: "Izproti stilus", text: "Kontūra — Tīrs minimāls līniju zīmējums. Labākās bildes: skaidri objekti ar izteiktu siluetu. Izvairīties no aizņemtiem foniem.\n\nStandarta Logo — Spilgta plakana grafika kā uzlīme. Labākās bildes: logo, teksts, nozīmītes. Izvairīties no detalizētām fotogrāfijām.\n\nMīluļa Portrets — Mājdzīvnieka sejas portrets. Izmanto viena dzīvnieka sejas tuvplānu. Izvairīties no vairākiem dzīvniekiem vai pilna ķermeņa foto.\n\nAuto — Detalizēts auto portrets. Izmanto skaidru fotogrāfiju ar vienu transportlīdzekli.", icon: "🎨" },
     { title: "Augšupielādē fotogrāfiju", text: "Klikšķini uz apģērba vai augšupielādes zonas, lai pievienotu bildi. Jo labāka fotogrāfijas kvalitāte, jo labāk izskatīsies izšuvums.\n\nPadoms: Izmanto skaidrus, labi apgaismotus attēlus.", icon: "📸" },
     { title: "Priekšskatījums un pielāgošana", text: "Apskati, kā izšuvums izskatīsies uz apģērba. Pārslēdzies starp Oriģinālu un Izšūto skatu.\n\nNeapmierina? Klikšķini Reģenerēt jaunam variantam (līdz 4 reizēm). Velc, lai pārvietotu un mainītu izmēru.", icon: "✨" },
-    { title: "Priekšas un aizmugures izšuvums", text: "Tu vari pievienot izšuvumu gan hoodie priekšā, gan aizmugurē. Katra puse ir atsevišķs dizains ar savu stilu, izmēru un izvietojumu.\n\nTā ir pilnīgi brīvprātīga iespēja — lielākā daļa klientu sāk tikai ar priekšpusi. Ja vēlies abas puses, vienkārši izveido vispirms priekšpuses dizainu, tad pievieno otru dizainu aizmugurē.", icon: "↔️" },
+    { title: "Priekšas un aizmugures izšuvums", text: "Tu vari pievienot izšuvumu gan džempera priekšā, gan aizmugurē. Katra puse ir atsevišķs dizains ar savu stilu, izmēru un izvietojumu.\n\nTā ir pilnīgi brīvprātīga iespēja — lielākā daļa klientu sāk tikai ar priekšpusi. Ja vēlies abas puses, vienkārši izveido vispirms priekšpuses dizainu, tad pievieno otru dizainu aizmugurē.", icon: "↔️" },
     { title: "Pievieno grozam un pasūti", text: "Apmierināts ar dizainu? Klikšķini 'Pievienot grozam', lai veiktu pasūtījumu. Mēs ar rokām izgatavosim tavu unikālo izstrādājumu Rīgas studijā, izmantojot profesionālu aprīkojumu un augstākās kvalitātes diegus.", icon: "🛒" },
     { title: "Svarīgi zināt", text: "Priekšskatījums, ko redzi studijā, ir digitāls tuvinājums tavam izšuvumam. Galīgais ar rokām izgatavotais rezultāts var nedaudz atšķirties krāsā, detaļās un tekstūrā.\n\nTā ir īsta izšuvuma burvība — katrs izstrādājums ir unikāls, rūpīgi izgatavots mūsu meistaru rokās Rīgā. Nav divu vienādu darbu, tieši tā, kā tam jābūt īstam roku darbam.\n\nJa tev ir kādi jautājumi, sazinies ar mums: info@tinythread.shop", icon: "💎" }
   ]
@@ -255,8 +206,7 @@ interface Design {
 
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [lang, setLang] = useState<"en" | "lv">("en");
-  const t = T[lang] || T.en;
+  const lang = "lv" as const;
   const [product, setProduct] = useState<Product>("hoodie");
   const [color, setColor] = useState<Color>("black");
   const [view, setView] = useState<View>("front");
@@ -273,7 +223,7 @@ export default function TinyThreadStudio() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
-  const [guideLang, setGuideLang] = useState<"en" | "lv">("en");
+  const guideLang = "lv" as const;
   const [guideStep, setGuideStep] = useState(0);
   const [showConfirmCart, setShowConfirmCart] = useState(false);
   
@@ -308,13 +258,6 @@ export default function TinyThreadStudio() {
   // Read URL parameters to pre-select product and color
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const urlLang = params.get("lang");
-    if (urlLang === "lv" || urlLang === "en") setLang(urlLang);
-    // Also detect from referrer or document language
-    if (!urlLang && typeof document !== "undefined") {
-      const htmlLang = document.documentElement.lang;
-      if (htmlLang?.startsWith("lv")) setLang("lv");
-    }
     const urlProduct = params.get("product");
     const urlColor = params.get("color");
     
@@ -390,7 +333,7 @@ export default function TinyThreadStudio() {
   // Save current design - uploads full images to permanent storage
   const handleSaveDesign = async (design: Design) => {
     if (!customer) {
-      toast({ title: lang === "lv" ? "L\u016bdzu, ielogojies" : "Please log in", description: lang === "lv" ? "Lai saglab\u0101tu dizainu, nepiecie\u0161ams konts" : "You need an account to save designs" });
+      toast({ title: "L\u016bdzu, ielogojies", description: "Lai saglab\u0101tu dizainu, nepiecie\u0161ams konts" });
       return;
     }
     setIsSavingDesign(true);
@@ -449,10 +392,10 @@ export default function TinyThreadStudio() {
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: lang === "lv" ? "Dizains saglab\u0101ts!" : "Design saved!" });
+        toast({ title: "Dizains saglab\u0101ts!" });
         await loadSavedDesigns(customer.id);
       } else {
-        toast({ title: lang === "lv" ? "K\u013c\u016bda" : "Error", description: data.error || "Failed to save" });
+        toast({ title: "K\u013c\u016bda", description: data.error || "Failed to save" });
       }
     } catch (e) {
       console.error("[DESIGNS] Save error:", e);
@@ -495,7 +438,7 @@ export default function TinyThreadStudio() {
       if (saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
       setShowStitched(true); // Show the generated design, not the original photo
       setShowSavedDesigns(false);
-      toast({ title: lang === "lv" ? "Dizains pielietots!" : "Design applied!" });
+      toast({ title: "Dizains pielietots!" });
     } catch (e) {
       console.error("[DESIGNS] Apply error:", e);
     }
@@ -1459,7 +1402,7 @@ export default function TinyThreadStudio() {
                     theme === "dark" ? "bg-neutral-800 hover:bg-neutral-700" : "bg-white hover:bg-gray-100"
                   )}
                 >
-                  {lang === "lv" ? "Mani dizaini" : "My Designs"} ({savedDesigns.length})
+                  {"Mani dizaini"} ({savedDesigns.length})
                 </button>
               </div>
 
@@ -1469,12 +1412,12 @@ export default function TinyThreadStudio() {
                   theme === "dark" ? "bg-neutral-900 border border-neutral-800" : "bg-gray-50 border border-gray-200"
                 )}>
                   <p className={cn("text-xs font-semibold", theme === "dark" ? "text-white/60" : "text-gray-500")}>
-                    {lang === "lv" ? "SAGLAB\u0100TIE DIZAINI" : "SAVED DESIGNS"}
+                    {"SAGLAB\u0100TIE DIZAINI"}
                   </p>
                   {isLoadingSaved ? (
-                    <p className="text-xs text-center py-4 opacity-50">{lang === "lv" ? "Iel\u0101d\u0113..." : "Loading..."}</p>
+                    <p className="text-xs text-center py-4 opacity-50">{"Iel\u0101d\u0113..."}</p>
                   ) : savedDesigns.length === 0 ? (
-                    <p className="text-xs text-center py-4 opacity-50">{lang === "lv" ? "Nav saglab\u0101tu dizainu" : "No saved designs yet"}</p>
+                    <p className="text-xs text-center py-4 opacity-50">{"Nav saglab\u0101tu dizainu"}</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {savedDesigns.map((saved) => {
@@ -1672,21 +1615,21 @@ export default function TinyThreadStudio() {
             <div className={cn("rounded-xl overflow-hidden border", theme === "dark" ? "border-neutral-800 bg-neutral-900/50" : "border-gray-200 bg-gray-50")}>
               <div className={cn("px-3 py-2 text-center", theme === "dark" ? "bg-neutral-800/50" : "bg-gray-100")}>
                 <p className={cn("text-xs font-semibold uppercase tracking-wider", theme === "dark" ? "text-neutral-400" : "text-gray-500")}>
-                  {lang === "lv" ? "No foto l\u012Bdz iz\u0161\u016Bumam" : "From photo to stitch"}
+                  {"No foto l\u012Bdz iz\u0161\u016Bumam"}
                 </p>
               </div>
               <div className="flex items-center gap-2 p-3">
                 <div className="flex-1 relative">
                   <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_before.jpg" : style === "standard" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/logo_before_final.jpg" : style === "outline" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/outline_before.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_before.jpg"} alt="Before" className="w-full aspect-square object-cover rounded-lg" />
                   <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-white/70" : "bg-white/80 text-gray-600")}>
-                    {lang === "lv" ? "Foto" : "Photo"}
+                    {"Foto"}
                   </div>
                 </div>
                 <div className={cn("text-lg flex-shrink-0", theme === "dark" ? "text-neutral-600" : "text-gray-300")}>→</div>
                 <div className="flex-1 relative">
                   <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_after.jpg" : style === "standard" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/logo_after_final.jpg" : style === "outline" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/outline_after.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_after.jpg"} alt="After" className="w-full aspect-square object-cover rounded-lg" />
                   <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-amber-400" : "bg-white/80 text-amber-600")}>
-                    {lang === "lv" ? "Rezult\u0101ts" : "Result"}
+                    {"Rezult\u0101ts"}
                   </div>
                 </div>
               </div>
@@ -1840,7 +1783,7 @@ export default function TinyThreadStudio() {
                         }}
                         disabled={isSavingDesign}
                         className={cn("p-1 rounded transition-colors", isSavingDesign ? "opacity-50" : "hover:bg-amber-500/20 text-amber-400")}
-                        title={lang === "lv" ? "Saglab\u0101t dizainu" : "Save design"}
+                        title={"Saglab\u0101t dizainu"}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -1908,8 +1851,8 @@ export default function TinyThreadStudio() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
               {isSavingDesign
-                ? (lang === "lv" ? "Saglab\u0101..." : "Saving...")
-                : (lang === "lv" ? "Saglab\u0101t dizainu" : "Save Design")
+                ? ("Saglab\u0101...")
+                : ("Saglab\u0101t dizainu")
               }
             </button>
           )}
@@ -1965,23 +1908,17 @@ export default function TinyThreadStudio() {
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
             <div className="text-4xl mb-4">🧵</div>
-            <h2 className="text-xl font-bold text-white mb-2">Welcome to TinyThread Studio</h2>
-            <p className="text-white/50 text-sm mb-6">Create your custom embroidered garment in minutes</p>
+            <h2 className="text-xl font-bold text-white mb-2">Laipni lūgti TinyThread Studijā</h2>
+            <p className="text-white/50 text-sm mb-6">Izveido savu pielāgoto izšuvumu dažu minūšu laikā</p>
             
-            <p className="text-white/70 text-sm mb-6">Want to learn how the studio works? Choose your language:</p>
+            <p className="text-white/70 text-sm mb-6">Gribi uzzināt, kā studija strādā?</p>
             
             <div className="flex gap-3 justify-center mb-4">
               <button
-                onClick={() => { setGuideLang("en"); setShowWelcome(false); setShowGuide(true); localStorage.setItem("tinythread_visited", "1"); }}
+                onClick={() => { setShowWelcome(false); setShowGuide(true); localStorage.setItem("tinythread_visited", "1"); }}
                 className="px-6 py-3 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 transition-colors"
               >
-                English Guide
-              </button>
-              <button
-                onClick={() => { setGuideLang("lv"); setShowWelcome(false); setShowGuide(true); localStorage.setItem("tinythread_visited", "1"); }}
-                className="px-6 py-3 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 transition-colors"
-              >
-                Latviešu ceļvedis
+                Apskatīt ceļvedi
               </button>
             </div>
             
@@ -1989,7 +1926,7 @@ export default function TinyThreadStudio() {
               onClick={() => { setShowWelcome(false); localStorage.setItem("tinythread_visited", "1"); }}
               className="text-white/40 text-sm hover:text-white/60 transition-colors"
             >
-              Skip — I&apos;ll figure it out
+              Izlaist
             </button>
           </div>
         </div>
@@ -2000,12 +1937,8 @@ export default function TinyThreadStudio() {
         <div className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-3">
-              <div className="flex gap-2">
-                <button onClick={() => setGuideLang("en")} className={cn("text-xs px-3 py-1 rounded-full font-medium", guideLang === "en" ? "bg-amber-400 text-black" : "bg-white/10 text-white/50")}>EN</button>
-                <button onClick={() => setGuideLang("lv")} className={cn("text-xs px-3 py-1 rounded-full font-medium", guideLang === "lv" ? "bg-amber-400 text-black" : "bg-white/10 text-white/50")}>LV</button>
-              </div>
-              <button onClick={() => setShowGuide(false)} className="text-white/30 hover:text-white/60 text-sm">✕ Close</button>
+            <div className="flex items-center justify-end px-6 pt-5 pb-3">
+              <button onClick={() => setShowGuide(false)} className="text-white/30 hover:text-white/60 text-sm">✕ Aizvērt</button>
             </div>
             
             {/* Content */}
@@ -2030,7 +1963,7 @@ export default function TinyThreadStudio() {
               </div>
               <div className="flex gap-2">
                 {guideStep > 0 && (
-                  <button onClick={() => setGuideStep(guideStep - 1)} className="px-4 py-2 text-sm text-white/50 hover:text-white/70">Back</button>
+                  <button onClick={() => setGuideStep(guideStep - 1)} className="px-4 py-2 text-sm text-white/50 hover:text-white/70">Atpakaļ</button>
                 )}
                 <button
                   onClick={() => {
@@ -2043,10 +1976,7 @@ export default function TinyThreadStudio() {
                   }}
                   className="px-5 py-2 bg-amber-500 text-black font-bold rounded-lg text-sm hover:bg-amber-400"
                 >
-                  {guideStep < GUIDE_CONTENT[guideLang].length - 1 
-                    ? (guideLang === "en" ? "Next" : "Tālāk") 
-                    : (guideLang === "en" ? "Get Started!" : "Sāksim!")
-                  }
+                  {guideStep < GUIDE_CONTENT[guideLang].length - 1 ? "Tālāk" : "Sāksim!"}
                 </button>
               </div>
             </div>
