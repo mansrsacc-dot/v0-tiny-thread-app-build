@@ -1056,12 +1056,12 @@ export default function TinyThreadStudio() {
         <div className="flex justify-end p-2 md:p-4">
           {designs.length > 0 && (
             <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm")}>
-              <span className={cn("text-xs", !showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Original</span>
+              <span className={cn("text-xs", !showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Oriģināls</span>
               <Switch
                 checked={showStitched}
                 onCheckedChange={setShowStitched}
               />
-              <span className={cn("text-xs", showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Stitched</span>
+              <span className={cn("text-xs", showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Izšūts</span>
             </div>
           )}
         </div>
@@ -1495,7 +1495,7 @@ export default function TinyThreadStudio() {
           {/* Product Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Product
+              Produkts
             </label>
             <div className="grid grid-cols-2 gap-2">
               {(["hoodie", "cap"] as Product[]).map(p => (
@@ -1523,7 +1523,7 @@ export default function TinyThreadStudio() {
           {/* Color Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Color
+              Krāsa
             </label>
             <div className="flex gap-3">
               {(["black", "white"] as Color[]).map(c => (
@@ -1546,7 +1546,7 @@ export default function TinyThreadStudio() {
           {product === "hoodie" && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                View
+                Skats
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(["front", "back"] as View[]).map(v => (
@@ -1562,7 +1562,7 @@ export default function TinyThreadStudio() {
                           : "border-gray-200 text-gray-700 hover:border-gray-300"
                     )}
                   >
-                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                    {v === "front" ? "Priek\u0161a" : "Aizmugure"}
                   </button>
                 ))}
               </div>
@@ -1572,7 +1572,7 @@ export default function TinyThreadStudio() {
           {/* Size Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Size
+              Izmērs
             </label>
             <div className={cn("grid gap-2", product === "cap" ? "grid-cols-2" : "grid-cols-3")}>
               {(product === "cap" ? ["S", "M"] as Size[] : ["S", "M", "L"] as Size[]).map(s => (
@@ -1639,7 +1639,7 @@ export default function TinyThreadStudio() {
           {/* Style Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Style
+              Stils
             </label>
             <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
               {STYLES.map(s => (
@@ -1662,7 +1662,7 @@ export default function TinyThreadStudio() {
                     {s.description}
                   </div>
                   <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
-                    Best for: {s.bestFor}
+                    Piemērots: {s.bestFor}
                   </div>
                 </button>
               ))}
@@ -1686,7 +1686,7 @@ export default function TinyThreadStudio() {
           {/* Remove Background Toggle */}
           <div className="flex items-center justify-between">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Remove Background
+              Noņemt fonu
             </label>
             <Switch
               checked={removeBackground}
@@ -1699,7 +1699,7 @@ export default function TinyThreadStudio() {
           {designs.length === 0 && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                Upload Photo
+                Augšupielādē foto
               </label>
               <div
                 onClick={() => fileInputRef.current?.click()}
@@ -1746,7 +1746,7 @@ export default function TinyThreadStudio() {
           {designs.length > 0 && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                Design Layers
+                Dizaina slāņi
               </label>
               <div className="space-y-2">
                 {designs.map(design => (

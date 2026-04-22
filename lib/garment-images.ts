@@ -34,19 +34,19 @@ export const SIZE_CONSTRAINTS = {
 export const STYLES = [
   {
     id: "outline" as Style,
-    name: "Outline",
+    name: "Kontūra",
     description: "Minimālistiska līniju grafika",
     bestFor: "portreti, minimālistiski dizaini, paraksti",
   },
   {
     id: "standard" as Style,
-    name: "Standard Logo",
+    name: "Standarta Logo",
     description: "Tīrs, plakans dizains",
     bestFor: "logo, teksts, emblēmas",
   },
   {
     id: "pet-head" as Style,
-    name: "Pet Head",
+    name: "Mīluļa Portrets",
     description: "Izšūts mājdzīvnieka portrets",
     bestFor: "viena mājdzīvnieka tuvplāns",
   },
