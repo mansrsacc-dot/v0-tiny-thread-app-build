@@ -1050,18 +1050,18 @@ export default function TinyThreadStudio() {
       {/* Garment Preview - First on mobile, Second on desktop */}
       <div className={cn(
         "w-full md:flex-1 h-[50vh] md:h-screen order-1 md:order-2 flex flex-col relative",
-        theme === "dark" ? "bg-[#111]" : "bg-gray-50"
+        theme === "dark" ? "bg-[#1e1b18]" : "bg-gray-50"
       )}>
         {/* Top Controls - Original/Stitched toggle */}
         <div className="flex justify-end p-2 md:p-4">
           {designs.length > 0 && (
             <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm")}>
-              <span className={cn("text-xs", !showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Original</span>
+              <span className={cn("text-xs", !showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Original</span>
               <Switch
                 checked={showStitched}
                 onCheckedChange={setShowStitched}
               />
-              <span className={cn("text-xs", showStitched ? "text-amber-400" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Stitched</span>
+              <span className={cn("text-xs", showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Stitched</span>
             </div>
           )}
         </div>
@@ -1133,7 +1133,7 @@ export default function TinyThreadStudio() {
                   }}
                   className={cn(
                     "cursor-move group",
-                    selectedDesignId === design.id && "ring-2 ring-amber-400"
+                    selectedDesignId === design.id && "ring-2 ring-[#3e92cc]"
                   )}
                   onMouseDown={(e) => handleMouseDown(e, design.id)}
                   onTouchStart={(e) => handlePointerDown(e, design.id)}
@@ -1178,7 +1178,7 @@ export default function TinyThreadStudio() {
                             d.id === design.id ? { ...d, rotation: (d.rotation || 0) + 90 } : d
                           ));
                         }}
-                        className="absolute -top-2 -left-2 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center text-black hover:bg-amber-300"
+                        className="absolute -top-2 -left-2 w-6 h-6 bg-[#3e92cc] rounded-full flex items-center justify-center text-black hover:bg-[#3e92cc]"
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1189,7 +1189,7 @@ export default function TinyThreadStudio() {
                       <div
                         onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
                         onTouchStart={(e) => handleResizePointerDown(e, design.id)}
-                        className="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-400 rounded-sm cursor-se-resize flex items-center justify-center"
+                        className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#3e92cc] rounded-sm cursor-se-resize flex items-center justify-center"
                       >
                         <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 20l16-16M12 20h8v-8" />
@@ -1309,13 +1309,13 @@ export default function TinyThreadStudio() {
                 
                 {/* Upload prompt - subtle by default, prominent on hover */}
                 <div className="relative flex flex-col items-center gap-3 opacity-60 group-hover:opacity-100 transition-all duration-300 group-hover:scale-105">
-                  <div className="w-16 h-16 rounded-full bg-amber-400/20 group-hover:bg-amber-400/30 flex items-center justify-center transition-all duration-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <div className="w-16 h-16 rounded-full bg-[#3e92cc]/20 group-hover:bg-[#3e92cc]/30 flex items-center justify-center transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-[#3e92cc]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
                   <div className="text-center">
-                    <p className="text-white font-semibold text-sm group-hover:text-amber-400 transition-colors">{t.clickToUpload}</p>
+                    <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">{t.clickToUpload}</p>
                     <p className="text-white/40 text-xs mt-1">JPG, PNG — max 10MB</p>
                   </div>
                 </div>
@@ -1326,7 +1326,7 @@ export default function TinyThreadStudio() {
             {isGenerating && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
                 <div className="flex flex-col items-center gap-3">
-                  <Spinner className="w-8 h-8 text-amber-400" />
+                  <Spinner className="w-8 h-8 text-[#3e92cc]" />
                   <span className="text-white text-sm">{t.generating}</span>
                 </div>
               </div>
@@ -1356,20 +1356,20 @@ export default function TinyThreadStudio() {
       {/* Sidebar Controls - Second on mobile, First on desktop */}
       <div className={cn(
         "w-full md:w-80 lg:w-[360px] xl:w-[400px] md:min-w-[320px] flex-shrink-0 order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0 md:h-screen md:sticky md:top-0",
-        theme === "dark" ? "bg-[#0d0d0d] border-neutral-800" : "bg-white border-gray-200"
+        theme === "dark" ? "bg-[#1e1b18] border-neutral-800" : "bg-white border-gray-200"
       )}>
         <div className="p-5 space-y-5">
           {/* Header */}
           <div className="flex items-center justify-between">
             <a href="https://tinythread.shop" className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 rounded-full border-2 border-amber-400 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="w-8 h-8 rounded-full border-2 border-[#3e92cc] flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#3e92cc]" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="3" />
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                 </svg>
               </div>
               <span className={cn("font-semibold", theme === "dark" ? "text-white" : "text-gray-900")}>TinyThread</span>
-              <span className="text-amber-400 text-xs font-medium">STUDIO</span>
+              <span className="text-[#3e92cc] text-xs font-medium">STUDIO</span>
             </a>
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -1392,7 +1392,7 @@ export default function TinyThreadStudio() {
             <div className="space-y-2">
               <div className={cn(
                 "flex items-center justify-between px-3 py-2 rounded-lg text-sm",
-                theme === "dark" ? "bg-amber-900/20 text-amber-400" : "bg-amber-50 text-amber-700"
+                theme === "dark" ? "bg-[#3e92cc]/20 text-[#3e92cc]" : "bg-[#3e92cc]/10 text-[#3e92cc]"
               )}>
                 <span>{customer.firstName}</span>
                 <button
@@ -1427,7 +1427,7 @@ export default function TinyThreadStudio() {
                             key={saved.id}
                             className={cn(
                               "rounded-lg overflow-hidden border-2 transition-all",
-                              theme === "dark" ? "border-neutral-700 hover:border-amber-400" : "border-gray-200 hover:border-amber-500"
+                              theme === "dark" ? "border-neutral-700 hover:border-[#3e92cc]" : "border-gray-200 hover:border-[#3e92cc]"
                             )}
                           >
                             <div
@@ -1482,8 +1482,8 @@ export default function TinyThreadStudio() {
             className={cn(
               "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors",
               theme === "dark" 
-                ? "bg-amber-400/10 text-amber-400/70 hover:bg-amber-400/20 hover:text-amber-400"
-                : "bg-amber-50 text-amber-600 hover:bg-amber-100"
+                ? "bg-[#3e92cc]/10 text-[#3e92cc]/70 hover:bg-[#3e92cc]/20 hover:text-[#3e92cc]"
+                : "bg-[#3e92cc]/10 text-[#3e92cc] hover:bg-[#3e92cc]/20"
             )}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1508,7 +1508,7 @@ export default function TinyThreadStudio() {
                   className={cn(
                     "p-3 rounded-lg border text-sm font-medium transition-all",
                     product === p
-                      ? "border-amber-400 bg-amber-400/10 text-amber-400"
+                      ? "border-[#3e92cc] bg-[#3e92cc]/10 text-[#3e92cc]"
                       : theme === "dark"
                         ? "border-neutral-700 text-neutral-300 hover:border-neutral-600"
                         : "border-gray-200 text-gray-700 hover:border-gray-300"
@@ -1532,7 +1532,7 @@ export default function TinyThreadStudio() {
                   onClick={() => setColor(c)}
                   className={cn(
                     "w-8 h-8 rounded-full border-2 transition-all",
-                    color === c ? "ring-2 ring-amber-400 ring-offset-2" : "",
+                    color === c ? "ring-2 ring-[#3e92cc] ring-offset-2" : "",
                     theme === "dark" ? "ring-offset-[#0d0d0d]" : "ring-offset-white",
                     c === "black" ? "bg-black border-neutral-600" : "bg-white border-gray-300"
                   )}
@@ -1556,7 +1556,7 @@ export default function TinyThreadStudio() {
                     className={cn(
                       "py-2 px-4 rounded-lg border text-sm font-medium transition-all",
                       view === v
-                        ? "border-amber-400 bg-amber-400/10 text-amber-400"
+                        ? "border-[#3e92cc] bg-[#3e92cc]/10 text-[#3e92cc]"
                         : theme === "dark"
                           ? "border-neutral-700 text-neutral-300 hover:border-neutral-600"
                           : "border-gray-200 text-gray-700 hover:border-gray-300"
@@ -1597,13 +1597,13 @@ export default function TinyThreadStudio() {
                   className={cn(
                     "py-2 px-2 rounded-lg border text-center transition-all",
                     size === s
-                      ? "border-amber-400 bg-amber-400/10"
+                      ? "border-[#3e92cc] bg-[#3e92cc]/10"
                       : theme === "dark"
                         ? "border-neutral-700 hover:border-neutral-600"
                         : "border-gray-200 hover:border-gray-300"
                   )}
                 >
-                  <div className={cn("text-lg font-semibold", size === s ? "text-amber-400" : theme === "dark" ? "text-white" : "text-gray-900")}>{s}</div>
+                  <div className={cn("text-lg font-semibold", size === s ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>{s}</div>
                   <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
                 </button>
               ))}
@@ -1628,7 +1628,7 @@ export default function TinyThreadStudio() {
                 <div className={cn("text-lg flex-shrink-0", theme === "dark" ? "text-neutral-600" : "text-gray-300")}>→</div>
                 <div className="flex-1 relative">
                   <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_after.jpg" : style === "standard" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/logo_after_final.jpg" : style === "outline" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/outline_after.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_after.jpg"} alt="After" className="w-full aspect-square object-cover rounded-lg" />
-                  <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-amber-400" : "bg-white/80 text-amber-600")}>
+                  <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-[#3e92cc]" : "bg-white/80 text-[#3e92cc]")}>
                     {"Rezult\u0101ts"}
                   </div>
                 </div>
@@ -1649,13 +1649,13 @@ export default function TinyThreadStudio() {
                   className={cn(
                     "w-full p-3 rounded-lg border text-left transition-all",
                     style === s.id
-                      ? "border-amber-400 bg-amber-400/10"
+                      ? "border-[#3e92cc] bg-[#3e92cc]/10"
                       : theme === "dark"
                         ? "border-neutral-700 hover:border-neutral-600"
                         : "border-gray-200 hover:border-gray-300"
                   )}
                 >
-                  <div className={cn("font-medium text-sm", style === s.id ? "text-amber-400" : theme === "dark" ? "text-white" : "text-gray-900")}>
+                  <div className={cn("font-medium text-sm", style === s.id ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>
                     {s.name}
                   </div>
                   <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
@@ -1668,17 +1668,17 @@ export default function TinyThreadStudio() {
               ))}
             </div>
             {style === "pet-head" && (
-              <div className="p-2 rounded-lg bg-amber-400/10 border border-amber-400/20">
-                <p className="text-xs text-amber-400">This style works best with a single pet face in the photo</p>
+              <div className="p-2 rounded-lg bg-[#3e92cc]/10 border border-[#3e92cc]/20">
+                <p className="text-xs text-[#3e92cc]">This style works best with a single pet face in the photo</p>
               </div>
             )}
             <div className="text-center text-sm mt-2">
               <span className={theme === "dark" ? "text-white/40" : "text-gray-500"}>Price: </span>
-              <span className="text-amber-400 font-bold text-xl">
+              <span className="text-[#3e92cc] font-bold text-xl">
                 {currentPrice > 0 ? `€${currentPrice}` : "—"}
               </span>
               {backSurcharge > 0 && (
-                <span className="text-amber-400/60 text-xs ml-1">(incl. back +€{backSurcharge})</span>
+                <span className="text-[#3e92cc]/60 text-xs ml-1">(incl. back +€{backSurcharge})</span>
               )}
             </div>
           </div>
@@ -1720,7 +1720,7 @@ export default function TinyThreadStudio() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 <p className={cn("text-sm", theme === "dark" ? "text-neutral-400" : "text-gray-600")}>
-                  Drop image or <span className="text-amber-400 hover:underline">browse</span>
+                  Drop image or <span className="text-[#3e92cc] hover:underline">browse</span>
                 </p>
                 <p className={cn("text-xs mt-1", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
                   JPG, PNG — max 10MB
@@ -1756,7 +1756,7 @@ export default function TinyThreadStudio() {
                     className={cn(
                       "flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-all",
                       selectedDesignId === design.id
-                        ? "border-amber-400 bg-amber-400/10"
+                        ? "border-[#3e92cc] bg-[#3e92cc]/10"
                         : theme === "dark"
                           ? "border-neutral-700 hover:border-neutral-600"
                           : "border-gray-200 hover:border-gray-300"
@@ -1782,7 +1782,7 @@ export default function TinyThreadStudio() {
                           handleSaveDesign(design);
                         }}
                         disabled={isSavingDesign}
-                        className={cn("p-1 rounded transition-colors", isSavingDesign ? "opacity-50" : "hover:bg-amber-500/20 text-amber-400")}
+                        className={cn("p-1 rounded transition-colors", isSavingDesign ? "opacity-50" : "hover:bg-[#3e92cc]/20 text-[#3e92cc]")}
                         title={"Saglab\u0101t dizainu"}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -1820,8 +1820,8 @@ export default function TinyThreadStudio() {
                     className={cn(
                       "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
                       theme === "dark"
-                        ? "border-amber-700/50 text-amber-400 hover:border-amber-600 hover:bg-amber-900/20"
-                        : "border-amber-300 text-amber-600 hover:border-amber-400 hover:bg-amber-50"
+                        ? "border-[#3e92cc]/50 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/20"
+                        : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
                     )}
                   >
                     + Add embroidery to the {otherView} (+€{surcharge})
@@ -1843,8 +1843,8 @@ export default function TinyThreadStudio() {
                 "w-full py-2.5 text-sm font-medium rounded-lg border transition-all flex items-center justify-center gap-2",
                 isSavingDesign ? "opacity-50" : "",
                 theme === "dark"
-                  ? "border-amber-700/50 text-amber-400 hover:bg-amber-900/20"
-                  : "border-amber-300 text-amber-600 hover:bg-amber-50"
+                  ? "border-[#3e92cc]/50 text-[#3e92cc] hover:bg-[#3e92cc]/20"
+                  : "border-[#3e92cc]/60 text-[#3e92cc] hover:bg-[#3e92cc]/10"
               )}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -1863,7 +1863,7 @@ export default function TinyThreadStudio() {
               data-testid="add-to-cart"
               onClick={handleAddToCartClick}
               disabled={designs.length === 0 || isAddingToCart}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#d8315b] hover:bg-[#c02850] text-white font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isAddingToCart ? (
                 <>
@@ -1884,13 +1884,13 @@ export default function TinyThreadStudio() {
       {/* Add to Cart Button - Mobile (sticky at bottom) */}
       <div className={cn(
         "md:hidden fixed bottom-0 left-0 right-0 p-3 border-t z-50",
-        theme === "dark" ? "bg-[#0d0d0d] border-neutral-800" : "bg-white border-gray-200"
+        theme === "dark" ? "bg-[#1e1b18] border-neutral-800" : "bg-white border-gray-200"
       )}>
         <Button
           data-testid="add-to-cart-mobile"
           onClick={handleAddToCartClick}
           disabled={designs.length === 0 || isAddingToCart}
-          className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-[#d8315b] hover:bg-[#c02850] text-white font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isAddingToCart ? (
             <>
@@ -1906,7 +1906,7 @@ export default function TinyThreadStudio() {
       {/* Welcome Popup - First Visit */}
       {showWelcome && (
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
+          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
             <div className="text-4xl mb-4">🧵</div>
             <h2 className="text-xl font-bold text-white mb-2">Laipni lūgti TinyThread Studijā</h2>
             <p className="text-white/50 text-sm mb-6">Izveido savu pielāgoto izšuvumu dažu minūšu laikā</p>
@@ -1916,7 +1916,7 @@ export default function TinyThreadStudio() {
             <div className="flex gap-3 justify-center mb-4">
               <button
                 onClick={() => { setShowWelcome(false); setShowGuide(true); localStorage.setItem("tinythread_visited", "1"); }}
-                className="px-6 py-3 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 transition-colors"
+                className="px-6 py-3 bg-[#3e92cc] text-black font-bold rounded-lg hover:bg-[#3e92cc] transition-colors"
               >
                 Apskatīt ceļvedi
               </button>
@@ -1935,7 +1935,7 @@ export default function TinyThreadStudio() {
       {/* Guide Modal */}
       {showGuide && (
         <div className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col">
+          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-end px-6 pt-5 pb-3">
               <button onClick={() => setShowGuide(false)} className="text-white/30 hover:text-white/60 text-sm">✕ Aizvērt</button>
@@ -1958,7 +1958,7 @@ export default function TinyThreadStudio() {
             <div className="px-6 pb-5 pt-2 flex items-center justify-between">
               <div className="flex gap-1.5">
                 {GUIDE_CONTENT[guideLang].map((_, i) => (
-                  <div key={i} className={cn("w-2 h-2 rounded-full transition-colors", i === guideStep ? "bg-amber-400" : "bg-white/20")} />
+                  <div key={i} className={cn("w-2 h-2 rounded-full transition-colors", i === guideStep ? "bg-[#3e92cc]" : "bg-white/20")} />
                 ))}
               </div>
               <div className="flex gap-2">
@@ -1974,7 +1974,7 @@ export default function TinyThreadStudio() {
                       setGuideStep(0);
                     }
                   }}
-                  className="px-5 py-2 bg-amber-500 text-black font-bold rounded-lg text-sm hover:bg-amber-400"
+                  className="px-5 py-2 bg-[#3e92cc] text-black font-bold rounded-lg text-sm hover:bg-[#3e92cc]"
                 >
                   {guideStep < GUIDE_CONTENT[guideLang].length - 1 ? "Tālāk" : "Sāksim!"}
                 </button>
@@ -1987,7 +1987,7 @@ export default function TinyThreadStudio() {
       {/* Confirmation Popup Before Add to Cart */}
       {showConfirmCart && (
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
+          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
             <div className="text-4xl mb-4">🧵</div>
             <h2 className="text-xl font-bold text-white mb-2">
               {guideLang === "lv" ? "Vai esi pabeidzis?" : "Are you done?"}
@@ -2001,7 +2001,7 @@ export default function TinyThreadStudio() {
             
             {/* Show option to add back design if only front exists */}
             {designs.length === 1 && (
-              <p className="text-amber-400/70 text-xs mb-6">
+              <p className="text-[#3e92cc]/70 text-xs mb-6">
                 {guideLang === "lv"
                   ? "💡 Tu vēl vari pievienot izšuvumu aizmugurē pirms pasūtīšanas"
                   : "💡 You can still add embroidery to the back before ordering"
@@ -2015,7 +2015,7 @@ export default function TinyThreadStudio() {
                   setShowConfirmCart(false);
                   handleAddToCart();
                 }}
-                className="w-full px-6 py-3 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 transition-colors"
+                className="w-full px-6 py-3 bg-[#3e92cc] text-black font-bold rounded-lg hover:bg-[#3e92cc] transition-colors"
               >
                 {guideLang === "lv" ? "Jā, pievienot grozam" : "Yes, add to cart"}
               </button>

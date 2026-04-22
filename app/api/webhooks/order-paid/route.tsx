@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
 
         if (!designUrl) continue;
 
-        attachmentHtml += `<h4 style="margin-top: 16px; color: #f59e0b;">${label} Design:</h4><ul style="font-size: 13px; color: #666;">`;
+        attachmentHtml += `<h4 style="margin-top: 16px; color: #3e92cc;">${label} Design:</h4><ul style="font-size: 13px; color: #666;">`;
 
         // 1. Original photo
         if (originalBase64) {
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
 
       const emailHtml = `
         <div style="font-family: system-ui, sans-serif; max-width: 600px;">
-          <h1 style="color: #f59e0b;">TinyThread - New Order</h1>
+          <h1 style="color: #3e92cc;">TinyThread - New Order</h1>
           <hr style="border: 1px solid #eee;">
           <h2>Order #${orderNumber}</h2>
           <p><strong>Customer:</strong> ${customerName} (${customerEmail})</p>

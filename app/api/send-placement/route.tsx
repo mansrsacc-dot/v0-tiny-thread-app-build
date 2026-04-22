@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     const emailHtml = `
       <div style="font-family: system-ui, sans-serif; max-width: 600px;">
-        <h1 style="color: #f59e0b;">TinyThread - New Design</h1>
+        <h1 style="color: #3e92cc;">TinyThread - New Design</h1>
         <hr style="border: 1px solid #eee;">
         <table style="border-collapse: collapse; width: 100%;">
           <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Product</td><td style="padding: 8px; border: 1px solid #ddd;">${product || "Hoodie"} ${garmentColor || "Black"}</td></tr>
