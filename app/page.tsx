@@ -9,53 +9,155 @@ import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Translations (Latvian only)
-const t: Record<string, string> = {
-    product: "PRODUKTS",
-    color: "KR\u0100SA",
-    view: "SKATS",
-    front: "Priek\u0161a",
+// Translations (LV primary, EN fallback via toggle)
+export type Lang = "lv" | "en";
+const T: Record<Lang, Record<string, string>> = {
+  lv: {
+    product: "Produkts",
+    color: "Krāsa",
+    view: "Skats",
+    front: "Priekša",
     back: "Aizmugure",
-    size: "IZM\u0112RS",
-    style: "STILS",
+    size: "Izmērs",
+    style: "Stils",
     price: "Cena",
-    uploadPhoto: "AUGŠUPIELĀDĒ FOTO",
-    dropImage: "Ievelc vai izvēlies failu",
-    maxFileSize: "JPG, PNG - maks. 10MB",
+    uploadPhoto: "Augšupielādē foto",
+    dropImageBrowse: "Ievelc attēlu vai izvēlies",
+    browse: "izvēlies",
+    maxFileSize: "JPG, PNG — maks. 10MB",
     clickToUpload: "Nospied, lai augšupielādētu foto",
-    fileFormats: "JPG, PNG - maks. 10MB",
-    generating: "Ģenerē izšuvumu...",
-    regenerate: "Ģenerēt vēlreiz",
+    generating: "Ġenerē izšuvumu...",
+    regenerate: "Ġenerēt vēlreiz",
     left: "atlicis",
     addToCart: "Pievienot grozam",
+    addingToCart: "{t.addingToCart}",
     addToBack: "Pievienot izšuvumu aizmugurē",
     addToFront: "Pievienot izšuvumu priekšā",
-    designLayers: "DIZAINA SLĀŅI",
+    designLayers: "Dizaina slāņi",
     removeBackground: "Noņemt fonu",
     original: "Oriģināls",
-    stitched: "Izšuvums",
+    stitched: "Izšūts",
     howItWorks: "Kā tas strādā",
-    outline: "Kontūra",
-    outlineDesc: "Elegants līniju stils",
-    outlineBest: "Piemērots: portreti, minimālistiski dizaini",
-    standard: "Standarta Logo",
-    standardDesc: "Tīrs, ass izšuvums",
-    standardBest: "Piemērots: logo, teksts, emblēmas",
-    petHead: "Mīluļa Portrets",
-    petHeadDesc: "Izšūts mājdzīvnieka portrets",
-    petHeadBest: "Piemērots: viena mājdzīvnieka tuvplāns",
-    car: "Auto",
-    carDesc: "Detalizēts auto portrets",
-    carBest: "Piemērots: auto, motocikli, transportlīdzekļi",
-    inclBack: "iekļ. aizmugure",
+    bestFor: "Piemērots",
+    fromPhotoToStitch: "No foto līdz izšuvumam",
+    photoLabel: "Foto",
+    resultLabel: "Rezultāts",
+    petHeadHint: "Šis stils vislabāk strādā ar viena mājdzīvnieka sejas tuvplānu",
+    designFilesSent: "Tavi dizaina faili tiks nosūtīti mūsu izšuvumu māksliniekiem",
+    loading: "Ielādē...",
+    myDesigns: "Mani dizaini",
+    maxReached: "Sasniegts maks.",
+    regenLeft: "atlicis",
     welcome: "Laipni lūgti TinyThread Studijā",
     welcomeDesc: "Izveido savu pielāgoto izšuvumu dažu minūšu laikā",
-    welcomeLang: "Gribi uzzināt, kā studija strādā? Izvēlies valodu:",
-    englishGuide: "English Guide",
-    latvianGuide: "Latvie\u0161u ce\u013Cvedis",
+    welcomePrompt: "Gribi uzzināt, kā studija strādā?",
+    showGuide: "Apskatīt ceļvedi",
     skipGuide: "Izlaist",
-    hoodie: "Džemperis",
-    cap: "Cepure",
+    next: "Tālāk",
+    back_btn: "Atpakaļ",
+    getStarted: "Sāksim!",
+    close: "Aizvērt",
+    // Toasts
+    noDesign: "Nav dizaina",
+    noDesignDesc: "Lūdzu, vispirms augšupielādē un ģenerē dizainu.",
+    notReady: "Nav gatavs",
+    notReadyDesc: "Lūdzu, pagaidi, kamēr tiek izģenerēts izšuvuma priekšskatījums.",
+    errorCart: "Kļūda pievienojot grozam",
+    errorGeneric: t.errorGeneric,
+    error: "Kļūda",
+    failedSave: "Neizdevās saglabāt dizainu",
+    designSaved: "Dizains saglabāts!",
+    designApplied: "Dizains pielietots!",
+    pleaseLogin: "Lūdzu, ielogojies",
+    pleaseLoginDesc: "Lai saglabātu dizainu, nepieciešams konts",
+    // Style descriptions
+    outlineDesc: "Minimālistiska līniju grafika",
+    outlineBest: "portreti, minimālistiski dizaini, paraksti",
+    standardDesc: "Tīrs, plakans dizains",
+    standardBest: "logo, teksts, emblēmas",
+    petHeadDesc: "Izšūts mājdzīvnieka portrets",
+    petHeadBest: "viena mājdzīvnieka tuvplāns",
+    carDesc: "Detalizēts auto portrets",
+    carBest: "auto, motocikli, transportlīdzekļi",
+    // Style names
+    styleOutline: "Kontūra",
+    styleStandard: "Standarta Logo",
+    stylePetHead: "Mīluļa Portrets",
+    styleCar: "Mašīnas izšuvums",
+  },
+  en: {
+    product: "Product",
+    color: "Color",
+    view: "View",
+    front: "Front",
+    back: "Back",
+    size: "Size",
+    style: "Style",
+    price: "Price",
+    uploadPhoto: "Upload Photo",
+    dropImageBrowse: "Drop image or",
+    browse: "browse",
+    maxFileSize: "JPG, PNG — max 10MB",
+    clickToUpload: "Click to upload your photo",
+    generating: "Generating embroidery...",
+    regenerate: "Regenerate",
+    left: "left",
+    addToCart: "Add to Cart",
+    addingToCart: "Adding to Cart...",
+    addToBack: "Add embroidery to the back",
+    addToFront: "Add embroidery to the front",
+    designLayers: "Design Layers",
+    removeBackground: "Remove Background",
+    original: "Original",
+    stitched: "Stitched",
+    howItWorks: "How It Works",
+    bestFor: "Best for",
+    fromPhotoToStitch: "From photo to stitch",
+    photoLabel: "Photo",
+    resultLabel: "Result",
+    petHeadHint: "This style works best with a single pet face in the photo",
+    designFilesSent: "Your design files will be sent to our embroidery artists",
+    loading: "Loading...",
+    myDesigns: "My designs",
+    maxReached: "Max reached",
+    regenLeft: "left",
+    welcome: "Welcome to TinyThread Studio",
+    welcomeDesc: "Create your custom embroidered garment in minutes",
+    welcomePrompt: "Want to learn how the studio works?",
+    showGuide: "View Guide",
+    skipGuide: "Skip",
+    next: "Next",
+    back_btn: "Back",
+    getStarted: "Get Started!",
+    close: "Close",
+    // Toasts
+    noDesign: "No design",
+    noDesignDesc: "Please upload and generate a design first.",
+    notReady: "Not ready",
+    notReadyDesc: "Please wait for the embroidery preview to generate.",
+    errorCart: "Error adding to cart",
+    errorGeneric: "Something went wrong. Please try again.",
+    error: "Error",
+    failedSave: "Failed to save design",
+    designSaved: "Design saved!",
+    designApplied: "Design applied!",
+    pleaseLogin: "Please log in",
+    pleaseLoginDesc: "You need an account to save designs",
+    // Style descriptions
+    outlineDesc: "Elegant line-art style",
+    outlineBest: "portraits, minimalist designs, signatures",
+    standardDesc: "Clean, sharp embroidery",
+    standardBest: "logos, text, badges",
+    petHeadDesc: "Embroidered pet face portrait",
+    petHeadBest: "single pet close-up",
+    carDesc: "Detailed car portrait",
+    carBest: "cars, motorcycles, vehicles",
+    // Style names
+    styleOutline: "Outline",
+    styleStandard: "Standard Logo",
+    stylePetHead: "Pet Head",
+    styleCar: "Car Embroidery",
+  },
 };
 
 // Product variant IDs - map from product+color+size+style to numeric variant ID
@@ -156,9 +258,9 @@ const BACK_SURCHARGE: Record<string, number> = {
   car: 35,
 };
 
-// Guide content (Latvian only, wrapped in object for backward compat with GUIDE_CONTENT[guideLang])
-const GUIDE_CONTENT = {
-  lv_en_unused: [
+// Guide content (LV and EN)
+const GUIDE_CONTENT: Record<Lang, Array<{title: string; text: string; icon: string}>> = {
+  en: [
     { title: "Choose Your Product & Color", text: "Start by selecting your garment — Hoodie or Cap — and pick your color. Your embroidery will be crafted onto this exact piece.", icon: "👕" },
     { title: "Pick Your Embroidery Size", text: "S (45–100mm) — Small and subtle, perfect for chest logos.\nM (100–150mm) — Standard size, most popular choice.\nL (150–250mm) — Large and bold, a statement piece.\n\nYou can resize within your selected range by dragging the corner handle.", icon: "📐" },
     { title: "Understand the Styles", text: "Outline — Clean minimal line art. Best with clear subjects, strong silhouettes. Avoid busy backgrounds.\n\nStandard Logo — Bold flat-color graphic like a sticker. Best for logos, text, badges. Avoid detailed photos.\n\nPhoto Stitch — Ultra-detailed thread painting. Best with clear well-lit photos of any subject. Avoid blurry or dark images.\n\nPet Head — Embroidered pet face portrait. Use a close-up of ONE pet's face looking at the camera. Avoid multiple pets or full body shots.", icon: "🎨" },
@@ -166,7 +268,7 @@ const GUIDE_CONTENT = {
     { title: "Preview & Adjust", text: "See how your embroidery will look on the garment. Toggle between Original and Stitched view to compare.\n\nNot happy? Click Regenerate for a new variation (up to 4 times). Drag to reposition, resize within your selected range.", icon: "✨" },
     { title: "Front & Back Embroidery", text: "You can add embroidery to both the front and back of your hoodie. Each side is a separate design with its own style, size, and placement.\n\nThis is completely optional — most customers start with just the front. If you'd like both sides, simply create your front design first, then add another design for the back.", icon: "↔️" },
     { title: "Add to Cart & Order", text: "Happy with your design? Click 'Add to Cart' to place your order. We'll handcraft your unique piece in our Riga studio using professional equipment and premium thread.", icon: "🛒" },
-    { title: "Important", text: "unused", icon: "💎" }
+    { title: "Important to Know", text: "The preview you see in the studio is a digital approximation of your embroidery. The final handcrafted result may vary slightly in color, detail, and texture.\n\nThis is the beauty of real embroidery — each piece is unique, crafted with care by our artists in Riga. No two pieces are exactly alike, just like real craftsmanship should be.\n\nIf you have any questions, contact us at info@tinythread.shop", icon: "💎" }
   ],
   lv: [
     { title: "Izvēlies produktu un krāsu", text: "Sāc ar apģērba izvēli — Džemperis vai Cepure — un izvēlies krāsu. Tavs izšuvums tiks veidots tieši uz šī izstrādājuma.", icon: "👕" },
@@ -206,7 +308,8 @@ interface Design {
 
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const lang = "lv" as const;
+  const [lang, setLang] = useState<Lang>("lv");
+  const t = T[lang];
   const [product, setProduct] = useState<Product>("hoodie");
   const [color, setColor] = useState<Color>("black");
   const [view, setView] = useState<View>("front");
@@ -223,7 +326,7 @@ export default function TinyThreadStudio() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
-  const guideLang = "lv" as const;
+  const guideLang = lang;
   const [guideStep, setGuideStep] = useState(0);
   const [showConfirmCart, setShowConfirmCart] = useState(false);
   
@@ -250,10 +353,23 @@ export default function TinyThreadStudio() {
 
   // Check if first visit and show welcome popup
   useEffect(() => {
-    if (typeof window !== "undefined" && !localStorage.getItem("tinythread_visited")) {
-      setShowWelcome(true);
+    if (typeof window !== "undefined") {
+      // Restore saved language preference
+      const savedLang = localStorage.getItem("tinythread_lang");
+      if (savedLang === "en" || savedLang === "lv") setLang(savedLang);
+      if (!localStorage.getItem("tinythread_visited")) {
+        setShowWelcome(true);
+      }
     }
   }, []);
+
+  // Persist language when it changes
+  const handleLangChange = (next: Lang) => {
+    setLang(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("tinythread_lang", next);
+    }
+  };
 
   // Read URL parameters to pre-select product and color
   useEffect(() => {
@@ -333,7 +449,7 @@ export default function TinyThreadStudio() {
   // Save current design - uploads full images to permanent storage
   const handleSaveDesign = async (design: Design) => {
     if (!customer) {
-      toast({ title: "L\u016bdzu, ielogojies", description: "Lai saglab\u0101tu dizainu, nepiecie\u0161ams konts" });
+      toast({ title: t.pleaseLogin, description: t.pleaseLoginDesc });
       return;
     }
     setIsSavingDesign(true);
@@ -392,14 +508,14 @@ export default function TinyThreadStudio() {
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: "Dizains saglab\u0101ts!" });
+        toast({ title: t.designSaved });
         await loadSavedDesigns(customer.id);
       } else {
-        toast({ title: "K\u013c\u016bda", description: data.error || "Neizdevās saglabāt" });
+        toast({ title: t.error, description: data.error || t.failedSave });
       }
     } catch (e) {
       console.error("[DESIGNS] Save error:", e);
-      toast({ title: "Kļūda", description: "Neizdevās saglabāt dizainu" });
+      toast({ title: t.error, description: t.failedSave });
     }
     setIsSavingDesign(false);
   };
@@ -438,7 +554,7 @@ export default function TinyThreadStudio() {
       if (saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
       setShowStitched(true); // Show the generated design, not the original photo
       setShowSavedDesigns(false);
-      toast({ title: "Dizains pielietots!" });
+      toast({ title: t.designApplied });
     } catch (e) {
       console.error("[DESIGNS] Apply error:", e);
     }
@@ -846,7 +962,7 @@ export default function TinyThreadStudio() {
   // Show confirmation popup before adding to cart
   const handleAddToCartClick = useCallback(() => {
     if (designs.length === 0) {
-      toast({ title: "Nav dizaina", description: "Lūdzu, vispirms augšupielādē un ģenerē dizainu." });
+      toast({ title: t.noDesign, description: t.noDesignDesc });
       return;
     }
     setShowConfirmCart(true);
@@ -855,13 +971,13 @@ export default function TinyThreadStudio() {
   // Handle Add to Cart - uses Shopify's cart/add URL to add to the REAL browser cart
   const handleAddToCart = useCallback(async () => {
     if (designs.length === 0) {
-      toast({ title: "Nav dizaina", description: "Lūdzu, vispirms augšupielādē un ģenerē dizainu." });
+      toast({ title: t.noDesign, description: t.noDesignDesc });
       return;
     }
 
     const hasStitched = designs.some(d => d.processedImages[d.style]);
     if (!hasStitched) {
-      toast({ title: "Nav gatavs", description: "Lūdzu, pagaidi, kamēr tiek izģenerēts izšuvuma priekšskatījums." });
+      toast({ title: t.notReady, description: t.notReadyDesc });
       return;
     }
 
@@ -1035,9 +1151,9 @@ export default function TinyThreadStudio() {
 
     } catch (error: unknown) {
       console.error("[ADD TO CART] Error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Kaut kas nogāja greizi. Lūdzu, mēģini vēlreiz.";
+      const errorMessage = error instanceof Error ? error.message : t.errorGeneric;
       toast({ 
-        title: "Kļūda pievienojot grozam", 
+        title: t.errorCart, 
         description: errorMessage,
         variant: "destructive"
       });
@@ -1056,12 +1172,12 @@ export default function TinyThreadStudio() {
         <div className="flex justify-end p-2 md:p-4">
           {designs.length > 0 && (
             <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", theme === "dark" ? "bg-neutral-800" : "bg-white shadow-sm")}>
-              <span className={cn("text-xs", !showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Oriģināls</span>
+              <span className={cn("text-xs", !showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>{t.original}</span>
               <Switch
                 checked={showStitched}
                 onCheckedChange={setShowStitched}
               />
-              <span className={cn("text-xs", showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>Izšūts</span>
+              <span className={cn("text-xs", showStitched ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-500")}>{t.stitched}</span>
             </div>
           )}
         </div>
@@ -1233,10 +1349,10 @@ export default function TinyThreadStudio() {
                             )}
                             <span>
                               {design.regenerationCount >= 4 
-                                ? "Max reached" 
+                                ? t.maxReached 
                                 : cooldown > 0 
                                   ? `${cooldown}s` 
-                                  : `(${4 - design.regenerationCount} left)`}
+                                  : `(${4 - design.regenerationCount} ${t.regenLeft})`}
                             </span>
                           </button>
                           
@@ -1316,7 +1432,7 @@ export default function TinyThreadStudio() {
                   </div>
                   <div className="text-center">
                     <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">{t.clickToUpload}</p>
-                    <p className="text-white/40 text-xs mt-1">JPG, PNG — max 10MB</p>
+                    <p className="text-white/40 text-xs mt-1">{t.maxFileSize}</p>
                   </div>
                 </div>
               </div>
@@ -1347,7 +1463,7 @@ export default function TinyThreadStudio() {
               "px-3 py-1.5 rounded text-xs font-medium",
               theme === "dark" ? "bg-neutral-800 text-neutral-400" : "bg-white text-gray-500 shadow-sm"
             )}>
-              {STYLES.find(s => s.id === selectedDesign.style)?.name} · {selectedDesign.size}
+              {selectedDesign.style === "outline" ? t.styleOutline : selectedDesign.style === "standard" ? t.styleStandard : selectedDesign.style === "pet-head" ? t.stylePetHead : t.styleCar} · {selectedDesign.size}
             </div>
           )}
         </div>
@@ -1371,20 +1487,34 @@ export default function TinyThreadStudio() {
               <span className={cn("font-semibold", theme === "dark" ? "text-white" : "text-gray-900")}>TinyThread</span>
               <span className="text-[#3e92cc] text-xs font-medium">STUDIO</span>
             </a>
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className={cn("p-2 rounded-lg", theme === "dark" ? "hover:bg-neutral-800 text-neutral-400" : "hover:bg-gray-100 text-gray-500")}
-            >
-              {theme === "dark" ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleLangChange(lang === "lv" ? "en" : "lv")}
+                className={cn(
+                  "px-2 py-1 rounded-md text-xs font-semibold border transition-colors",
+                  theme === "dark"
+                    ? "border-neutral-700 text-neutral-300 hover:border-[#3e92cc] hover:text-[#3e92cc]"
+                    : "border-gray-300 text-gray-600 hover:border-[#3e92cc] hover:text-[#3e92cc]"
+                )}
+                aria-label="Language"
+              >
+                {lang === "lv" ? "EN" : "LV"}
+              </button>
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className={cn("p-2 rounded-lg", theme === "dark" ? "hover:bg-neutral-800 text-neutral-400" : "hover:bg-gray-100 text-gray-500")}
+              >
+                {theme === "dark" ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Customer Login Status & My Designs */}
@@ -1402,7 +1532,7 @@ export default function TinyThreadStudio() {
                     theme === "dark" ? "bg-neutral-800 hover:bg-neutral-700" : "bg-white hover:bg-gray-100"
                   )}
                 >
-                  {"Mani dizaini"} ({savedDesigns.length})
+                  {t.myDesigns} ({savedDesigns.length})
                 </button>
               </div>
 
@@ -1415,7 +1545,7 @@ export default function TinyThreadStudio() {
                     {"SAGLAB\u0100TIE DIZAINI"}
                   </p>
                   {isLoadingSaved ? (
-                    <p className="text-xs text-center py-4 opacity-50">{"Iel\u0101d\u0113..."}</p>
+                    <p className="text-xs text-center py-4 opacity-50">{t.loading}</p>
                   ) : savedDesigns.length === 0 ? (
                     <p className="text-xs text-center py-4 opacity-50">{"Nav saglab\u0101tu dizainu"}</p>
                   ) : (
@@ -1495,7 +1625,7 @@ export default function TinyThreadStudio() {
           {/* Product Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Produkts
+              {t.product}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {(["hoodie", "cap"] as Product[]).map(p => (
@@ -1523,7 +1653,7 @@ export default function TinyThreadStudio() {
           {/* Color Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Krāsa
+              {t.color}
             </label>
             <div className="flex gap-3">
               {(["black", "white"] as Color[]).map(c => (
@@ -1546,7 +1676,7 @@ export default function TinyThreadStudio() {
           {product === "hoodie" && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                Skats
+                {t.view}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(["front", "back"] as View[]).map(v => (
@@ -1562,7 +1692,7 @@ export default function TinyThreadStudio() {
                           : "border-gray-200 text-gray-700 hover:border-gray-300"
                     )}
                   >
-                    {v === "front" ? "Priek\u0161a" : "Aizmugure"}
+                    {v === "front" ? t.front : t.back}
                   </button>
                 ))}
               </div>
@@ -1572,7 +1702,7 @@ export default function TinyThreadStudio() {
           {/* Size Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Izmērs
+              {t.size}
             </label>
             <div className={cn("grid gap-2", product === "cap" ? "grid-cols-2" : "grid-cols-3")}>
               {(product === "cap" ? ["S", "M"] as Size[] : ["S", "M", "L"] as Size[]).map(s => (
@@ -1615,21 +1745,21 @@ export default function TinyThreadStudio() {
             <div className={cn("rounded-xl overflow-hidden border", theme === "dark" ? "border-neutral-800 bg-neutral-900/50" : "border-gray-200 bg-gray-50")}>
               <div className={cn("px-3 py-2 text-center", theme === "dark" ? "bg-neutral-800/50" : "bg-gray-100")}>
                 <p className={cn("text-xs font-semibold uppercase tracking-wider", theme === "dark" ? "text-neutral-400" : "text-gray-500")}>
-                  {"No foto l\u012Bdz iz\u0161\u016Bumam"}
+                  {t.fromPhotoToStitch}
                 </p>
               </div>
               <div className="flex items-center gap-2 p-3">
                 <div className="flex-1 relative">
                   <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_before.jpg" : style === "standard" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/logo_before_final.jpg" : style === "outline" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/outline_before.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_before.jpg"} alt="Before" className="w-full aspect-square object-cover rounded-lg" />
                   <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-white/70" : "bg-white/80 text-gray-600")}>
-                    {"Foto"}
+                    {t.photoLabel}
                   </div>
                 </div>
                 <div className={cn("text-lg flex-shrink-0", theme === "dark" ? "text-neutral-600" : "text-gray-300")}>→</div>
                 <div className="flex-1 relative">
                   <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_after.jpg" : style === "standard" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/logo_after_final.jpg" : style === "outline" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/outline_after.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_after.jpg"} alt="After" className="w-full aspect-square object-cover rounded-lg" />
                   <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-[#3e92cc]" : "bg-white/80 text-[#3e92cc]")}>
-                    {"Rezult\u0101ts"}
+                    {t.resultLabel}
                   </div>
                 </div>
               </div>
@@ -1639,7 +1769,7 @@ export default function TinyThreadStudio() {
           {/* Style Selection */}
           <div className="space-y-2">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Stils
+              {t.style}
             </label>
             <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
               {STYLES.map(s => (
@@ -1656,24 +1786,24 @@ export default function TinyThreadStudio() {
                   )}
                 >
                   <div className={cn("font-medium text-sm", style === s.id ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>
-                    {s.name}
+                    {s.id === "outline" ? t.styleOutline : s.id === "standard" ? t.styleStandard : s.id === "pet-head" ? t.stylePetHead : t.styleCar}
                   </div>
                   <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                    {s.description}
+                    {s.id === "outline" ? t.outlineDesc : s.id === "standard" ? t.standardDesc : s.id === "pet-head" ? t.petHeadDesc : t.carDesc}
                   </div>
                   <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
-                    Piemērots: {s.bestFor}
+                    {t.bestFor}: {s.id === "outline" ? t.outlineBest : s.id === "standard" ? t.standardBest : s.id === "pet-head" ? t.petHeadBest : t.carBest}
                   </div>
                 </button>
               ))}
             </div>
             {style === "pet-head" && (
               <div className="p-2 rounded-lg bg-[#3e92cc]/10 border border-[#3e92cc]/20">
-                <p className="text-xs text-[#3e92cc]">This style works best with a single pet face in the photo</p>
+                <p className="text-xs text-[#3e92cc]">{t.petHeadHint}</p>
               </div>
             )}
             <div className="text-center text-sm mt-2">
-              <span className={theme === "dark" ? "text-white/40" : "text-gray-500"}>Price: </span>
+              <span className={theme === "dark" ? "text-white/40" : "text-gray-500"}>{t.price}: </span>
               <span className="text-[#3e92cc] font-bold text-xl">
                 {currentPrice > 0 ? `€${currentPrice}` : "—"}
               </span>
@@ -1686,7 +1816,7 @@ export default function TinyThreadStudio() {
           {/* Remove Background Toggle */}
           <div className="flex items-center justify-between">
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              Noņemt fonu
+              {t.removeBackground}
             </label>
             <Switch
               checked={removeBackground}
@@ -1699,7 +1829,7 @@ export default function TinyThreadStudio() {
           {designs.length === 0 && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                Augšupielādē foto
+                {t.uploadPhoto}
               </label>
               <div
                 onClick={() => fileInputRef.current?.click()}
@@ -1720,10 +1850,10 @@ export default function TinyThreadStudio() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 <p className={cn("text-sm", theme === "dark" ? "text-neutral-400" : "text-gray-600")}>
-                  Drop image or <span className="text-[#3e92cc] hover:underline">browse</span>
+                  {t.dropImageBrowse} <span className="text-[#3e92cc] hover:underline">{t.browse}</span>
                 </p>
                 <p className={cn("text-xs mt-1", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
-                  JPG, PNG — max 10MB
+                  {t.maxFileSize}
                 </p>
               </div>
             </div>
@@ -1746,7 +1876,7 @@ export default function TinyThreadStudio() {
           {designs.length > 0 && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                Dizaina slāņi
+                {t.designLayers}
               </label>
               <div className="space-y-2">
                 {designs.map(design => (
@@ -1868,14 +1998,14 @@ export default function TinyThreadStudio() {
               {isAddingToCart ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Pievieno grozam...
+                  {t.addingToCart}
                 </>
               ) : (
-                <>Pievienot grozam — €{currentPrice}</>
+                <>{t.addToCart} — €{currentPrice}</>
               )}
             </Button>
             <p className={cn("text-xs text-center", theme === "dark" ? "text-white/30" : "text-gray-400")}>
-              Tavi dizaina faili tiks nosūtīti mūsu izšuvumu māksliniekiem
+              {t.designFilesSent}
             </p>
           </div>
         </div>
@@ -1895,10 +2025,10 @@ export default function TinyThreadStudio() {
           {isAddingToCart ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Pievieno grozam...
+              {t.addingToCart}
             </>
           ) : (
-            <>Pievienot grozam — €{currentPrice}</>
+            <>{t.addToCart} — €{currentPrice}</>
           )}
         </Button>
       </div>
@@ -1908,17 +2038,17 @@ export default function TinyThreadStudio() {
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
           <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
             <div className="text-4xl mb-4">🧵</div>
-            <h2 className="text-xl font-bold text-white mb-2">Laipni lūgti TinyThread Studijā</h2>
-            <p className="text-white/50 text-sm mb-6">Izveido savu pielāgoto izšuvumu dažu minūšu laikā</p>
+            <h2 className="text-xl font-bold text-white mb-2">{t.welcome}</h2>
+            <p className="text-white/50 text-sm mb-6">{t.welcomeDesc}</p>
             
-            <p className="text-white/70 text-sm mb-6">Gribi uzzināt, kā studija strādā?</p>
+            <p className="text-white/70 text-sm mb-6">{t.welcomePrompt}</p>
             
             <div className="flex gap-3 justify-center mb-4">
               <button
                 onClick={() => { setShowWelcome(false); setShowGuide(true); localStorage.setItem("tinythread_visited", "1"); }}
                 className="px-6 py-3 bg-[#3e92cc] text-black font-bold rounded-lg hover:bg-[#3e92cc] transition-colors"
               >
-                Apskatīt ceļvedi
+                {t.showGuide}
               </button>
             </div>
             
@@ -1926,7 +2056,7 @@ export default function TinyThreadStudio() {
               onClick={() => { setShowWelcome(false); localStorage.setItem("tinythread_visited", "1"); }}
               className="text-white/40 text-sm hover:text-white/60 transition-colors"
             >
-              Izlaist
+              {t.skipGuide}
             </button>
           </div>
         </div>
@@ -1938,7 +2068,7 @@ export default function TinyThreadStudio() {
           <div className="bg-[#1e1b18] border border-white/10 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-end px-6 pt-5 pb-3">
-              <button onClick={() => setShowGuide(false)} className="text-white/30 hover:text-white/60 text-sm">✕ Aizvērt</button>
+              <button onClick={() => setShowGuide(false)} className="text-white/30 hover:text-white/60 text-sm">✕ {t.close}</button>
             </div>
             
             {/* Content */}
@@ -1963,7 +2093,7 @@ export default function TinyThreadStudio() {
               </div>
               <div className="flex gap-2">
                 {guideStep > 0 && (
-                  <button onClick={() => setGuideStep(guideStep - 1)} className="px-4 py-2 text-sm text-white/50 hover:text-white/70">Atpakaļ</button>
+                  <button onClick={() => setGuideStep(guideStep - 1)} className="px-4 py-2 text-sm text-white/50 hover:text-white/70">{t.back_btn}</button>
                 )}
                 <button
                   onClick={() => {
@@ -1976,7 +2106,7 @@ export default function TinyThreadStudio() {
                   }}
                   className="px-5 py-2 bg-[#3e92cc] text-black font-bold rounded-lg text-sm hover:bg-[#3e92cc]"
                 >
-                  {guideStep < GUIDE_CONTENT[guideLang].length - 1 ? "Tālāk" : "Sāksim!"}
+                  {guideStep < GUIDE_CONTENT[guideLang].length - 1 ? t.next : t.getStarted}
                 </button>
               </div>
             </div>
