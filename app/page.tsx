@@ -48,6 +48,11 @@ const T: Record<Lang, Record<string, string>> = {
     myDesigns: "Mani dizaini",
     maxReached: "Sasniegts maks.",
     regenLeft: "atlicis",
+    confirmTitle: "Vai esi pabeidzis?",
+    confirmDesc: "Pārliecinies, ka tavs dizains izskatās tieši tā, kā vēlies. Pēc pasūtīšanas izmaiņas nav iespējamas.",
+    confirmAddBack: "💡 Tu vēl vari pievienot izšuvumu aizmugurē pirms pasūtīšanas",
+    confirmYes: "Jā, pievienot grozam",
+    confirmNo: "Nē, vēlos vēl pielāgot",
     welcome: "Laipni lūgti TinyThread Studijā",
     welcomeDesc: "Izveido savu pielāgoto izšuvumu dažu minūšu laikā",
     welcomePrompt: "Gribi uzzināt, kā studija strādā?",
@@ -121,6 +126,11 @@ const T: Record<Lang, Record<string, string>> = {
     myDesigns: "My designs",
     maxReached: "Max reached",
     regenLeft: "left",
+    confirmTitle: "Are you done?",
+    confirmDesc: "Make sure your design looks exactly how you want it. Changes are not possible after ordering.",
+    confirmAddBack: "💡 You can still add embroidery to the back before ordering",
+    confirmYes: "Yes, add to cart",
+    confirmNo: "No, I want to adjust more",
     welcome: "Welcome to TinyThread Studio",
     welcomeDesc: "Create your custom embroidered garment in minutes",
     welcomePrompt: "Want to learn how the studio works?",
@@ -2046,7 +2056,7 @@ export default function TinyThreadStudio() {
             <div className="flex gap-3 justify-center mb-4">
               <button
                 onClick={() => { setShowWelcome(false); setShowGuide(true); localStorage.setItem("tinythread_visited", "1"); }}
-                className="px-6 py-3 bg-[#3e92cc] text-black font-bold rounded-lg hover:bg-[#3e92cc] transition-colors"
+                className="px-6 py-3 bg-[#3e92cc] text-white font-bold rounded-lg hover:bg-[#2f7bb0] transition-colors"
               >
                 {t.showGuide}
               </button>
@@ -2104,7 +2114,7 @@ export default function TinyThreadStudio() {
                       setGuideStep(0);
                     }
                   }}
-                  className="px-5 py-2 bg-[#3e92cc] text-black font-bold rounded-lg text-sm hover:bg-[#3e92cc]"
+                  className="px-5 py-2 bg-[#3e92cc] text-white font-bold rounded-lg text-sm hover:bg-[#2f7bb0]"
                 >
                   {guideStep < GUIDE_CONTENT[guideLang].length - 1 ? t.next : t.getStarted}
                 </button>
@@ -2119,24 +2129,12 @@ export default function TinyThreadStudio() {
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
           <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
             <div className="text-4xl mb-4">🧵</div>
-            <h2 className="text-xl font-bold text-white mb-2">
-              {guideLang === "lv" ? "Vai esi pabeidzis?" : "Are you done?"}
-            </h2>
-            <p className="text-white/50 text-sm mb-6">
-              {guideLang === "lv" 
-                ? "Pārliecinies, ka tavs dizains izskatās tieši tā, kā vēlies. Pēc pasūtīšanas izmaiņas nav iespējamas."
-                : "Make sure your design looks exactly how you want it. Changes are not possible after ordering."
-              }
-            </p>
+            <h2 className="text-xl font-bold text-white mb-2">{t.confirmTitle}</h2>
+            <p className="text-white/50 text-sm mb-6">{t.confirmDesc}</p>
             
             {/* Show option to add back design if only front exists */}
             {designs.length === 1 && (
-              <p className="text-[#3e92cc]/70 text-xs mb-6">
-                {guideLang === "lv"
-                  ? "💡 Tu vēl vari pievienot izšuvumu aizmugurē pirms pasūtīšanas"
-                  : "💡 You can still add embroidery to the back before ordering"
-                }
-              </p>
+              <p className="text-[#3e92cc]/70 text-xs mb-6">{t.confirmAddBack}</p>
             )}
             
             <div className="flex flex-col gap-3">
@@ -2145,16 +2143,16 @@ export default function TinyThreadStudio() {
                   setShowConfirmCart(false);
                   handleAddToCart();
                 }}
-                className="w-full px-6 py-3 bg-[#3e92cc] text-black font-bold rounded-lg hover:bg-[#3e92cc] transition-colors"
+                className="w-full px-6 py-3 bg-[#d8315b] hover:bg-[#c02850] text-white font-bold rounded-lg transition-colors"
               >
-                {guideLang === "lv" ? "Jā, pievienot grozam" : "Yes, add to cart"}
+                {t.confirmYes}
               </button>
               
               <button
                 onClick={() => setShowConfirmCart(false)}
                 className="w-full px-6 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20 transition-colors"
               >
-                {guideLang === "lv" ? "Nē, vēlos vēl pielāgot" : "No, I want to adjust more"}
+                {t.confirmNo}
               </button>
             </div>
           </div>
