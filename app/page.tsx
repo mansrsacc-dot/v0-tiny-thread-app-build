@@ -395,11 +395,11 @@ export default function TinyThreadStudio() {
         toast({ title: "Dizains saglab\u0101ts!" });
         await loadSavedDesigns(customer.id);
       } else {
-        toast({ title: "K\u013c\u016bda", description: data.error || "Failed to save" });
+        toast({ title: "K\u013c\u016bda", description: data.error || "Neizdevās saglabāt" });
       }
     } catch (e) {
       console.error("[DESIGNS] Save error:", e);
-      toast({ title: "Error", description: "Failed to save design" });
+      toast({ title: "Kļūda", description: "Neizdevās saglabāt dizainu" });
     }
     setIsSavingDesign(false);
   };
@@ -846,7 +846,7 @@ export default function TinyThreadStudio() {
   // Show confirmation popup before adding to cart
   const handleAddToCartClick = useCallback(() => {
     if (designs.length === 0) {
-      toast({ title: "No design", description: "Please upload and generate a design first." });
+      toast({ title: "Nav dizaina", description: "Lūdzu, vispirms augšupielādē un ģenerē dizainu." });
       return;
     }
     setShowConfirmCart(true);
@@ -855,13 +855,13 @@ export default function TinyThreadStudio() {
   // Handle Add to Cart - uses Shopify's cart/add URL to add to the REAL browser cart
   const handleAddToCart = useCallback(async () => {
     if (designs.length === 0) {
-      toast({ title: "No design", description: "Please upload and generate a design first." });
+      toast({ title: "Nav dizaina", description: "Lūdzu, vispirms augšupielādē un ģenerē dizainu." });
       return;
     }
 
     const hasStitched = designs.some(d => d.processedImages[d.style]);
     if (!hasStitched) {
-      toast({ title: "Not ready", description: "Please wait for the embroidery preview to generate." });
+      toast({ title: "Nav gatavs", description: "Lūdzu, pagaidi, kamēr tiek izģenerēts izšuvuma priekšskatījums." });
       return;
     }
 
@@ -1035,9 +1035,9 @@ export default function TinyThreadStudio() {
 
     } catch (error: unknown) {
       console.error("[ADD TO CART] Error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      const errorMessage = error instanceof Error ? error.message : "Kaut kas nogāja greizi. Lūdzu, mēģini vēlreiz.";
       toast({ 
-        title: "Error adding to cart", 
+        title: "Kļūda pievienojot grozam", 
         description: errorMessage,
         variant: "destructive"
       });
@@ -1868,14 +1868,14 @@ export default function TinyThreadStudio() {
               {isAddingToCart ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Adding to Cart...
+                  Pievieno grozam...
                 </>
               ) : (
-                <>Add to Cart — €{currentPrice}</>
+                <>Pievienot grozam — €{currentPrice}</>
               )}
             </Button>
             <p className={cn("text-xs text-center", theme === "dark" ? "text-white/30" : "text-gray-400")}>
-              Your design files will be sent to our embroidery artists
+              Tavi dizaina faili tiks nosūtīti mūsu izšuvumu māksliniekiem
             </p>
           </div>
         </div>
@@ -1895,10 +1895,10 @@ export default function TinyThreadStudio() {
           {isAddingToCart ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Adding to Cart...
+              Pievieno grozam...
             </>
           ) : (
-            <>Add to Cart — €{currentPrice}</>
+            <>Pievienot grozam — €{currentPrice}</>
           )}
         </Button>
       </div>
