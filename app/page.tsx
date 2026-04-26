@@ -30,7 +30,7 @@ const T: Record<Lang, Record<string, string>> = {
     regenerate: "Ġenerēt vēlreiz",
     left: "atlicis",
     addToCart: "Pievienot grozam",
-    addingToCart: "{t.addingToCart}",
+    addingToCart: "Pievieno grozam...",
     addToBack: "Pievienot izšuvumu aizmugurē",
     addToFront: "Pievienot izšuvumu priekšā",
     designLayers: "Dizaina slāņi",
