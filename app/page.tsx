@@ -1425,7 +1425,7 @@ export default function TinyThreadStudio() {
             })}
 
           {/* Upload Prompt Overlay */}
-            {designs.length === 0 && (
+            {currentDesignsForView.length === 0 && (
               <div 
                 className="absolute inset-0 flex items-center justify-center z-10 group cursor-pointer transition-all"
                 onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
@@ -1441,8 +1441,19 @@ export default function TinyThreadStudio() {
                     </svg>
                   </div>
                   <div className="text-center">
-                    <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">{t.clickToUpload}</p>
-                    <p className="text-white/40 text-xs mt-1">{t.maxFileSize}</p>
+                    {designs.length === 0 ? (
+                      <>
+                        <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">{t.clickToUpload}</p>
+                        <p className="text-white/40 text-xs mt-1">{t.maxFileSize}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">
+                          {view === "back" ? t.addToBack : t.addToFront} (+€{BACK_SURCHARGE[style] || 20})
+                        </p>
+                        <p className="text-white/40 text-xs mt-1">{t.maxFileSize}</p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
