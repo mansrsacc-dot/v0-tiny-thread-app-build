@@ -89,6 +89,9 @@ const T: Record<Lang, Record<string, string>> = {
     styleStandard: "Standarta Logo",
     stylePetHead: "Mīluļa Portrets",
     styleCar: "Mašīnas izšuvums",
+    // Product names
+    hoodie: "Džemperis",
+    cap: "Cepure",
   },
   en: {
     product: "Product",
@@ -167,6 +170,9 @@ const T: Record<Lang, Record<string, string>> = {
     styleStandard: "Standard Logo",
     stylePetHead: "Pet Head",
     styleCar: "Car Embroidery",
+    // Product names
+    hoodie: "Hoodie",
+    cap: "Cap",
   },
 };
 
