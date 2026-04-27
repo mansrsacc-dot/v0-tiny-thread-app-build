@@ -719,10 +719,17 @@ export default function TinyThreadStudio() {
               }
             }
           } else if (styleType === "standard") {
-            // Standard Logo uses server-side AI bg removal (handled separately)
-            // Return as-is here, the caller handles it
-            resolve(imageUrl);
-            return;
+            // Standard Logo: Replicate puts the logo on pure white. Strip pure-white pixels
+            // (with feathered alpha for near-white) to get a clean transparent cutout.
+            // This runs as a fallback/safety-net after the AI rembg call.
+            const minRGB = Math.min(r, g, b);
+            if (minRGB > 245) {
+              // Pure white -> fully transparent
+              data[i + 3] = 0;
+            } else if (minRGB > 230) {
+              // Near-white -> feather alpha for clean edges
+              data[i + 3] = Math.round(((255 - minRGB) / (255 - 230)) * 255);
+            }
           } else if (styleType === "pet-head" || styleType === "car") {
             if (r < threshold && g < threshold && b < threshold) {
               data[i + 3] = 0;
@@ -761,7 +768,8 @@ export default function TinyThreadStudio() {
         const rawReplicateUrl = data.imageUrl;
         let processed: string;
         if (styleType === "standard") {
-          // Use AI-based background removal for Standard Logo (preserves all colors)
+          // 1) Try AI-based background removal first (preserves all colors)
+          let aiBgUrl = data.imageUrl;
           try {
             const bgRes = await fetch("/api/remove-bg", {
               method: "POST",
@@ -769,10 +777,16 @@ export default function TinyThreadStudio() {
               body: JSON.stringify({ imageUrl: data.imageUrl }),
             });
             const bgData = await bgRes.json();
-            processed = bgData.imageUrl || data.imageUrl;
-          } catch {
-            processed = data.imageUrl;
-          }
+            if (bgData.imageUrl) aiBgUrl = bgData.imageUrl;
+          } catch {}
+          // 2) Always run client-side white-pixel cleanup as a safety net.
+          // This guarantees the white background is removed even if rembg failed,
+          // returned the original, or left near-white edge artifacts.
+          // Proxy replicate URLs so the canvas can read pixel data without CORS taint.
+          const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
+            ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
+            : aiBgUrl;
+          processed = await removeImageBackground(sourceForCleanup, styleType, color);
         } else {
           processed = await removeImageBackground(data.imageUrl, styleType, color);
         }
@@ -1123,7 +1137,11 @@ export default function TinyThreadStudio() {
     
     if (newIndex !== currentIndex && history[newIndex]) {
       const newImageUrl = history[newIndex];
-      const processed = await removeImageBackground(newImageUrl, styleType, color);
+      // Proxy replicate URLs so the canvas can read pixel data without CORS taint.
+      const sourceForCleanup = newImageUrl.includes("replicate.delivery")
+        ? `/api/proxy-image?url=${encodeURIComponent(newImageUrl)}`
+        : newImageUrl;
+      const processed = await removeImageBackground(sourceForCleanup, styleType, color);
       
       setDesigns(prev => prev.map(d => {
         if (d.id === selectedDesign.id) {
