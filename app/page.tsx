@@ -403,9 +403,14 @@ export default function TinyThreadStudio() {
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
-  const basePrice = PRICING[product]?.[style]?.[size] || 0;
-  const hasBackDesign = designs.some(d => d.view === "back" && !d.textContent);
-  const backSurcharge = hasBackDesign ? (BACK_SURCHARGE[designs.find(d => d.view === "back" && !d.textContent)?.style || style] || 0) : 0;
+  // Base price uses the primary photo design's style (front first, else back, else currently selected)
+  const photoFrontDesign = designs.find(d => d.view === "front" && !d.textContent);
+  const photoBackDesign = designs.find(d => d.view === "back" && !d.textContent);
+  const primaryPhotoStyle: Style = (photoFrontDesign?.style || photoBackDesign?.style || style);
+  const basePrice = PRICING[product]?.[primaryPhotoStyle]?.[size] || 0;
+  // Back surcharge only applies when there are photo designs on BOTH front and back
+  const hasBothSidesPhoto = !!photoFrontDesign && !!photoBackDesign;
+  const backSurcharge = hasBothSidesPhoto ? (BACK_SURCHARGE[photoBackDesign!.style] || 0) : 0;
   const textCount = designs.filter(d => !!d.textContent).length;
   const textSurcharge = textCount * TEXT_PRICE;
   const currentPrice = basePrice + backSurcharge + textSurcharge;
