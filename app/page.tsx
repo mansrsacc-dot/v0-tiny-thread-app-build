@@ -1573,84 +1573,103 @@ export default function TinyThreadStudio() {
                       </button>
 
                       {/* Text-specific: Color picker + Font cycle (only for text designs) */}
-                      {isText && (
-                        <>
-                          {/* Font cycle button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const currentIdx = TEXT_FONTS.findIndex(f => f.id === (design.textFont || TEXT_FONTS[0].id));
-                              const nextFont = TEXT_FONTS[(currentIdx + 1) % TEXT_FONTS.length];
-                              setDesigns(prev => prev.map(d =>
-                                d.id === design.id ? { ...d, textFont: nextFont.id } : d
-                              ));
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            title={t.textFont}
-                            className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 h-6 bg-black/80 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap"
-                            style={{ fontFamily: fontDef.css }}
-                          >
-                            <span className="opacity-60 text-[9px]">Aa</span>
-                            <span>{fontDef.name}</span>
-                          </button>
-
-                          {/* Color picker button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowColorPicker(showColorPicker === design.id ? null : design.id);
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            title={t.textColor}
-                            className="absolute -bottom-8 -left-2 w-6 h-6 bg-white border-2 border-[#3e92cc] rounded-full hover:scale-110 transition-transform flex items-center justify-center overflow-hidden"
-                          >
-                            <span
-                              className="block w-full h-full"
-                              style={{
-                                background: design.textColor
-                                  ? design.textColor
-                                  : "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
-                              }}
-                            />
-                          </button>
-
-                          {/* Color picker swatches popover */}
-                          {showColorPicker === design.id && (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onTouchStart={(e) => e.stopPropagation()}
-                              className="absolute -bottom-16 left-1/2 -translate-x-1/2 z-30 bg-black/90 backdrop-blur-sm border border-white/10 rounded-lg p-2 flex gap-1 flex-wrap max-w-[280px]"
+                      {isText && (() => {
+                        const cycleFont = () => {
+                          const currentIdx = TEXT_FONTS.findIndex(f => f.id === (design.textFont || TEXT_FONTS[0].id));
+                          const nextFont = TEXT_FONTS[(currentIdx + 1) % TEXT_FONTS.length];
+                          setDesigns(prev => prev.map(d =>
+                            d.id === design.id ? { ...d, textFont: nextFont.id } : d
+                          ));
+                        };
+                        const toggleColorPicker = () => {
+                          setShowColorPicker(showColorPicker === design.id ? null : design.id);
+                        };
+                        const applyColor = (hex: string) => {
+                          setDesigns(prev => prev.map(d =>
+                            d.id === design.id ? { ...d, textColor: hex || undefined } : d
+                          ));
+                          setShowColorPicker(null);
+                        };
+                        // Stop event + run action. Using pointer/mouse/touch down so action fires
+                        // BEFORE the parent design wrapper's drag handler can consume the event.
+                        const stopAndRun = (fn: () => void) => (e: React.SyntheticEvent) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          fn();
+                        };
+                        return (
+                          <>
+                            {/* Font cycle button */}
+                            <button
+                              type="button"
+                              onPointerDown={stopAndRun(cycleFont)}
+                              onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                              onTouchStart={(e) => { e.stopPropagation(); }}
+                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                              title={t.textFont}
+                              className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 h-6 bg-black/80 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap z-20"
+                              style={{ fontFamily: fontDef.css }}
                             >
-                              {TEXT_COLOR_PALETTE.map(c => {
-                                const isActive = (c.hex || "") === (design.textColor || "");
-                                return (
-                                  <button
-                                    key={c.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDesigns(prev => prev.map(d =>
-                                        d.id === design.id ? { ...d, textColor: c.hex || undefined } : d
-                                      ));
-                                      setShowColorPicker(null);
-                                    }}
-                                    title={c.label}
-                                    className={cn(
-                                      "w-6 h-6 rounded-full border-2 transition-transform hover:scale-110",
-                                      isActive ? "border-white ring-2 ring-[#3e92cc]" : "border-white/30"
-                                    )}
-                                    style={{
-                                      background: c.hex || "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
-                                    }}
-                                  />
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
+                              <span className="opacity-60 text-[9px]">Aa</span>
+                              <span>{fontDef.name}</span>
+                            </button>
+
+                            {/* Color picker trigger */}
+                            <button
+                              type="button"
+                              onPointerDown={stopAndRun(toggleColorPicker)}
+                              onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                              onTouchStart={(e) => { e.stopPropagation(); }}
+                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                              title={t.textColor}
+                              className="absolute -bottom-8 -left-2 w-6 h-6 bg-white border-2 border-[#3e92cc] rounded-full hover:scale-110 transition-transform flex items-center justify-center overflow-hidden z-20"
+                            >
+                              <span
+                                className="block w-full h-full pointer-events-none"
+                                style={{
+                                  background: design.textColor
+                                    ? design.textColor
+                                    : "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
+                                }}
+                              />
+                            </button>
+
+                            {/* Color picker swatches popover */}
+                            {showColorPicker === design.id && (
+                              <div
+                                onPointerDown={(e) => { e.stopPropagation(); }}
+                                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                                onTouchStart={(e) => { e.stopPropagation(); }}
+                                onClick={(e) => { e.stopPropagation(); }}
+                                className="absolute -bottom-20 left-1/2 -translate-x-1/2 z-40 bg-black/95 backdrop-blur-sm border border-white/10 rounded-lg p-2 flex gap-1.5 flex-wrap max-w-[260px]"
+                                style={{ minWidth: 220 }}
+                              >
+                                {TEXT_COLOR_PALETTE.map(c => {
+                                  const isActive = (c.hex || "") === (design.textColor || "");
+                                  return (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onPointerDown={stopAndRun(() => applyColor(c.hex))}
+                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                                      onTouchStart={(e) => { e.stopPropagation(); }}
+                                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                                      title={c.label}
+                                      className={cn(
+                                        "w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer",
+                                        isActive ? "border-white ring-2 ring-[#3e92cc]" : "border-white/30"
+                                      )}
+                                      style={{
+                                        background: c.hex || "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
 
                       {/* Resize Handle */}
                       <div
