@@ -22,6 +22,54 @@ async function shopifyGQL(query: string, variables?: Record<string, unknown>) {
   return res.json();
 }
 
+const FONT_CSS_MAP: Record<string, string> = {
+  sans: "system-ui, -apple-system, sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'Courier New', monospace",
+  script: "'Brush Script MT', cursive",
+  display: "Impact, sans-serif",
+};
+const FONT_NAME_MAP: Record<string, string> = {
+  sans: "Sans Serif", serif: "Serif", mono: "Monospace", script: "Cursive", display: "Display",
+};
+
+async function generateTextComposite(garmentUrl: string, textContent: string, fontId: string, garmentColor: string, posX: number, posY: number, designSizePx: number): Promise<string | null> {
+  try {
+    const W = 800, H = 1000;
+    const designSize = Math.round((designSizePx / 780) * W);
+    const left = Math.round(W * posX / 100 - designSize / 2);
+    const top = Math.round(H * posY / 100 - designSize / 2);
+    const textColor = garmentColor === "white" ? "#000000" : "#FFFFFF";
+    const fontSize = Math.max(20, designSize / 6);
+    const fontFamily = FONT_CSS_MAP[fontId] || FONT_CSS_MAP.sans;
+
+    const img = new ImageResponse(
+      (<div style={{ width: W, height: H, position: "relative", display: "flex" }}>
+        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }} />
+        <div style={{
+          position: "absolute",
+          left, top,
+          width: designSize,
+          height: designSize,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          fontFamily,
+          fontWeight: 700,
+          fontSize,
+          color: textColor,
+          lineHeight: 1.1,
+          padding: 4,
+        }}>{textContent}</div>
+      </div>),
+      { width: W, height: H }
+    );
+    const buf = await img.arrayBuffer();
+    return Buffer.from(buf).toString("base64");
+  } catch (e) { console.error("[WEBHOOK] Text composite error:", e); return null; }
+}
+
 async function generateComposite(garmentUrl: string, designUrl: string, posX: number, posY: number, designSizePx: number): Promise<string | null> {
   try {
     const W = 800, H = 1000;
@@ -122,6 +170,22 @@ export async function POST(req: NextRequest) {
       const backGarmentRef = getProp("_garment_back");
       const backGarmentUrl = backGarmentRef ? GARMENT_URLS[backGarmentRef] : null;
 
+      // Parse text embroidery info: 'TEXT (font: Sans, 100mm, front) | TEXT2 (font: Serif, 80mm, back)'
+      const textEmbProp = getProp("Text Embroidery");
+      const textsByView: Record<string, { content: string; fontName: string; sizeMm: number; fontId: string }> = {};
+      if (textEmbProp) {
+        const entries = textEmbProp.split(" | ");
+        for (const entry of entries) {
+          const m = entry.match(/^"(.+)" \(font: (.+?), (\d+)mm, (front|back)\)$/);
+          if (m) {
+            const [, content, fontName, sizeStr, vw] = m;
+            const fontId = Object.keys(FONT_NAME_MAP).find(k => FONT_NAME_MAP[k] === fontName) || "sans";
+            textsByView[vw] = { content, fontName, sizeMm: parseInt(sizeStr), fontId };
+          }
+        }
+      }
+      const garmentColorVal = (frontGarmentRef || backGarmentRef || "").includes("white") ? "white" : "black";
+
       let positionsData: { view: string; x: number; y: number; size: number }[] = [];
       try { positionsData = JSON.parse(getProp("_positions") || "[]"); } catch {}
       const frontPos = positionsData.find(p => p.view === "front") || { x: 50, y: 40, size: 150 };
@@ -170,10 +234,26 @@ export async function POST(req: NextRequest) {
         const pos = side === "front" ? frontPos : backPos;
         const originalBase64 = side === "front" ? frontOriginalBase64 : backOriginalBase64;
         const label = side.charAt(0).toUpperCase() + side.slice(1);
+        const textInfo = textsByView[side];
 
-        if (!designUrl) continue;
+        if (!designUrl && !textInfo) continue;
 
         attachmentHtml += `<h4 style="margin-top: 16px; color: #3e92cc;">${label} Design:</h4><ul style="font-size: 13px; color: #666;">`;
+
+        // TEXT design path
+        if (textInfo && garmentUrl) {
+          const sizePx = Math.round((textInfo.sizeMm / 700) * 780);
+          const placementBase64 = await generateTextComposite(garmentUrl, textInfo.content, textInfo.fontId, garmentColorVal, pos.x, pos.y, sizePx);
+          if (placementBase64) {
+            attachments.push({ filename: `placement-text-${side}.png`, content: placementBase64, content_type: "image/png" });
+            attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm</li>`;
+            attachmentHtml += `<li>placement-text-${side}.png - Text position on garment</li>`;
+          }
+          attachmentHtml += "</ul>";
+          continue;
+        }
+
+        if (!designUrl) { attachmentHtml += "</ul>"; continue; }
 
         // 1. Original photo
         if (originalBase64) {

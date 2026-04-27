@@ -29,6 +29,51 @@ async function generateComposite(garmentUrl: string, designUrl: string, posX: nu
   } catch (e) { console.error("[PLACEMENT] Composite error:", e); return null; }
 }
 
+const FONT_CSS_MAP: Record<string, string> = {
+  sans: "system-ui, -apple-system, sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'Courier New', monospace",
+  script: "'Brush Script MT', cursive",
+  display: "Impact, sans-serif",
+};
+
+async function generateTextComposite(garmentUrl: string, textContent: string, fontId: string, garmentColor: string, posX: number, posY: number, designSizePx: number): Promise<string | null> {
+  try {
+    const W = 800, H = 1000;
+    const designSize = Math.round((designSizePx / 780) * W);
+    const left = Math.round(W * posX / 100 - designSize / 2);
+    const top = Math.round(H * posY / 100 - designSize / 2);
+    const textColor = garmentColor === "white" ? "#000000" : "#FFFFFF";
+    const fontSize = Math.max(20, designSize / 6);
+    const fontFamily = FONT_CSS_MAP[fontId] || FONT_CSS_MAP.sans;
+
+    const img = new ImageResponse(
+      (<div style={{ width: W, height: H, position: "relative", display: "flex" }}>
+        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }} />
+        <div style={{
+          position: "absolute",
+          left, top,
+          width: designSize,
+          height: designSize,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          fontFamily,
+          fontWeight: 700,
+          fontSize,
+          color: textColor,
+          lineHeight: 1.1,
+          padding: 4,
+        }}>{textContent}</div>
+      </div>),
+      { width: W, height: H }
+    );
+    const buf = await img.arrayBuffer();
+    return Buffer.from(buf).toString("base64");
+  } catch (e) { console.error("[PLACEMENT] Text composite error:", e); return null; }
+}
+
 async function vectorizeDesign(designUrl: string): Promise<Buffer | null> {
   try {
     const imageRes = await fetch(designUrl);
@@ -69,8 +114,24 @@ export async function POST(req: NextRequest) {
       const view = d.view || "front";
       const viewLabel = view.charAt(0).toUpperCase() + view.slice(1);
 
-      // 1. Placement composite
-      if (garmentUrl && d.designUrl) {
+      // 1. Placement composite (image OR text)
+      if (garmentUrl && d.textContent) {
+        const composite = await generateTextComposite(
+          garmentUrl,
+          d.textContent,
+          d.textFont || "sans",
+          garmentColor || "black",
+          d.position?.x || 50,
+          d.position?.y || 40,
+          d.sizePx || 150
+        );
+        if (composite) {
+          attachments.push({ filename: `placement-text-${view}.png`, content: composite, content_type: "image/png" });
+          const fontName = ({ sans: "Sans Serif", serif: "Serif", mono: "Monospace", script: "Cursive", display: "Display" } as Record<string,string>)[d.textFont || "sans"] || d.textFont;
+          const sizeMm = d.sizePx ? Math.round((d.sizePx / 780) * 700) : 100;
+          designHtml += `<p><strong>${viewLabel} TEXT:</strong> "${d.textContent}" — Font: ${fontName}, Size: ${sizeMm}mm. See placement-text-${view}.png</p>`;
+        }
+      } else if (garmentUrl && d.designUrl) {
         const composite = await generateComposite(garmentUrl, d.designUrl, d.position?.x || 50, d.position?.y || 40, d.sizePx || 150);
         if (composite) {
           attachments.push({ filename: `placement-${view}.png`, content: composite, content_type: "image/png" });
@@ -85,8 +146,8 @@ export async function POST(req: NextRequest) {
         designHtml += `<p>Original photo: original-${view}.jpg</p>`;
       }
 
-      // 3. SVG vector
-      if (d.designUrl) {
+      // 3. SVG vector (image designs only - text doesn't need vectorization)
+      if (d.designUrl && !d.textContent) {
         const svg = await vectorizeDesign(d.designUrl);
         if (svg) {
           attachments.push({ filename: `vector-${view}.svg`, content: svg.toString("base64"), content_type: "image/svg+xml" });

@@ -53,6 +53,7 @@ const T: Record<Lang, Record<string, string>> = {
     confirmAddBack: "💡 Tu vēl vari pievienot izšuvumu aizmugurē pirms pasūtīšanas",
     confirmYes: "Jā, pievienot grozam",
     confirmNo: "Nē, vēlos vēl pielāgot",
+    inclBack: "iekļ. aizmugure",
     welcome: "Laipni lūgti TinyThread Studijā",
     welcomeDesc: "Izveido savu pielāgoto izšuvumu dažu minūšu laikā",
     welcomePrompt: "Gribi uzzināt, kā studija strādā?",
@@ -92,6 +93,16 @@ const T: Record<Lang, Record<string, string>> = {
     // Product names
     hoodie: "Džemperis",
     cap: "Cepure",
+    // Text feature
+    addText: "Pievienot tekstu",
+    textPlaceholder: "Ievadi tekstu...",
+    textFont: "Fonts",
+    textCharsLeft: "simboli atlikuši",
+    textPrice: "Tekstu pievienošana",
+    textOnly: "Teksts",
+    addTextCta: "Pievienot tekstu (+€12)",
+    textTooLong: "Maksimums 20 simboli",
+    cancel: "Atcelt",
   },
   en: {
     product: "Product",
@@ -134,6 +145,7 @@ const T: Record<Lang, Record<string, string>> = {
     confirmAddBack: "💡 You can still add embroidery to the back before ordering",
     confirmYes: "Yes, add to cart",
     confirmNo: "No, I want to adjust more",
+    inclBack: "incl. back",
     welcome: "Welcome to TinyThread Studio",
     welcomeDesc: "Create your custom embroidered garment in minutes",
     welcomePrompt: "Want to learn how the studio works?",
@@ -173,6 +185,16 @@ const T: Record<Lang, Record<string, string>> = {
     // Product names
     hoodie: "Hoodie",
     cap: "Cap",
+    // Text feature
+    addText: "Add Text",
+    textPlaceholder: "Enter your text...",
+    textFont: "Font",
+    textCharsLeft: "chars left",
+    textPrice: "Text addition",
+    textOnly: "Text",
+    addTextCta: "Add Text (+€12)",
+    textTooLong: "Maximum 20 characters",
+    cancel: "Cancel",
   },
 };
 
@@ -320,7 +342,20 @@ interface Design {
   regenerationCount: number;
   rawImageUrl: string | null;
   rotation: number;
+  // Text-only design (when set, originalImage is empty/placeholder)
+  textContent?: string;
+  textFont?: string;
 }
+
+const TEXT_FONTS = [
+  { id: "sans", name: "Sans Serif", css: "system-ui, -apple-system, sans-serif" },
+  { id: "serif", name: "Serif", css: "Georgia, 'Times New Roman', serif" },
+  { id: "mono", name: "Monospace", css: "'Courier New', monospace" },
+  { id: "script", name: "Cursive", css: "'Brush Script MT', cursive" },
+  { id: "display", name: "Display", css: "Impact, sans-serif" },
+];
+const TEXT_PRICE = 12;
+const TEXT_MAX_CHARS = 20;
 
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -345,6 +380,9 @@ export default function TinyThreadStudio() {
   const guideLang = lang;
   const [guideStep, setGuideStep] = useState(0);
   const [showConfirmCart, setShowConfirmCart] = useState(false);
+  const [showTextModal, setShowTextModal] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const [textFontInput, setTextFontInput] = useState(TEXT_FONTS[0].id);
   
   // Customer & saved designs state
   const [customer, setCustomer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
@@ -363,9 +401,11 @@ export default function TinyThreadStudio() {
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
   const basePrice = PRICING[product]?.[style]?.[size] || 0;
-  const hasBackDesign = designs.some(d => d.view === "back");
-  const backSurcharge = hasBackDesign ? (BACK_SURCHARGE[designs.find(d => d.view === "back")?.style || style] || 0) : 0;
-  const currentPrice = basePrice + backSurcharge;
+  const hasBackDesign = designs.some(d => d.view === "back" && !d.textContent);
+  const backSurcharge = hasBackDesign ? (BACK_SURCHARGE[designs.find(d => d.view === "back" && !d.textContent)?.style || style] || 0) : 0;
+  const textCount = designs.filter(d => !!d.textContent).length;
+  const textSurcharge = textCount * TEXT_PRICE;
+  const currentPrice = basePrice + backSurcharge + textSurcharge;
 
   // Check if first visit and show welcome popup
   useEffect(() => {
@@ -770,6 +810,40 @@ export default function TinyThreadStudio() {
     reader.readAsDataURL(file);
   }, [designs.length, style, view, size, removeBackground, generateEmbroidery]);
 
+  const handleAddText = useCallback(() => {
+    const trimmed = textInput.trim();
+    if (!trimmed || trimmed.length > TEXT_MAX_CHARS) return;
+    if (designs.length >= 2) {
+      alert("Maximum 2 designs allowed");
+      return;
+    }
+
+    const newDesign: Design = {
+      id: `text-${Date.now()}`,
+      originalImage: "",
+      style: style,
+      view: view,
+      size: "M",
+      currentSizePx: 140,
+      position: { x: 50, y: 40 },
+      generatedImages: {},
+      processedImages: {},
+      removeBackground: false,
+      generationHistory: {},
+      currentHistoryIndex: {},
+      regenerationCount: 0,
+      rawImageUrl: null,
+      rotation: 0,
+      textContent: trimmed,
+      textFont: textFontInput,
+    };
+
+    setDesigns(prev => [...prev, newDesign]);
+    setSelectedDesignId(newDesign.id);
+    setTextInput("");
+    setShowTextModal(false);
+  }, [textInput, textFontInput, designs.length, style, view]);
+
   const handleStyleChange = useCallback((newStyle: Style) => {
     setStyle(newStyle);
     
@@ -991,8 +1065,9 @@ export default function TinyThreadStudio() {
       return;
     }
 
-    const hasStitched = designs.some(d => d.processedImages[d.style]);
-    if (!hasStitched) {
+    // Text-only designs don't need AI processing; image designs do
+    const allReady = designs.every(d => d.textContent || d.processedImages?.[d.style]);
+    if (!allReady) {
       toast({ title: t.notReady, description: t.notReadyDesc });
       return;
     }
@@ -1029,6 +1104,16 @@ export default function TinyThreadStudio() {
       params.set("properties[Placement]", designSpecs.map(d => d.view).join(", "));
       params.set("properties[Design Count]", String(designs.length));
       
+      // Text designs - send content + font + size + view
+      const textDesigns = designs.filter(d => !!d.textContent);
+      if (textDesigns.length > 0) {
+        params.set("properties[Text Embroidery]", textDesigns.map(d => {
+          const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
+          const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100;
+          return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, ${d.view})`;
+        }).join(" | "));
+      }
+      
       // Add design image URLs for each side
       const frontDesign = designs.find(d => d.view === "front");
       const backDesign = designs.find(d => d.view === "back");
@@ -1042,11 +1127,16 @@ export default function TinyThreadStudio() {
       const frontUrl = getDesignUrl(frontDesign);
       if (frontUrl) {
         params.set("properties[_design_image]", frontUrl);
+      }
+      // Always set garment ref if there's any design on this side (image OR text)
+      if (frontDesign) {
         params.set("properties[_garment]", `${product}-${color}-front`);
       }
       const backUrl = getDesignUrl(backDesign);
       if (backUrl) {
         params.set("properties[_design_image_back]", backUrl);
+      }
+      if (backDesign) {
         params.set("properties[_garment_back]", `${product}-${color}-back`);
       }
 
@@ -1250,7 +1340,12 @@ export default function TinyThreadStudio() {
                 : design.originalImage;
 
               const imageToShow = getDisplayUrl(rawImageToShow);
-              if (!imageToShow) return null;
+              const isText = !!design.textContent;
+              if (!isText && !imageToShow) return null;
+
+              const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
+              // Thread color: white on black garment, black on white garment
+              const textColor = color === "black" ? "#FFFFFF" : "#000000";
 
               return (
                 <div
@@ -1272,13 +1367,30 @@ export default function TinyThreadStudio() {
                   // Prevent page scroll when dragging design on mobile
                   onTouchMove={(e) => e.preventDefault()}
                 >
-                  <img
-                    src={imageToShow}
-                    alt="Design"
-                    className="w-full h-full object-contain pointer-events-none"
-                    draggable={false}
-                    crossOrigin="anonymous"
-                  />
+                  {isText ? (
+                    <div
+                      className="w-full h-full flex items-center justify-center pointer-events-none px-1 text-center"
+                      style={{
+                        fontFamily: fontDef.css,
+                        color: textColor,
+                        fontWeight: 700,
+                        fontSize: Math.max(14, design.currentSizePx / 6),
+                        lineHeight: 1.1,
+                        wordBreak: "break-word",
+                        textShadow: color === "black" ? "0 0 2px rgba(0,0,0,0.3)" : "0 0 2px rgba(255,255,255,0.3)",
+                      }}
+                    >
+                      {design.textContent}
+                    </div>
+                  ) : (
+                    <img
+                      src={imageToShow!}
+                      alt="Design"
+                      className="w-full h-full object-contain pointer-events-none"
+                      draggable={false}
+                      crossOrigin="anonymous"
+                    />
+                  )}
                   
                   {selectedDesignId === design.id && (
                     <>
@@ -1835,7 +1947,10 @@ export default function TinyThreadStudio() {
                 {currentPrice > 0 ? `€${currentPrice}` : "—"}
               </span>
               {backSurcharge > 0 && (
-                <span className="text-[#3e92cc]/60 text-xs ml-1">(incl. back +€{backSurcharge})</span>
+                <span className="text-[#3e92cc]/60 text-xs ml-1">({t.inclBack} +€{backSurcharge})</span>
+              )}
+              {textSurcharge > 0 && (
+                <span className="text-[#3e92cc]/60 text-xs ml-1">({t.textPrice} +€{textSurcharge})</span>
               )}
             </div>
           </div>
@@ -1919,17 +2034,32 @@ export default function TinyThreadStudio() {
                           : "border-gray-200 hover:border-gray-300"
                     )}
                   >
-                    <img
-                      src={design.originalImage}
-                      alt="Design"
-                      className="w-10 h-10 rounded object-cover"
-                    />
+                    {design.textContent ? (
+                      <div
+                        className="w-10 h-10 rounded flex items-center justify-center text-[10px] font-bold text-center px-1 leading-tight overflow-hidden"
+                        style={{
+                          background: color === "black" ? "#1a1a1a" : "#f5f5f5",
+                          color: color === "black" ? "#fff" : "#000",
+                          fontFamily: (TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0]).css,
+                        }}
+                      >
+                        {design.textContent.slice(0, 6)}
+                      </div>
+                    ) : (
+                      <img
+                        src={design.originalImage}
+                        alt="Design"
+                        className="w-10 h-10 rounded object-cover"
+                      />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className={cn("text-sm font-medium truncate", theme === "dark" ? "text-white" : "text-gray-900")}>
-                        {STYLES.find(s => s.id === design.style)?.name}
+                        {design.textContent
+                          ? `${t.textOnly}: “${design.textContent}”`
+                          : (design.style === "outline" ? t.styleOutline : design.style === "standard" ? t.styleStandard : design.style === "pet-head" ? t.stylePetHead : t.styleCar)}
                       </div>
                       <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                        {design.view} · {design.size}
+                        {design.view === "front" ? t.front : t.back}{design.textContent ? "" : ` · ${design.size}`}
                       </div>
                     </div>
                     {customer && (
@@ -1981,11 +2111,29 @@ export default function TinyThreadStudio() {
                         : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
                     )}
                   >
-                    + Add embroidery to the {otherView} (+€{surcharge})
+                    + {otherView === "back" ? t.addToBack : t.addToFront} (+€{surcharge})
                   </button>
                 );
               })()}
             </div>
+          )}
+
+          {/* Add Text Button */}
+          {designs.length < 2 && (
+            <button
+              onClick={() => setShowTextModal(true)}
+              className={cn(
+                "w-full py-2.5 text-sm font-medium rounded-lg border border-dashed transition-all flex items-center justify-center gap-2",
+                theme === "dark"
+                  ? "border-[#3e92cc]/40 text-[#3e92cc] hover:bg-[#3e92cc]/10"
+                  : "border-[#3e92cc]/60 text-[#3e92cc] hover:bg-[#3e92cc]/10"
+              )}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
+              </svg>
+              {t.addTextCta}
+            </button>
           )}
 
           {/* Save Design Button */}
@@ -2134,6 +2282,97 @@ export default function TinyThreadStudio() {
                   className="px-5 py-2 bg-[#3e92cc] text-white font-bold rounded-lg text-sm hover:bg-[#2f7bb0]"
                 >
                   {guideStep < GUIDE_CONTENT[guideLang].length - 1 ? t.next : t.getStarted}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Text Input Modal */}
+      {showTextModal && (
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">{t.addText}</h2>
+              <button
+                onClick={() => { setShowTextModal(false); setTextInput(""); }}
+                className="text-white/40 hover:text-white/70"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <textarea
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value.slice(0, TEXT_MAX_CHARS))}
+                  placeholder={t.textPlaceholder}
+                  rows={2}
+                  maxLength={TEXT_MAX_CHARS}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3e92cc]/60 resize-none"
+                  autoFocus
+                />
+                <p className="text-white/40 text-xs mt-1.5 text-right">
+                  {TEXT_MAX_CHARS - textInput.length} {t.textCharsLeft}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
+                  {t.textFont}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {TEXT_FONTS.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setTextFontInput(f.id)}
+                      className={cn(
+                        "px-3 py-2 rounded-lg border text-sm transition-colors text-left",
+                        textFontInput === f.id
+                          ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
+                          : "border-white/10 text-white/60 hover:border-white/30"
+                      )}
+                      style={{ fontFamily: f.css }}
+                    >
+                      {f.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Live preview */}
+              {textInput.trim() && (
+                <div className="rounded-lg border border-white/10 p-4 text-center" style={{ background: color === "black" ? "#1a1a1a" : "#f5f5f5" }}>
+                  <p
+                    style={{
+                      fontFamily: (TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0]).css,
+                      color: color === "black" ? "#FFFFFF" : "#000000",
+                      fontWeight: 700,
+                      fontSize: 24,
+                      lineHeight: 1.1,
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {textInput.trim()}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => { setShowTextModal(false); setTextInput(""); }}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/15"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  onClick={handleAddText}
+                  disabled={!textInput.trim()}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-[#d8315b] hover:bg-[#c02850] text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {t.addTextCta}
                 </button>
               </div>
             </div>
