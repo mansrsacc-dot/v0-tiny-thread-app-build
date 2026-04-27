@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
       const view = d.view || "front";
       const viewLabel = view.charAt(0).toUpperCase() + view.slice(1);
 
-      // 1. Placement composite (image OR text)
+      // 1a. Placement composite for TEXT (rendered alongside photo if both exist)
       if (garmentUrl && d.textContent) {
         const composite = await generateTextComposite(
           garmentUrl,
@@ -131,7 +131,9 @@ export async function POST(req: NextRequest) {
           const sizeMm = d.sizePx ? Math.round((d.sizePx / 780) * 700) : 100;
           designHtml += `<p><strong>${viewLabel} TEXT:</strong> "${d.textContent}" — Font: ${fontName}, Size: ${sizeMm}mm. See placement-text-${view}.png</p>`;
         }
-      } else if (garmentUrl && d.designUrl) {
+      }
+      // 1b. Placement composite for PHOTO
+      if (garmentUrl && d.designUrl) {
         const composite = await generateComposite(garmentUrl, d.designUrl, d.position?.x || 50, d.position?.y || 40, d.sizePx || 150);
         if (composite) {
           attachments.push({ filename: `placement-${view}.png`, content: composite, content_type: "image/png" });

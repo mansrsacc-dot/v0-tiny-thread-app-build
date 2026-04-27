@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
 
         attachmentHtml += `<h4 style="margin-top: 16px; color: #3e92cc;">${label} Design:</h4><ul style="font-size: 13px; color: #666;">`;
 
-        // TEXT design path
+        // TEXT info (rendered alongside photo if both exist on this side)
         if (textInfo && garmentUrl) {
           const sizePx = Math.round((textInfo.sizeMm / 700) * 780);
           const placementBase64 = await generateTextComposite(garmentUrl, textInfo.content, textInfo.fontId, garmentColorVal, pos.x, pos.y, sizePx);
@@ -249,13 +249,11 @@ export async function POST(req: NextRequest) {
             attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm</li>`;
             attachmentHtml += `<li>placement-text-${side}.png - Text position on garment</li>`;
           }
-          attachmentHtml += "</ul>";
-          continue;
         }
 
         if (!designUrl) { attachmentHtml += "</ul>"; continue; }
 
-        // 1. Original photo
+        // PHOTO design path - 1. Original photo
         if (originalBase64) {
           attachments.push({ filename: `original-${side}.jpg`, content: originalBase64, content_type: "image/jpeg" });
           attachmentHtml += `<li>original-${side}.jpg - Customer's uploaded photo</li>`;

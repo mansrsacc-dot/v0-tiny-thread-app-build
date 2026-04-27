@@ -356,6 +356,9 @@ const TEXT_FONTS = [
 ];
 const TEXT_PRICE = 12;
 const TEXT_MAX_CHARS = 20;
+// Shopify variant ID for the €12 text add-on product. Set to empty string until product is created in Shopify.
+// Once you create the "Text Embroidery Add-on" product in Shopify, paste its variant ID here.
+const TEXT_ADDON_VARIANT_ID = "";
 
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -1279,7 +1282,39 @@ export default function TinyThreadStudio() {
       }
       // --- End auto-save ---
 
-      // Redirect to Shopify cart/add — this adds to the REAL browser cart
+      // If there are text designs AND an add-on variant configured, add both items via cart/add.js
+      const textDesignsCount = designs.filter(d => !!d.textContent).length;
+      if (textDesignsCount > 0 && TEXT_ADDON_VARIANT_ID) {
+        // Build items array for multi-add
+        const propsObj: Record<string, string> = {};
+        for (const [k, v] of params.entries()) {
+          if (k.startsWith("properties[") && k.endsWith("]")) {
+            propsObj[k.slice("properties[".length, -1)] = v;
+          }
+        }
+        const items = [
+          { id: variantId, quantity: 1, properties: propsObj },
+          { id: TEXT_ADDON_VARIANT_ID, quantity: textDesignsCount, properties: { "_for_order_ref": propsObj["_order_ref"] || "" } },
+        ];
+        try {
+          const addRes = await fetch("https://tinythread.shop/cart/add.js", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ items }),
+          });
+          if (addRes.ok) {
+            window.location.href = "https://tinythread.shop/cart";
+            return;
+          }
+          // Fallback to single-item add if the multi-add fails (e.g. CORS)
+          console.warn("[ADD TO CART] Multi-add failed, falling back to single-item URL");
+        } catch (e) {
+          console.warn("[ADD TO CART] Multi-add error, falling back:", e);
+        }
+      }
+
+      // Redirect to Shopify cart/add — this adds to the REAL browser cart (single item)
       window.location.href = "https://tinythread.shop/cart/add?" + params.toString();
 
     } catch (error: unknown) {
