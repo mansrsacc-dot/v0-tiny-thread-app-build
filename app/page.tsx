@@ -430,7 +430,7 @@ export default function TinyThreadStudio() {
   const [textFontInput, setTextFontInput] = useState(TEXT_FONTS[0].id);
   const [textColorInput, setTextColorInput] = useState<string>(""); // "" = auto
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const [showColorPicker, setShowColorPicker] = useState<string | null>(null); // design id whose picker is open
+
   
   // Customer & saved designs state
   const [customer, setCustomer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
@@ -471,13 +471,6 @@ export default function TinyThreadStudio() {
       }
     }
   }, []);
-
-  // Close color picker when selection changes
-  useEffect(() => {
-    if (showColorPicker && showColorPicker !== selectedDesignId) {
-      setShowColorPicker(null);
-    }
-  }, [selectedDesignId, showColorPicker]);
 
   // Persist language when it changes
   const handleLangChange = (next: Lang) => {
@@ -1572,7 +1565,7 @@ export default function TinyThreadStudio() {
                         </svg>
                       </button>
 
-                      {/* Text-specific: Color picker + Font cycle (only for text designs) */}
+                      {/* Text-specific: Font cycle + always-visible color bar (only for text designs) */}
                       {isText && (() => {
                         const cycleFont = () => {
                           const currentIdx = TEXT_FONTS.findIndex(f => f.id === (design.textFont || TEXT_FONTS[0].id));
@@ -1581,92 +1574,74 @@ export default function TinyThreadStudio() {
                             d.id === design.id ? { ...d, textFont: nextFont.id } : d
                           ));
                         };
-                        const toggleColorPicker = () => {
-                          setShowColorPicker(showColorPicker === design.id ? null : design.id);
-                        };
                         const applyColor = (hex: string) => {
                           setDesigns(prev => prev.map(d =>
                             d.id === design.id ? { ...d, textColor: hex || undefined } : d
                           ));
-                          setShowColorPicker(null);
                         };
-                        // Stop event + run action. Using pointer/mouse/touch down so action fires
-                        // BEFORE the parent design wrapper's drag handler can consume the event.
+                        // Stop event + run action on pointer-down so action fires BEFORE the
+                        // parent design wrapper's drag handler can consume the event.
                         const stopAndRun = (fn: () => void) => (e: React.SyntheticEvent) => {
                           e.stopPropagation();
                           e.preventDefault();
                           fn();
                         };
+                        const blockEvent = (e: React.SyntheticEvent) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        };
                         return (
                           <>
-                            {/* Font cycle button */}
+                            {/* Font cycle button - above the text */}
                             <button
                               type="button"
                               onPointerDown={stopAndRun(cycleFont)}
-                              onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                              onMouseDown={blockEvent}
                               onTouchStart={(e) => { e.stopPropagation(); }}
-                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                              onClick={blockEvent}
                               title={t.textFont}
-                              className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 h-6 bg-black/80 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap z-20"
+                              className="absolute -top-9 left-1/2 -translate-x-1/2 px-2 h-7 bg-black/85 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap z-30 shadow-lg"
                               style={{ fontFamily: fontDef.css }}
                             >
                               <span className="opacity-60 text-[9px]">Aa</span>
                               <span>{fontDef.name}</span>
                             </button>
 
-                            {/* Color picker trigger */}
-                            <button
-                              type="button"
-                              onPointerDown={stopAndRun(toggleColorPicker)}
-                              onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            {/* Always-visible color swatch bar below the text */}
+                            <div
+                              onPointerDown={(e) => { e.stopPropagation(); }}
+                              onMouseDown={blockEvent}
                               onTouchStart={(e) => { e.stopPropagation(); }}
-                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                              title={t.textColor}
-                              className="absolute -bottom-8 -left-2 w-6 h-6 bg-white border-2 border-[#3e92cc] rounded-full hover:scale-110 transition-transform flex items-center justify-center overflow-hidden z-20"
+                              onClick={blockEvent}
+                              className="absolute -bottom-12 left-1/2 -translate-x-1/2 z-30 bg-black/85 backdrop-blur-sm rounded-lg px-2 py-1.5 flex gap-1 items-center shadow-lg"
+                              style={{ width: "max-content", maxWidth: "min(92vw, 360px)" }}
                             >
-                              <span
-                                className="block w-full h-full pointer-events-none"
-                                style={{
-                                  background: design.textColor
-                                    ? design.textColor
-                                    : "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
-                                }}
-                              />
-                            </button>
-
-                            {/* Color picker swatches popover */}
-                            {showColorPicker === design.id && (
-                              <div
-                                onPointerDown={(e) => { e.stopPropagation(); }}
-                                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                                onTouchStart={(e) => { e.stopPropagation(); }}
-                                onClick={(e) => { e.stopPropagation(); }}
-                                className="absolute -bottom-20 left-1/2 -translate-x-1/2 z-40 bg-black/95 backdrop-blur-sm border border-white/10 rounded-lg p-2 flex gap-1.5 flex-wrap max-w-[260px]"
-                                style={{ minWidth: 220 }}
-                              >
-                                {TEXT_COLOR_PALETTE.map(c => {
-                                  const isActive = (c.hex || "") === (design.textColor || "");
-                                  return (
-                                    <button
-                                      key={c.id}
-                                      type="button"
-                                      onPointerDown={stopAndRun(() => applyColor(c.hex))}
-                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                                      onTouchStart={(e) => { e.stopPropagation(); }}
-                                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                                      title={c.label}
-                                      className={cn(
-                                        "w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer",
-                                        isActive ? "border-white ring-2 ring-[#3e92cc]" : "border-white/30"
-                                      )}
-                                      style={{
-                                        background: c.hex || "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            )}
+                              {TEXT_COLOR_PALETTE.map(c => {
+                                const isActive = (c.hex || "") === (design.textColor || "");
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onPointerDown={stopAndRun(() => applyColor(c.hex))}
+                                    onMouseDown={blockEvent}
+                                    onTouchStart={(e) => { e.stopPropagation(); }}
+                                    onClick={blockEvent}
+                                    title={c.label}
+                                    className={cn(
+                                      "rounded-full border-2 transition-all cursor-pointer flex-shrink-0",
+                                      isActive
+                                        ? "w-6 h-6 border-white ring-2 ring-[#3e92cc]"
+                                        : "w-5 h-5 border-white/40 hover:border-white hover:scale-110"
+                                    )}
+                                    style={{
+                                      background: c.hex || "conic-gradient(from 0deg, #d8315b, #f5c518, #2e7d32, #3e92cc, #d8315b)",
+                                    }}
+                                  >
+                                    <span className="sr-only">{c.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </>
                         );
                       })()}
