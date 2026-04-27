@@ -356,9 +356,8 @@ const TEXT_FONTS = [
 ];
 const TEXT_PRICE = 12;
 const TEXT_MAX_CHARS = 20;
-// Shopify variant ID for the €12 text add-on product. Set to empty string until product is created in Shopify.
-// Once you create the "Text Embroidery Add-on" product in Shopify, paste its variant ID here.
-const TEXT_ADDON_VARIANT_ID = "";
+// Shopify variant ID for the €12 "Teksta izšuvums" add-on product
+const TEXT_ADDON_VARIANT_ID = "57137410703691";
 
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
