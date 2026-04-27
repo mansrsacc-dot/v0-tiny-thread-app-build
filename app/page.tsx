@@ -383,6 +383,7 @@ export default function TinyThreadStudio() {
   const [showTextModal, setShowTextModal] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [textFontInput, setTextFontInput] = useState(TEXT_FONTS[0].id);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
   
   // Customer & saved designs state
   const [customer, setCustomer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
@@ -768,8 +769,10 @@ export default function TinyThreadStudio() {
   };
 
   const handleFileUpload = useCallback((file: File) => {
-    if (designs.length >= 2) {
-      alert("Maximum 2 designs allowed");
+    // Limit: 1 photo per side
+    const photoOnThisView = designs.some(d => d.view === view && !d.textContent);
+    if (photoOnThisView) {
+      alert("You already have a photo design on this side. Delete it first to upload a new one.");
       return;
     }
 
@@ -813,8 +816,24 @@ export default function TinyThreadStudio() {
   const handleAddText = useCallback(() => {
     const trimmed = textInput.trim();
     if (!trimmed || trimmed.length > TEXT_MAX_CHARS) return;
-    if (designs.length >= 2) {
-      alert("Maximum 2 designs allowed");
+
+    // If we are editing an existing text design, just update it
+    if (editingTextId) {
+      setDesigns(prev => prev.map(d =>
+        d.id === editingTextId
+          ? { ...d, textContent: trimmed, textFont: textFontInput }
+          : d
+      ));
+      setEditingTextId(null);
+      setTextInput("");
+      setShowTextModal(false);
+      return;
+    }
+
+    // Adding new text - 1 text per side max
+    const textOnThisView = designs.some(d => d.view === view && !!d.textContent);
+    if (textOnThisView) {
+      alert("You already have a text on this side. Click it to edit instead.");
       return;
     }
 
@@ -842,7 +861,15 @@ export default function TinyThreadStudio() {
     setSelectedDesignId(newDesign.id);
     setTextInput("");
     setShowTextModal(false);
-  }, [textInput, textFontInput, designs.length, style, view]);
+  }, [textInput, textFontInput, editingTextId, designs, view, style]);
+
+  const handleEditText = useCallback((design: Design) => {
+    if (!design.textContent) return;
+    setEditingTextId(design.id);
+    setTextInput(design.textContent);
+    setTextFontInput(design.textFont || TEXT_FONTS[0].id);
+    setShowTextModal(true);
+  }, []);
 
   const handleStyleChange = useCallback((newStyle: Style) => {
     setStyle(newStyle);
@@ -1366,6 +1393,7 @@ export default function TinyThreadStudio() {
                   onTouchStart={(e) => handlePointerDown(e, design.id)}
                   // Prevent page scroll when dragging design on mobile
                   onTouchMove={(e) => e.preventDefault()}
+                  onDoubleClick={(e) => { if (isText) { e.stopPropagation(); handleEditText(design); } }}
                 >
                   {isText ? (
                     <div
@@ -1543,7 +1571,7 @@ export default function TinyThreadStudio() {
             })}
 
           {/* Upload Prompt Overlay */}
-            {currentDesignsForView.length === 0 && (
+            {currentDesignsForView.filter(d => !d.textContent).length === 0 && (
               <div 
                 className="absolute inset-0 flex items-center justify-center z-10 group cursor-pointer transition-all"
                 onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
@@ -1559,7 +1587,7 @@ export default function TinyThreadStudio() {
                     </svg>
                   </div>
                   <div className="text-center">
-                    {designs.length === 0 ? (
+                    {designs.filter(d => !d.textContent).length === 0 ? (
                       <>
                         <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">{t.clickToUpload}</p>
                         <p className="text-white/40 text-xs mt-1">{t.maxFileSize}</p>
@@ -2062,7 +2090,21 @@ export default function TinyThreadStudio() {
                         {design.view === "front" ? t.front : t.back}{design.textContent ? "" : ` · ${design.size}`}
                       </div>
                     </div>
-                    {customer && (
+                    {design.textContent && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditText(design);
+                        }}
+                        className="p-1 rounded hover:bg-[#3e92cc]/20 text-[#3e92cc]"
+                        title={t.addText}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
+                    {customer && !design.textContent && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2118,8 +2160,8 @@ export default function TinyThreadStudio() {
             </div>
           )}
 
-          {/* Add Text Button */}
-          {designs.length < 2 && (
+          {/* Add Text Button (only if there's no text on current side) */}
+          {!designs.some(d => d.view === view && !!d.textContent) && (
             <button
               onClick={() => setShowTextModal(true)}
               className={cn(
@@ -2296,7 +2338,7 @@ export default function TinyThreadStudio() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">{t.addText}</h2>
               <button
-                onClick={() => { setShowTextModal(false); setTextInput(""); }}
+                onClick={() => { setShowTextModal(false); setTextInput(""); setEditingTextId(null); }}
                 className="text-white/40 hover:text-white/70"
               >
                 ✕
@@ -2362,7 +2404,7 @@ export default function TinyThreadStudio() {
 
               <div className="flex gap-2 pt-2">
                 <button
-                  onClick={() => { setShowTextModal(false); setTextInput(""); }}
+                  onClick={() => { setShowTextModal(false); setTextInput(""); setEditingTextId(null); }}
                   className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/15"
                 >
                   {t.cancel}
@@ -2372,7 +2414,7 @@ export default function TinyThreadStudio() {
                   disabled={!textInput.trim()}
                   className="flex-1 px-4 py-2.5 rounded-lg bg-[#d8315b] hover:bg-[#c02850] text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {t.addTextCta}
+                  {editingTextId ? t.addText : t.addTextCta}
                 </button>
               </div>
             </div>
