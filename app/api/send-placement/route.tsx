@@ -37,13 +37,13 @@ const FONT_CSS_MAP: Record<string, string> = {
   display: "Impact, sans-serif",
 };
 
-async function generateTextComposite(garmentUrl: string, textContent: string, fontId: string, garmentColor: string, posX: number, posY: number, designSizePx: number): Promise<string | null> {
+async function generateTextComposite(garmentUrl: string, textContent: string, fontId: string, garmentColor: string, posX: number, posY: number, designSizePx: number, textColorHex?: string): Promise<string | null> {
   try {
     const W = 800, H = 1000;
     const designSize = Math.round((designSizePx / 780) * W);
     const left = Math.round(W * posX / 100 - designSize / 2);
     const top = Math.round(H * posY / 100 - designSize / 2);
-    const textColor = garmentColor === "white" ? "#000000" : "#FFFFFF";
+    const textColor = textColorHex || (garmentColor === "white" ? "#000000" : "#FFFFFF");
     const fontSize = Math.max(20, designSize / 6);
     const fontFamily = FONT_CSS_MAP[fontId] || FONT_CSS_MAP.sans;
 
@@ -123,13 +123,15 @@ export async function POST(req: NextRequest) {
           garmentColor || "black",
           d.position?.x || 50,
           d.position?.y || 40,
-          d.sizePx || 150
+          d.sizePx || 150,
+          d.textColor
         );
         if (composite) {
           attachments.push({ filename: `placement-text-${view}.png`, content: composite, content_type: "image/png" });
           const fontName = ({ sans: "Sans Serif", serif: "Serif", mono: "Monospace", script: "Cursive", display: "Display" } as Record<string,string>)[d.textFont || "sans"] || d.textFont;
           const sizeMm = d.sizePx ? Math.round((d.sizePx / 780) * 700) : 100;
-          designHtml += `<p><strong>${viewLabel} TEXT:</strong> "${d.textContent}" — Font: ${fontName}, Size: ${sizeMm}mm. See placement-text-${view}.png</p>`;
+          const colorInfo = d.textColor ? `, Thread color: ${d.textColor}` : "";
+          designHtml += `<p><strong>${viewLabel} TEXT:</strong> "${d.textContent}" — Font: ${fontName}, Size: ${sizeMm}mm${colorInfo}. See placement-text-${view}.png</p>`;
         }
       }
       // 1b. Placement composite for PHOTO

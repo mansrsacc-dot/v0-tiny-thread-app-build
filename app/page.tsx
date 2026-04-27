@@ -97,6 +97,19 @@ const T: Record<Lang, Record<string, string>> = {
     addText: "Pievienot tekstu",
     textPlaceholder: "Ievadi tekstu...",
     textFont: "Fonts",
+    textColor: "Krāsa",
+    textColorAuto: "Auto",
+    textColorWhite: "Balta",
+    textColorBlack: "Melna",
+    textColorRed: "Sarkana",
+    textColorBlue: "Zila",
+    textColorNavy: "Tumši zila",
+    textColorYellow: "Dzeltena",
+    textColorGreen: "Zaļa",
+    textColorOrange: "Oranža",
+    textColorPink: "Rozā",
+    textColorGold: "Zelta",
+    textColorSilver: "Sudraba",
     textCharsLeft: "simboli atlikuši",
     textPrice: "Tekstu pievienošana",
     textOnly: "Teksts",
@@ -189,6 +202,19 @@ const T: Record<Lang, Record<string, string>> = {
     addText: "Add Text",
     textPlaceholder: "Enter your text...",
     textFont: "Font",
+    textColor: "Color",
+    textColorAuto: "Auto",
+    textColorWhite: "White",
+    textColorBlack: "Black",
+    textColorRed: "Red",
+    textColorBlue: "Blue",
+    textColorNavy: "Navy",
+    textColorYellow: "Yellow",
+    textColorGreen: "Green",
+    textColorOrange: "Orange",
+    textColorPink: "Pink",
+    textColorGold: "Gold",
+    textColorSilver: "Silver",
     textCharsLeft: "chars left",
     textPrice: "Text addition",
     textOnly: "Text",
@@ -345,7 +371,24 @@ interface Design {
   // Text-only design (when set, originalImage is empty/placeholder)
   textContent?: string;
   textFont?: string;
+  textColor?: string; // hex - if not set, uses default (white on black, black on white)
 }
+
+// Embroidery thread color palette - common thread colors available for text
+const TEXT_COLOR_PALETTE = [
+  { id: "auto", hex: "", label: "Default" }, // auto = white on black garment / black on white
+  { id: "white", hex: "#FFFFFF", label: "White" },
+  { id: "black", hex: "#000000", label: "Black" },
+  { id: "red", hex: "#D8315B", label: "Red" },
+  { id: "blue", hex: "#3E92CC", label: "Blue" },
+  { id: "navy", hex: "#0A2463", label: "Navy" },
+  { id: "yellow", hex: "#F5C518", label: "Yellow" },
+  { id: "green", hex: "#2E7D32", label: "Green" },
+  { id: "orange", hex: "#E55934", label: "Orange" },
+  { id: "pink", hex: "#E94B7B", label: "Pink" },
+  { id: "gold", hex: "#C9A227", label: "Gold" },
+  { id: "silver", hex: "#C0C0C0", label: "Silver" },
+];
 
 const TEXT_FONTS = [
   { id: "sans", name: "Sans Serif", css: "system-ui, -apple-system, sans-serif" },
@@ -385,7 +428,9 @@ export default function TinyThreadStudio() {
   const [showTextModal, setShowTextModal] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [textFontInput, setTextFontInput] = useState(TEXT_FONTS[0].id);
+  const [textColorInput, setTextColorInput] = useState<string>(""); // "" = auto
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [showColorPicker, setShowColorPicker] = useState<string | null>(null); // design id whose picker is open
   
   // Customer & saved designs state
   const [customer, setCustomer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
@@ -426,6 +471,13 @@ export default function TinyThreadStudio() {
       }
     }
   }, []);
+
+  // Close color picker when selection changes
+  useEffect(() => {
+    if (showColorPicker && showColorPicker !== selectedDesignId) {
+      setShowColorPicker(null);
+    }
+  }, [selectedDesignId, showColorPicker]);
 
   // Persist language when it changes
   const handleLangChange = (next: Lang) => {
@@ -828,11 +880,12 @@ export default function TinyThreadStudio() {
     if (editingTextId) {
       setDesigns(prev => prev.map(d =>
         d.id === editingTextId
-          ? { ...d, textContent: trimmed, textFont: textFontInput }
+          ? { ...d, textContent: trimmed, textFont: textFontInput, textColor: textColorInput || undefined }
           : d
       ));
       setEditingTextId(null);
       setTextInput("");
+      setTextColorInput("");
       setShowTextModal(false);
       return;
     }
@@ -862,19 +915,22 @@ export default function TinyThreadStudio() {
       rotation: 0,
       textContent: trimmed,
       textFont: textFontInput,
+      textColor: textColorInput || undefined,
     };
 
     setDesigns(prev => [...prev, newDesign]);
     setSelectedDesignId(newDesign.id);
     setTextInput("");
+    setTextColorInput("");
     setShowTextModal(false);
-  }, [textInput, textFontInput, editingTextId, designs, view, style]);
+  }, [textInput, textFontInput, textColorInput, editingTextId, designs, view, style]);
 
   const handleEditText = useCallback((design: Design) => {
     if (!design.textContent) return;
     setEditingTextId(design.id);
     setTextInput(design.textContent);
     setTextFontInput(design.textFont || TEXT_FONTS[0].id);
+    setTextColorInput(design.textColor || "");
     setShowTextModal(true);
   }, []);
 
@@ -1144,7 +1200,9 @@ export default function TinyThreadStudio() {
         params.set("properties[Text Embroidery]", textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
           const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100;
-          return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, ${d.view})`;
+          const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
+          const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
+          return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
         }).join(" | "));
       }
       
@@ -1410,8 +1468,8 @@ export default function TinyThreadStudio() {
               if (!isText && !imageToShow) return null;
 
               const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
-              // Thread color: white on black garment, black on white garment
-              const textColor = color === "black" ? "#FFFFFF" : "#000000";
+              // Thread color: explicit color from design, else auto (white on black, black on white)
+              const textColor = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
 
               return (
                 <div
@@ -1495,6 +1553,86 @@ export default function TinyThreadStudio() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                       </button>
+
+                      {/* Text-specific: Color picker + Font cycle (only for text designs) */}
+                      {isText && (
+                        <>
+                          {/* Font cycle button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const currentIdx = TEXT_FONTS.findIndex(f => f.id === (design.textFont || TEXT_FONTS[0].id));
+                              const nextFont = TEXT_FONTS[(currentIdx + 1) % TEXT_FONTS.length];
+                              setDesigns(prev => prev.map(d =>
+                                d.id === design.id ? { ...d, textFont: nextFont.id } : d
+                              ));
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            title={t.textFont}
+                            className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 h-6 bg-black/80 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap"
+                            style={{ fontFamily: fontDef.css }}
+                          >
+                            <span className="opacity-60 text-[9px]">Aa</span>
+                            <span>{fontDef.name}</span>
+                          </button>
+
+                          {/* Color picker button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowColorPicker(showColorPicker === design.id ? null : design.id);
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            title={t.textColor}
+                            className="absolute -bottom-8 -left-2 w-6 h-6 bg-white border-2 border-[#3e92cc] rounded-full hover:scale-110 transition-transform flex items-center justify-center overflow-hidden"
+                          >
+                            <span
+                              className="block w-full h-full"
+                              style={{
+                                background: design.textColor
+                                  ? design.textColor
+                                  : "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
+                              }}
+                            />
+                          </button>
+
+                          {/* Color picker swatches popover */}
+                          {showColorPicker === design.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              className="absolute -bottom-16 left-1/2 -translate-x-1/2 z-30 bg-black/90 backdrop-blur-sm border border-white/10 rounded-lg p-2 flex gap-1 flex-wrap max-w-[280px]"
+                            >
+                              {TEXT_COLOR_PALETTE.map(c => {
+                                const isActive = (c.hex || "") === (design.textColor || "");
+                                return (
+                                  <button
+                                    key={c.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDesigns(prev => prev.map(d =>
+                                        d.id === design.id ? { ...d, textColor: c.hex || undefined } : d
+                                      ));
+                                      setShowColorPicker(null);
+                                    }}
+                                    title={c.label}
+                                    className={cn(
+                                      "w-6 h-6 rounded-full border-2 transition-transform hover:scale-110",
+                                      isActive ? "border-white ring-2 ring-[#3e92cc]" : "border-white/30"
+                                    )}
+                                    style={{
+                                      background: c.hex || "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
 
                       {/* Resize Handle */}
                       <div
@@ -2106,7 +2244,7 @@ export default function TinyThreadStudio() {
                         className="w-10 h-10 rounded flex items-center justify-center text-[10px] font-bold text-center px-1 leading-tight overflow-hidden"
                         style={{
                           background: color === "black" ? "#1a1a1a" : "#f5f5f5",
-                          color: color === "black" ? "#fff" : "#000",
+                          color: design.textColor || (color === "black" ? "#fff" : "#000"),
                           fontFamily: (TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0]).css,
                         }}
                       >
@@ -2377,7 +2515,7 @@ export default function TinyThreadStudio() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">{t.addText}</h2>
               <button
-                onClick={() => { setShowTextModal(false); setTextInput(""); setEditingTextId(null); }}
+                onClick={() => { setShowTextModal(false); setTextInput(""); setEditingTextId(null); setTextColorInput(""); }}
                 className="text-white/40 hover:text-white/70"
               >
                 ✕
@@ -2423,13 +2561,39 @@ export default function TinyThreadStudio() {
                 </div>
               </div>
 
+              {/* Color picker */}
+              <div>
+                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
+                  {t.textColor}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {TEXT_COLOR_PALETTE.map(c => {
+                    const isActive = (c.hex || "") === textColorInput;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setTextColorInput(c.hex || "")}
+                        title={c.label}
+                        className={cn(
+                          "w-8 h-8 rounded-full border-2 transition-transform hover:scale-110",
+                          isActive ? "border-white ring-2 ring-[#3e92cc]" : "border-white/20"
+                        )}
+                        style={{
+                          background: c.hex || "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Live preview */}
               {textInput.trim() && (
                 <div className="rounded-lg border border-white/10 p-4 text-center" style={{ background: color === "black" ? "#1a1a1a" : "#f5f5f5" }}>
                   <p
                     style={{
                       fontFamily: (TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0]).css,
-                      color: color === "black" ? "#FFFFFF" : "#000000",
+                      color: textColorInput || (color === "black" ? "#FFFFFF" : "#000000"),
                       fontWeight: 700,
                       fontSize: 24,
                       lineHeight: 1.1,
@@ -2443,7 +2607,7 @@ export default function TinyThreadStudio() {
 
               <div className="flex gap-2 pt-2">
                 <button
-                  onClick={() => { setShowTextModal(false); setTextInput(""); setEditingTextId(null); }}
+                  onClick={() => { setShowTextModal(false); setTextInput(""); setEditingTextId(null); setTextColorInput(""); }}
                   className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/15"
                 >
                   {t.cancel}

@@ -32,14 +32,23 @@ const FONT_CSS_MAP: Record<string, string> = {
 const FONT_NAME_MAP: Record<string, string> = {
   sans: "Sans Serif", serif: "Serif", mono: "Monospace", script: "Cursive", display: "Display",
 };
+const TEXT_COLOR_MAP: Record<string, string> = {
+  white: "#FFFFFF", black: "#000000", red: "#D8315B", blue: "#3E92CC", navy: "#0A2463",
+  yellow: "#F5C518", green: "#2E7D32", orange: "#E55934", pink: "#E94B7B", gold: "#C9A227", silver: "#C0C0C0",
+};
+function colorLabelToHex(label: string, garmentColor: string): string {
+  if (!label || label.toLowerCase() === "auto") return garmentColor === "white" ? "#000000" : "#FFFFFF";
+  if (label.startsWith("#")) return label;
+  return TEXT_COLOR_MAP[label.toLowerCase()] || (garmentColor === "white" ? "#000000" : "#FFFFFF");
+}
 
-async function generateTextComposite(garmentUrl: string, textContent: string, fontId: string, garmentColor: string, posX: number, posY: number, designSizePx: number): Promise<string | null> {
+async function generateTextComposite(garmentUrl: string, textContent: string, fontId: string, garmentColor: string, posX: number, posY: number, designSizePx: number, textColorHex?: string): Promise<string | null> {
   try {
     const W = 800, H = 1000;
     const designSize = Math.round((designSizePx / 780) * W);
     const left = Math.round(W * posX / 100 - designSize / 2);
     const top = Math.round(H * posY / 100 - designSize / 2);
-    const textColor = garmentColor === "white" ? "#000000" : "#FFFFFF";
+    const textColor = textColorHex || (garmentColor === "white" ? "#000000" : "#FFFFFF");
     const fontSize = Math.max(20, designSize / 6);
     const fontFamily = FONT_CSS_MAP[fontId] || FONT_CSS_MAP.sans;
 
@@ -170,17 +179,27 @@ export async function POST(req: NextRequest) {
       const backGarmentRef = getProp("_garment_back");
       const backGarmentUrl = backGarmentRef ? GARMENT_URLS[backGarmentRef] : null;
 
-      // Parse text embroidery info: 'TEXT (font: Sans, 100mm, front) | TEXT2 (font: Serif, 80mm, back)'
+      // Parse text embroidery info: 'TEXT (font: Sans, 100mm, color: Red, front) | TEXT2 (font: Serif, 80mm, color: Auto, back)'
+      // Backwards-compatible: also accepts old format without color: 'TEXT (font: Sans, 100mm, front)'
       const textEmbProp = getProp("Text Embroidery");
-      const textsByView: Record<string, { content: string; fontName: string; sizeMm: number; fontId: string }> = {};
+      const textsByView: Record<string, { content: string; fontName: string; sizeMm: number; fontId: string; colorLabel: string }> = {};
       if (textEmbProp) {
         const entries = textEmbProp.split(" | ");
         for (const entry of entries) {
-          const m = entry.match(/^"(.+)" \(font: (.+?), (\d+)mm, (front|back)\)$/);
+          // New format with color
+          let m = entry.match(/^"(.+)" \(font: (.+?), (\d+)mm, color: (.+?), (front|back)\)$/);
+          if (m) {
+            const [, content, fontName, sizeStr, colorLabel, vw] = m;
+            const fontId = Object.keys(FONT_NAME_MAP).find(k => FONT_NAME_MAP[k] === fontName) || "sans";
+            textsByView[vw] = { content, fontName, sizeMm: parseInt(sizeStr), fontId, colorLabel };
+            continue;
+          }
+          // Old format without color
+          m = entry.match(/^"(.+)" \(font: (.+?), (\d+)mm, (front|back)\)$/);
           if (m) {
             const [, content, fontName, sizeStr, vw] = m;
             const fontId = Object.keys(FONT_NAME_MAP).find(k => FONT_NAME_MAP[k] === fontName) || "sans";
-            textsByView[vw] = { content, fontName, sizeMm: parseInt(sizeStr), fontId };
+            textsByView[vw] = { content, fontName, sizeMm: parseInt(sizeStr), fontId, colorLabel: "Auto" };
           }
         }
       }
@@ -243,10 +262,11 @@ export async function POST(req: NextRequest) {
         // TEXT info (rendered alongside photo if both exist on this side)
         if (textInfo && garmentUrl) {
           const sizePx = Math.round((textInfo.sizeMm / 700) * 780);
-          const placementBase64 = await generateTextComposite(garmentUrl, textInfo.content, textInfo.fontId, garmentColorVal, pos.x, pos.y, sizePx);
+          const textHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
+          const placementBase64 = await generateTextComposite(garmentUrl, textInfo.content, textInfo.fontId, garmentColorVal, pos.x, pos.y, sizePx, textHex);
           if (placementBase64) {
             attachments.push({ filename: `placement-text-${side}.png`, content: placementBase64, content_type: "image/png" });
-            attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm</li>`;
+            attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
             attachmentHtml += `<li>placement-text-${side}.png - Text position on garment</li>`;
           }
         }
