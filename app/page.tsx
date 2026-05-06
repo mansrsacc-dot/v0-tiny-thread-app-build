@@ -2012,19 +2012,25 @@ export default function TinyThreadStudio() {
               {t.color}
             </label>
             <div className="flex gap-3">
-              {(["black", "white"] as Color[]).map(c => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={cn(
-                    "w-8 h-8 rounded-full border-2 transition-all",
-                    color === c ? "ring-2 ring-[#3e92cc] ring-offset-2" : "",
-                    theme === "dark" ? "ring-offset-[#0d0d0d]" : "ring-offset-white",
-                    c === "black" ? "bg-black border-neutral-600" : "bg-white border-gray-300"
-                  )}
-                  title={c.charAt(0).toUpperCase() + c.slice(1)}
-                />
-              ))}
+              {(["black", "white"] as Color[]).map(c => {
+                const colorLabel = c === "black"
+                  ? (lang === "lv" ? "Melna" : "Black")
+                  : (lang === "lv" ? "Krēma krāsa" : "Cream");
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={cn(
+                      "w-8 h-8 rounded-full border-2 transition-all",
+                      color === c ? "ring-2 ring-[#3e92cc] ring-offset-2" : "",
+                      theme === "dark" ? "ring-offset-[#0d0d0d]" : "ring-offset-white",
+                      c === "black" ? "bg-black border-neutral-600" : "border-gray-300"
+                    )}
+                    style={c === "white" ? { background: "#F4ECD8" } : undefined}
+                    title={colorLabel}
+                  />
+                );
+              })}
             </div>
           </div>
 
