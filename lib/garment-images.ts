@@ -1,20 +1,23 @@
 export const GARMENT_IMAGES = {
   hoodie: {
     black: {
-      front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-black-front-L8JNMTYtT2Xneu4ym3Ax12fau4pIHq.jpg",
-      back: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-black-back-Lfr4AB79XMlYiUB9Qa9V4CSpdwQJQM.jpg",
+      front: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/hoodie-black-front-v3.jpg",
+      back: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/hoodie-black-back-v3.jpg",
     },
     white: {
-      front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-white-front-k4zZvfmeQ2iVRi7MzQy94KPnW4ebyY.jpg",
-      back: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-white-back.jpg-X5I6sYplyDPZPlPnUEP1gK81mtIe8Q.jpeg",
+      front: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/hoodie-cream-front-v4.jpg",
+      back: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/hoodie-cream-back-v4.jpg",
     },
   },
   cap: {
     black: {
-      front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cap-black-front.jpg-MIVejSe8JWwmgLY47q8dnpjKC393xd.jpeg",
+      front: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/cap-black-front-v5.jpg",
     },
     white: {
-      front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cap-white-front-kYisZ76gyCeeLb3IYogIXdTJo7mXkO.jpg",
+      // Only one cap color on hand - cream cap NOT sold. Keep same black image here
+      // so the UI still works if someone selects "cream" by accident (but Shopify cream cap
+      // variant should be disabled/unpublished for now).
+      front: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/cap-black-front-v5.jpg",
     },
   },
 } as const;
