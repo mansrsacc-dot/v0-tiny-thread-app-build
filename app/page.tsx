@@ -777,17 +777,14 @@ export default function TinyThreadStudio() {
             const bgData = await bgRes.json();
             if (bgData.imageUrl) aiBgUrl = bgData.imageUrl;
           } catch {}
-          // 2) For standard logo only: also run the client-side white-pixel cleanup
-          // as a safety net (since standard prompt produces solid white bg).
-          // For pet-head and car the AI bg removal output is already transparent — use directly.
-          if (styleType === "standard") {
-            const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
-              ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
-              : aiBgUrl;
-            processed = await removeImageBackground(sourceForCleanup, styleType, color);
-          } else {
-            processed = aiBgUrl;
-          }
+          // 2) Client-side white-pixel cleanup safety net.
+          // All three styles (standard/pet-head/car) now use prompts that produce
+          // a solid pure white background. Strip any remaining white pixels so the
+          // result is transparent regardless of whether AI bg removal succeeded.
+          const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
+            ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
+            : aiBgUrl;
+          processed = await removeImageBackground(sourceForCleanup, "standard", color);
         } else {
           processed = await removeImageBackground(data.imageUrl, styleType, color);
         }
@@ -1151,14 +1148,10 @@ export default function TinyThreadStudio() {
           const bgData = await bgRes.json();
           if (bgData.imageUrl) aiBgUrl = bgData.imageUrl;
         } catch {}
-        if (styleType === "standard") {
-          const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
-            ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
-            : aiBgUrl;
-          processed = await removeImageBackground(sourceForCleanup, styleType, color);
-        } else {
-          processed = aiBgUrl;
-        }
+        const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
+          ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
+          : aiBgUrl;
+        processed = await removeImageBackground(sourceForCleanup, "standard", color);
       } else {
         processed = await removeImageBackground(newImageUrl, styleType, color);
       }
