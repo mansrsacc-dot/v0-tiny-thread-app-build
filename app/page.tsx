@@ -2348,12 +2348,14 @@ export default function TinyThreadStudio() {
                   </div>
                 ))}
               </div>
-              {/* Show "Add to back/front" button only for hoodies, max 1 per side */}
-              {product === "hoodie" && designs.length === 1 && (() => {
-                const existingView = designs[0]?.view;
+              {/* Show "Add to back/front" button only for hoodies, max 1 photo design per side */}
+              {product === "hoodie" && (() => {
+                const photoDesigns = designs.filter(d => !d.textContent);
+                if (photoDesigns.length !== 1) return null;
+                const existingView = photoDesigns[0]?.view;
                 const otherView = existingView === "front" ? "back" : "front";
-                const hasOtherSide = designs.some(d => d.view === otherView);
-                if (hasOtherSide) return null;
+                const hasPhotoOnOtherSide = photoDesigns.some(d => d.view === otherView);
+                if (hasPhotoOnOtherSide) return null;
                 const surcharge = BACK_SURCHARGE[style] || 20;
                 return (
                   <button
