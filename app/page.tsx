@@ -760,8 +760,13 @@ export default function TinyThreadStudio() {
         // Save the raw Replicate URL before background removal (for vectorization webhook)
         const rawReplicateUrl = data.imageUrl;
         let processed: string;
-        if (styleType === "standard") {
-          // 1) Try AI-based background removal first (preserves all colors)
+        // standard / pet-head / car all use AI-based background removal so we don't
+        // accidentally strip colored pixels that match the background (e.g. black tires
+        // on a car when the bg was black, or dark fur on a pet head).
+        // Outline still uses the simple pixel-color strip because it's a clean
+        // 2-color line drawing on a known background.
+        if (styleType === "standard" || styleType === "pet-head" || styleType === "car") {
+          // 1) AI-based background removal (preserves all subject colors)
           let aiBgUrl = data.imageUrl;
           try {
             const bgRes = await fetch("/api/remove-bg", {
@@ -772,14 +777,17 @@ export default function TinyThreadStudio() {
             const bgData = await bgRes.json();
             if (bgData.imageUrl) aiBgUrl = bgData.imageUrl;
           } catch {}
-          // 2) Always run client-side white-pixel cleanup as a safety net.
-          // This guarantees the white background is removed even if rembg failed,
-          // returned the original, or left near-white edge artifacts.
-          // Proxy replicate URLs so the canvas can read pixel data without CORS taint.
-          const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
-            ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
-            : aiBgUrl;
-          processed = await removeImageBackground(sourceForCleanup, styleType, color);
+          // 2) For standard logo only: also run the client-side white-pixel cleanup
+          // as a safety net (since standard prompt produces solid white bg).
+          // For pet-head and car the AI bg removal output is already transparent — use directly.
+          if (styleType === "standard") {
+            const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
+              ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
+              : aiBgUrl;
+            processed = await removeImageBackground(sourceForCleanup, styleType, color);
+          } else {
+            processed = aiBgUrl;
+          }
         } else {
           processed = await removeImageBackground(data.imageUrl, styleType, color);
         }
@@ -1130,11 +1138,30 @@ export default function TinyThreadStudio() {
     
     if (newIndex !== currentIndex && history[newIndex]) {
       const newImageUrl = history[newIndex];
-      // Proxy replicate URLs so the canvas can read pixel data without CORS taint.
-      const sourceForCleanup = newImageUrl.includes("replicate.delivery")
-        ? `/api/proxy-image?url=${encodeURIComponent(newImageUrl)}`
-        : newImageUrl;
-      const processed = await removeImageBackground(sourceForCleanup, styleType, color);
+      let processed: string;
+      if (styleType === "standard" || styleType === "pet-head" || styleType === "car") {
+        // AI-based bg removal preserves all subject colors
+        let aiBgUrl = newImageUrl;
+        try {
+          const bgRes = await fetch("/api/remove-bg", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl: newImageUrl }),
+          });
+          const bgData = await bgRes.json();
+          if (bgData.imageUrl) aiBgUrl = bgData.imageUrl;
+        } catch {}
+        if (styleType === "standard") {
+          const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
+            ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
+            : aiBgUrl;
+          processed = await removeImageBackground(sourceForCleanup, styleType, color);
+        } else {
+          processed = aiBgUrl;
+        }
+      } else {
+        processed = await removeImageBackground(newImageUrl, styleType, color);
+      }
       
       setDesigns(prev => prev.map(d => {
         if (d.id === selectedDesign.id) {
