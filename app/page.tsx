@@ -1989,10 +1989,7 @@ export default function TinyThreadStudio() {
                   key={p}
                   onClick={() => {
                     setProduct(p);
-                    if (p === "cap") {
-                      setView("front");
-                      setColor("black"); // cap only sold in black
-                    }
+                    if (p === "cap") setView("front");
                   }}
                   className={cn(
                     "p-3 rounded-lg border text-sm font-medium transition-all",
@@ -2015,7 +2012,7 @@ export default function TinyThreadStudio() {
               {t.color}
             </label>
             <div className="flex gap-3">
-              {((product === "cap" ? ["black"] : ["black", "white"]) as Color[]).map(c => {
+              {(["black", "white"] as Color[]).map(c => {
                 const colorLabel = c === "black"
                   ? (lang === "lv" ? "Melna" : "Black")
                   : (lang === "lv" ? "Krēma krāsa" : "Cream");
