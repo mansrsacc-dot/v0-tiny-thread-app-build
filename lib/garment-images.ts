@@ -5,9 +5,9 @@ export const GARMENT_IMAGES = {
       back: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-black-back-Lfr4AB79XMlYiUB9Qa9V4CSpdwQJQM.jpg",
     },
     white: {
-      // Cream-tinted versions of the original studio mockups (warm ivory)
-      front: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/hoodie-cream-tint-front.jpg",
-      back: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/hoodie-cream-tint-back.jpg",
+      // Cream version: same shape as black hoodie, recolored to warm ivory
+      front: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/hoodie-front-cream-v7.jpg",
+      back: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/hoodie-back-cream-v7.jpg",
     },
   },
   cap: {
@@ -15,8 +15,8 @@ export const GARMENT_IMAGES = {
       front: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cap-black-front.jpg-MIVejSe8JWwmgLY47q8dnpjKC393xd.jpeg",
     },
     white: {
-      // Cream-tinted version of the original cap mockup
-      front: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/cap-cream-tint-front.jpg",
+      // Cream version: same shape as black cap, recolored to warm ivory
+      front: "https://guhctceu21hc4orl.public.blob.vercel-storage.com/cap-front-cream-v7.jpg",
     },
   },
 } as const;
