@@ -445,6 +445,22 @@ export default function TinyThreadStudio() {
   const generationLockRef = useRef(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
+  // Track preview width so design sizes scale responsively on small screens.
+  // Reference width 400px = the size-constraint values (60-260 px) were originally tuned against.
+  const [previewWidth, setPreviewWidth] = useState(400);
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) setPreviewWidth(w);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const sizeScale = previewWidth / 400;
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
@@ -1051,7 +1067,9 @@ export default function TinyThreadStudio() {
         e.preventDefault();
         const design = designs.find(d => d.id === selectedDesignId);
         if (design) {
-          const delta = pos.x - resizeState.startX;
+          // Divide delta by sizeScale so the resize handle tracks the cursor 1:1 on screen
+          // (the design is rendered at currentSizePx * sizeScale).
+          const delta = (pos.x - resizeState.startX) / (sizeScale || 1);
           const constraints = SIZE_CONSTRAINTS[design.size];
           const newSize = Math.max(constraints.min, Math.min(constraints.max, resizeState.startSize + delta));
           
@@ -1084,7 +1102,7 @@ export default function TinyThreadStudio() {
         window.removeEventListener("touchcancel", handlePointerUp);
       };
     }
-  }, [dragState, resizeState, selectedDesignId, designs]);
+  }, [dragState, resizeState, selectedDesignId, designs, sizeScale]);
 
   const getSizeInMm = (sizePx: number, sizeCategory: Size) => {
     const constraints = SIZE_CONSTRAINTS[sizeCategory];
@@ -1510,8 +1528,8 @@ export default function TinyThreadStudio() {
                     left: `${design.position.x}%`,
                     top: `${design.position.y}%`,
                     transform: `translate(-50%, -50%) rotate(${design.rotation || 0}deg)`,
-                    width: design.currentSizePx,
-                    height: design.currentSizePx,
+                    width: design.currentSizePx * sizeScale,
+                    height: design.currentSizePx * sizeScale,
                   }}
                   className={cn(
                     "cursor-move group",
@@ -1530,7 +1548,7 @@ export default function TinyThreadStudio() {
                         fontFamily: fontDef.css,
                         color: textColor,
                         fontWeight: 700,
-                        fontSize: Math.max(14, design.currentSizePx / 6),
+                        fontSize: Math.max(14, (design.currentSizePx * sizeScale) / 6),
                         lineHeight: 1.1,
                         wordBreak: "break-word",
                         textShadow: color === "black" ? "0 0 2px rgba(0,0,0,0.3)" : "0 0 2px rgba(255,255,255,0.3)",
