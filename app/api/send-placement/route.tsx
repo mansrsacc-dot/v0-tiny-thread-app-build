@@ -30,11 +30,21 @@ async function generateComposite(garmentUrl: string, designUrl: string, posX: nu
 }
 
 const FONT_CSS_MAP: Record<string, string> = {
+  montserrat: "'Montserrat', sans-serif",
+  anton:      "'Anton', sans-serif",
+  quicksand:  "'Quicksand', sans-serif",
+  brittany:   "'Great Vibes', cursive",
+  moontine:   "'Sacramento', cursive",
+  cocogothic: "'Montserrat', sans-serif",
+  // legacy fallbacks for old orders
   sans: "system-ui, -apple-system, sans-serif",
   serif: "Georgia, 'Times New Roman', serif",
   mono: "'Courier New', monospace",
   script: "'Brush Script MT', cursive",
   display: "Impact, sans-serif",
+};
+const FONT_VARIANT_MAP: Record<string, string> = {
+  cocogothic: "small-caps",
 };
 
 async function generateTextComposite(garmentUrl: string, textContent: string, fontId: string, garmentColor: string, posX: number, posY: number, designSizePx: number, textColorHex?: string): Promise<string | null> {
@@ -128,7 +138,11 @@ export async function POST(req: NextRequest) {
         );
         if (composite) {
           attachments.push({ filename: `placement-text-${view}.png`, content: composite, content_type: "image/png" });
-          const fontName = ({ sans: "Sans Serif", serif: "Serif", mono: "Monospace", script: "Cursive", display: "Display" } as Record<string,string>)[d.textFont || "sans"] || d.textFont;
+          const fontName = ({
+            montserrat: "Montserrat", anton: "Anton", quicksand: "Quicksand",
+            brittany: "Brittany", moontine: "Moontine", cocogothic: "Coco Gothic SC",
+            sans: "Sans Serif", serif: "Serif", mono: "Monospace", script: "Cursive", display: "Display",
+          } as Record<string, string>)[d.textFont || "montserrat"] || d.textFont;
           const sizeMm = d.sizePx ? Math.round((d.sizePx / 780) * 700) : 100;
           const colorInfo = d.textColor ? `, Thread color: ${d.textColor}` : "";
           designHtml += `<p><strong>${viewLabel} TEXT:</strong> "${d.textContent}" — Font: ${fontName}, Size: ${sizeMm}mm${colorInfo}. See placement-text-${view}.png</p>`;

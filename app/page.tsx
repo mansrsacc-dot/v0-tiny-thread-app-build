@@ -390,12 +390,17 @@ const TEXT_COLOR_PALETTE = [
   { id: "silver", hex: "#C0C0C0", label: "Silver" },
 ];
 
+// Custom embroidery fonts.
+// Brittany Signature, Moontine, Coco Gothic Small Caps are paid commercial fonts.
+// We use the closest free Google Fonts substitutes for on-screen preview;
+// the production embroidery shop uses the original commercial fonts.
 const TEXT_FONTS = [
-  { id: "sans", name: "Sans Serif", css: "system-ui, -apple-system, sans-serif" },
-  { id: "serif", name: "Serif", css: "Georgia, 'Times New Roman', serif" },
-  { id: "mono", name: "Monospace", css: "'Courier New', monospace" },
-  { id: "script", name: "Cursive", css: "'Brush Script MT', cursive" },
-  { id: "display", name: "Display", css: "Impact, sans-serif" },
+  { id: "montserrat",   name: "Montserrat",         css: "'Montserrat', sans-serif",                          fontVariant: "normal" },
+  { id: "anton",        name: "Anton",              css: "'Anton', sans-serif",                                fontVariant: "normal" },
+  { id: "quicksand",    name: "Quicksand",          css: "'Quicksand', sans-serif",                            fontVariant: "normal" },
+  { id: "brittany",     name: "Brittany",           css: "'Great Vibes', 'Brittany Signature', cursive",       fontVariant: "normal" },
+  { id: "moontine",     name: "Moontine",           css: "'Sacramento', 'Moontine', cursive",                  fontVariant: "normal" },
+  { id: "cocogothic",   name: "Coco Gothic SC",     css: "'Montserrat', sans-serif",                          fontVariant: "small-caps" },
 ];
 const TEXT_PRICE = 12;
 const TEXT_MAX_CHARS = 20;
@@ -1546,6 +1551,7 @@ export default function TinyThreadStudio() {
                       className="w-full h-full flex items-center justify-center pointer-events-none px-1 text-center"
                       style={{
                         fontFamily: fontDef.css,
+                        fontVariant: fontDef.fontVariant,
                         color: textColor,
                         fontWeight: 700,
                         fontSize: Math.max(14, (design.currentSizePx * sizeScale) / 6),
@@ -1639,7 +1645,7 @@ export default function TinyThreadStudio() {
                               onClick={blockEvent}
                               title={t.textFont}
                               className="absolute -top-9 left-1/2 -translate-x-1/2 px-2 h-7 bg-black/85 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap z-30 shadow-lg"
-                              style={{ fontFamily: fontDef.css }}
+                              style={{ fontFamily: fontDef.css, fontVariant: fontDef.fontVariant }}
                             >
                               <span className="opacity-60 text-[9px]">Aa</span>
                               <span>{fontDef.name}</span>
@@ -2302,6 +2308,7 @@ export default function TinyThreadStudio() {
                           background: color === "black" ? "#1a1a1a" : "#f5f5f5",
                           color: design.textColor || (color === "black" ? "#fff" : "#000"),
                           fontFamily: (TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0]).css,
+                          fontVariant: (TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0]).fontVariant,
                         }}
                       >
                         {design.textContent.slice(0, 6)}
@@ -2611,7 +2618,7 @@ export default function TinyThreadStudio() {
                           ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
                           : "border-white/10 text-white/60 hover:border-white/30"
                       )}
-                      style={{ fontFamily: f.css }}
+                      style={{ fontFamily: f.css, fontVariant: f.fontVariant }}
                     >
                       {f.name}
                     </button>
@@ -2651,6 +2658,7 @@ export default function TinyThreadStudio() {
                   <p
                     style={{
                       fontFamily: (TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0]).css,
+                      fontVariant: (TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0]).fontVariant,
                       color: textColorInput || (color === "black" ? "#FFFFFF" : "#000000"),
                       fontWeight: 700,
                       fontSize: 24,
