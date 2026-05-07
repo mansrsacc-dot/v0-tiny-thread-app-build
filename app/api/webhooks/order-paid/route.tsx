@@ -22,16 +22,18 @@ async function shopifyGQL(query: string, variables?: Record<string, unknown>) {
   return res.json();
 }
 
-// Embroidery fonts. CSS used only for the placement preview image.
-// The actual production embroidery uses the canonical font name listed in FONT_NAME_MAP.
+// Embroidery fonts. All free Google Fonts.
 const FONT_CSS_MAP: Record<string, string> = {
   montserrat: "'Montserrat', sans-serif",
   anton:      "'Anton', sans-serif",
   quicksand:  "'Quicksand', sans-serif",
-  brittany:   "'Great Vibes', cursive",
-  moontine:   "'Sacramento', cursive",
-  cocogothic: "'Montserrat', sans-serif",
+  greatvibes: "'Great Vibes', cursive",
+  sacramento: "'Sacramento', cursive",
+  cinzel:     "'Cinzel', serif",
   // legacy fallbacks for old orders
+  brittany: "'Great Vibes', cursive",
+  moontine: "'Sacramento', cursive",
+  cocogothic: "'Montserrat', sans-serif",
   sans: "system-ui, -apple-system, sans-serif",
   serif: "Georgia, 'Times New Roman', serif",
   mono: "'Courier New', monospace",
@@ -42,14 +44,14 @@ const FONT_NAME_MAP: Record<string, string> = {
   montserrat: "Montserrat",
   anton: "Anton",
   quicksand: "Quicksand",
+  greatvibes: "Great Vibes",
+  sacramento: "Sacramento",
+  cinzel: "Cinzel",
+  // legacy fallbacks for old orders
   brittany: "Brittany",
   moontine: "Moontine",
   cocogothic: "Coco Gothic SC",
-  // legacy fallbacks for old orders
   sans: "Sans Serif", serif: "Serif", mono: "Monospace", script: "Cursive", display: "Display",
-};
-const FONT_VARIANT_MAP: Record<string, string> = {
-  cocogothic: "small-caps",
 };
 const TEXT_COLOR_MAP: Record<string, string> = {
   white: "#FFFFFF", black: "#000000", red: "#D8315B", blue: "#3E92CC", navy: "#0A2463",

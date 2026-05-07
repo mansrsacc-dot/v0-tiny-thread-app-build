@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Montserrat, Anton, Quicksand, Great_Vibes, Sacramento } from 'next/font/google'
+import { Geist, Geist_Mono, Montserrat, Anton, Quicksand, Great_Vibes, Sacramento, Cinzel } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
@@ -11,6 +11,7 @@ const _anton      = Anton({ subsets: ["latin"], weight: "400", variable: "--font
 const _quicksand  = Quicksand({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-quicksand" });
 const _greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400", variable: "--font-great-vibes" });
 const _sacramento = Sacramento({ subsets: ["latin"], weight: "400", variable: "--font-sacramento" });
+const _cinzel     = Cinzel({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-cinzel" });
 
 export const metadata: Metadata = {
   title: 'TinyThread Studio',
@@ -43,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${_montserrat.variable} ${_anton.variable} ${_quicksand.variable} ${_greatVibes.variable} ${_sacramento.variable}`}
+      className={`${_montserrat.variable} ${_anton.variable} ${_quicksand.variable} ${_greatVibes.variable} ${_sacramento.variable} ${_cinzel.variable}`}
     >
       <body className="font-sans antialiased">
         {children}

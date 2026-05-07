@@ -390,17 +390,14 @@ const TEXT_COLOR_PALETTE = [
   { id: "silver", hex: "#C0C0C0", label: "Silver" },
 ];
 
-// Custom embroidery fonts.
-// Brittany Signature, Moontine, Coco Gothic Small Caps are paid commercial fonts.
-// We use the closest free Google Fonts substitutes for on-screen preview;
-// the production embroidery shop uses the original commercial fonts.
+// Embroidery fonts. All free Google Fonts.
 const TEXT_FONTS = [
-  { id: "montserrat",   name: "Montserrat",         css: "'Montserrat', sans-serif",                          fontVariant: "normal" },
-  { id: "anton",        name: "Anton",              css: "'Anton', sans-serif",                                fontVariant: "normal" },
-  { id: "quicksand",    name: "Quicksand",          css: "'Quicksand', sans-serif",                            fontVariant: "normal" },
-  { id: "brittany",     name: "Brittany",           css: "'Great Vibes', 'Brittany Signature', cursive",       fontVariant: "normal" },
-  { id: "moontine",     name: "Moontine",           css: "'Sacramento', 'Moontine', cursive",                  fontVariant: "normal" },
-  { id: "cocogothic",   name: "Coco Gothic SC",     css: "'Montserrat', sans-serif",                          fontVariant: "small-caps" },
+  { id: "montserrat",   name: "Montserrat",   css: "'Montserrat', sans-serif",      fontVariant: "normal" },
+  { id: "anton",        name: "Anton",        css: "'Anton', sans-serif",            fontVariant: "normal" },
+  { id: "quicksand",    name: "Quicksand",    css: "'Quicksand', sans-serif",        fontVariant: "normal" },
+  { id: "greatvibes",   name: "Great Vibes",  css: "'Great Vibes', cursive",         fontVariant: "normal" },
+  { id: "sacramento",   name: "Sacramento",   css: "'Sacramento', cursive",          fontVariant: "normal" },
+  { id: "cinzel",       name: "Cinzel",       css: "'Cinzel', serif",                fontVariant: "normal" },
 ];
 const TEXT_PRICE = 12;
 const TEXT_MAX_CHARS = 20;
