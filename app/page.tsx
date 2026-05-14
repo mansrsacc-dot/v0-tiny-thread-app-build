@@ -239,10 +239,6 @@ const VARIANT_IDS: Record<string, string> = {
   "hoodie-black-L-standard": "56937201336651",
   "hoodie-black-L-photo-stitch": "56937201369419",
   "hoodie-black-L-pet-head": "56937201402187",
-  "hoodie-black-XL-outline": "57289086075211",
-  "hoodie-black-XL-standard": "57289086140747",
-  "hoodie-black-XL-photo-stitch": "57289086206283",
-  "hoodie-black-XL-pet-head": "57289086271819",
   // Hoodie White
   "hoodie-white-S-outline": "56937179152715",
   "hoodie-white-S-standard": "56937179185483",
@@ -256,10 +252,6 @@ const VARIANT_IDS: Record<string, string> = {
   "hoodie-white-L-standard": "56937193308491",
   "hoodie-white-L-photo-stitch": "56937193341259",
   "hoodie-white-L-pet-head": "56937193374027",
-  "hoodie-white-XL-outline": "57289087353163",
-  "hoodie-white-XL-standard": "57289087418699",
-  "hoodie-white-XL-photo-stitch": "57289087484235",
-  "hoodie-white-XL-pet-head": "57289087549771",
   // Cap Black
   "cap-black-S-outline": "56937206317387",
   "cap-black-S-standard": "56937206350155",
@@ -291,10 +283,6 @@ const VARIANT_IDS: Record<string, string> = {
   "hoodie-black-L-standard-fb": "56975651406155",
   "hoodie-black-L-photo-stitch-fb": "56975651438923",
   "hoodie-black-L-pet-head-fb": "56975651471691",
-  "hoodie-black-XL-outline-fb": "57289086107979",
-  "hoodie-black-XL-standard-fb": "57289086173515",
-  "hoodie-black-XL-photo-stitch-fb": "57289086239051",
-  "hoodie-black-XL-pet-head-fb": "57289086304587",
   // Hoodie White — Front + Back
   "hoodie-white-S-outline-fb": "56975651504459",
   "hoodie-white-S-standard-fb": "56975651537227",
@@ -308,19 +296,15 @@ const VARIANT_IDS: Record<string, string> = {
   "hoodie-white-L-standard-fb": "56975651799371",
   "hoodie-white-L-photo-stitch-fb": "56975651832139",
   "hoodie-white-L-pet-head-fb": "56975651864907",
-  "hoodie-white-XL-outline-fb": "57289087385931",
-  "hoodie-white-XL-standard-fb": "57289087451467",
-  "hoodie-white-XL-photo-stitch-fb": "57289087517003",
-  "hoodie-white-XL-pet-head-fb": "57289087582539",
 };
 
 // Pricing based on product, style, and size
 const PRICING: Record<string, Record<string, Record<string, number>>> = {
   hoodie: {
-    outline:        { S: 59, M: 69, L: 99,  XL: 99  },
-    standard:       { S: 69, M: 79, L: 109, XL: 109 },
-    "pet-head":     { S: 79, M: 89, L: 129, XL: 129 },
-    car:            { S: 79, M: 89, L: 129, XL: 129 },
+    outline:        { S: 59, M: 69, L: 99  },
+    standard:       { S: 69, M: 79, L: 109 },
+    "pet-head":     { S: 79, M: 89, L: 129 },
+    car:            { S: 79, M: 89, L: 129 },
   },
   cap: {
     outline:        { S: 39, M: 49 },
@@ -694,7 +678,7 @@ export default function TinyThreadStudio() {
       setSelectedDesignId(newDesign.id);
       if (savedView === "front" || savedView === "back") setView(savedView);
       if (["outline", "standard", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
-      if (saved.size && ["S", "M", "L", "XL"].includes(saved.size)) setSize(saved.size as Size);
+      if (saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
       setShowStitched(true); // Show the generated design, not the original photo
       setShowSavedDesigns(false);
       toast({ title: t.designApplied });
@@ -2123,8 +2107,8 @@ export default function TinyThreadStudio() {
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
               {t.size}
             </label>
-            <div className={cn("grid gap-2", product === "cap" ? "grid-cols-2" : "grid-cols-4")}>
-              {(product === "cap" ? ["S", "M"] as Size[] : ["S", "M", "L", "XL"] as Size[]).map(s => (
+            <div className={cn("grid gap-2", product === "cap" ? "grid-cols-2" : "grid-cols-3")}>
+              {(product === "cap" ? ["S", "M"] as Size[] : ["S", "M", "L"] as Size[]).map(s => (
                 <button
                   key={s}
                   onClick={() => {

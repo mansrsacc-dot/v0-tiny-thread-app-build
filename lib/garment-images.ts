@@ -24,16 +24,15 @@ export const GARMENT_IMAGES = {
 export type Product = "hoodie" | "cap";
 export type Color = "black" | "white";
 export type View = "front" | "back";
-export type Size = "S" | "M" | "L" | "XL";
+export type Size = "S" | "M" | "L";
 export type Style = "outline" | "standard" | "pet-head" | "car";
 
-// NOTE: Size here refers to the GARMENT (hoodie) size — S/M/L/XL.
-// Embroidery design size is a separate pixel range tied to the garment size.
+// NOTE: Embroidery design size pixel ranges keyed by S/M/L.
+// Garment size (incl. XL) is selected on the Shopify product page before app load.
 export const SIZE_CONSTRAINTS = {
-  S:  { min: 60,  max: 130, label: "45-100mm"  },
-  M:  { min: 130, max: 190, label: "100-150mm" },
-  L:  { min: 190, max: 260, label: "150-250mm" },
-  XL: { min: 190, max: 260, label: "150-250mm" },
+  S: { min: 60,  max: 130, label: "45-100mm"  },
+  M: { min: 130, max: 190, label: "100-150mm" },
+  L: { min: 190, max: 260, label: "150-250mm" },
 } as const;
 
 export const STYLES = [
