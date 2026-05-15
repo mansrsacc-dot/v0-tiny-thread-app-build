@@ -1219,10 +1219,15 @@ export default function TinyThreadStudio() {
 
     setIsAddingToCart(true);
     try {
-      // Get the correct variant ID based on product + color + size + style + placement
-      const hasFrontAndBack = designs.some(d => d.view === "front") && designs.some(d => d.view === "back");
+      // Get the correct variant ID based on product + color + size + style + placement.
+      // Use the actual style of an existing photo design (front first, else back),
+      // not the UI `style` state, so back-only designs map to the right variant.
+      const photoFront = designs.find(d => d.view === "front" && !d.textContent);
+      const photoBack  = designs.find(d => d.view === "back"  && !d.textContent);
+      const hasFrontAndBack = !!photoFront && !!photoBack;
+      const variantStyleRaw = (photoFront?.style || photoBack?.style || style);
       // Map car style to pet-head variants until car variants are created
-      const variantStyle = style === "car" ? "pet-head" : style;
+      const variantStyle = variantStyleRaw === "car" ? "pet-head" : variantStyleRaw;
       const variantKey = hasFrontAndBack
         ? `${product}-${color}-${size}-${variantStyle}-fb`
         : `${product}-${color}-${size}-${variantStyle}`;
