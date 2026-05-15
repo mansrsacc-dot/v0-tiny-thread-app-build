@@ -462,7 +462,11 @@ export default function TinyThreadStudio() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const sizeScale = previewWidth / 400;
+  // Visual scale: reduce on-screen size so designs match real-life embroidery proportions
+  // on the hoodie (max 250mm on a ~550mm chest = ~45% of body width). Stored sizePx and
+  // mm calculations stay unchanged — this only affects visual rendering.
+  const RENDER_SCALE = 0.55;
+  const sizeScale = (previewWidth / 400) * RENDER_SCALE;
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
