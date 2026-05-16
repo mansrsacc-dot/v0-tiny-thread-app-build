@@ -289,35 +289,29 @@ export async function POST(req: NextRequest) {
           if (placementBase64) {
             attachments.push({ filename: `placement-text-${side}.png`, content: placementBase64, content_type: "image/png" });
             attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
-            attachmentHtml += `<li>placement-text-${side}.png - Text position on garment</li>`;
+            attachmentHtml += `<li>placement-text-${side}.png - Composite mockup (text on garment)</li>`;
           }
         }
 
         if (!designUrl) { attachmentHtml += "</ul>"; continue; }
 
-        // PHOTO design path - 1. Original photo
-        if (originalBase64) {
-          attachments.push({ filename: `original-${side}.jpg`, content: originalBase64, content_type: "image/jpeg" });
-          attachmentHtml += `<li>original-${side}.jpg - Customer's uploaded photo</li>`;
-        }
-
-        // 2. Generated design
-        const generatedBase64 = await fetchImageAsBase64(designUrl);
-        if (generatedBase64) {
-          attachments.push({ filename: `generated-${side}.png`, content: generatedBase64, content_type: "image/png" });
-          attachmentHtml += `<li>generated-${side}.png - Generated embroidery design</li>`;
-        }
-
-        // 3. Placement on garment
+        // 1. Composite mockup — garment with design placed at customer's position
         if (garmentUrl) {
           const placementBase64 = await generateComposite(garmentUrl, designUrl, pos.x, pos.y, pos.size);
           if (placementBase64) {
             attachments.push({ filename: `placement-${side}.png`, content: placementBase64, content_type: "image/png" });
-            attachmentHtml += `<li>placement-${side}.png - Design position on garment</li>`;
+            attachmentHtml += `<li>placement-${side}.png - Composite mockup (design on garment)</li>`;
           }
         }
 
-        // 4. SVG vector
+        // 2. Generated embroidery design — clean, no background
+        const generatedBase64 = await fetchImageAsBase64(designUrl);
+        if (generatedBase64) {
+          attachments.push({ filename: `generated-${side}.png`, content: generatedBase64, content_type: "image/png" });
+          attachmentHtml += `<li>generated-${side}.png - Embroidery design (clean, no background)</li>`;
+        }
+
+        // 3. SVG vector
         const svgBase64 = await vectorizeDesign(designUrl);
         if (svgBase64) {
           attachments.push({ filename: `vector-${side}.svg`, content: svgBase64, content_type: "image/svg+xml" });
@@ -349,7 +343,7 @@ export async function POST(req: NextRequest) {
           ${positionInfo ? `<p style="margin-top: 12px; font-size: 13px;"><strong>Position:</strong><br>${positionInfo}</p>` : ""}
           <h3>Attachments (${attachments.length} files):</h3>
           ${attachmentHtml || "<p>No attachments generated</p>"}
-          <p style="font-size: 12px; color: #999; margin-top: 8px;">Per side: original photo, generated design, placement on garment, SVG vector</p>
+          <p style="font-size: 12px; color: #999; margin-top: 8px;">Per side: composite mockup (design on garment), embroidery design (clean), SVG vector</p>
           <hr style="border: 1px solid #eee; margin-top: 24px;">
           <p style="color: #999; font-size: 12px;">TinyThread Studio</p>
         </div>
