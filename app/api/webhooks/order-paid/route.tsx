@@ -101,6 +101,36 @@ async function generateTextComposite(garmentUrl: string, textContent: string, fo
   } catch (e) { console.error("[WEBHOOK] Text composite error:", e); return null; }
 }
 
+type CompositeItem =
+  | { kind: "image"; url: string; left: number; top: number; size: number }
+  | { kind: "text"; content: string; fontFamily: string; color: string; left: number; top: number; size: number };
+
+async function generateCombinedComposite(garmentUrl: string, items: CompositeItem[]): Promise<string | null> {
+  try {
+    const W = 800, H = 1000;
+    const img = new ImageResponse(
+      (<div style={{ width: W, height: H, position: "relative", display: "flex" }}>
+        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }} />
+        {items.map((item, i) =>
+          item.kind === "image"
+            ? <img key={i} src={item.url} width={item.size} height={item.size} style={{ position: "absolute", left: item.left, top: item.top, width: item.size, height: item.size }} />
+            : <div key={i} style={{
+                position: "absolute",
+                left: item.left, top: item.top,
+                width: item.size, height: item.size,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                textAlign: "center", fontFamily: item.fontFamily, fontWeight: 700,
+                fontSize: Math.max(20, item.size / 6), color: item.color, lineHeight: 1.1, padding: 4,
+              }}>{item.content}</div>
+        )}
+      </div>),
+      { width: W, height: H }
+    );
+    const buf = await img.arrayBuffer();
+    return Buffer.from(buf).toString("base64");
+  } catch (e) { console.error("[WEBHOOK] Combined composite error:", e); return null; }
+}
+
 async function generateComposite(garmentUrl: string, designUrl: string, posX: number, posY: number, designSizePx: number): Promise<string | null> {
   try {
     const W = 800, H = 1000;
@@ -300,19 +330,22 @@ export async function POST(req: NextRequest) {
             attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
           }
         } else {
-          // Fallback: generate composite server-side (backwards compat for orders without screenshots)
-          if (textInfo && garmentUrl) {
-            const sizePx = Math.round((textInfo.sizeMm / 700) * 780);
-            const textHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
-            const placementBase64 = await generateTextComposite(garmentUrl, textInfo.content, textInfo.fontId, garmentColorVal, pos.x, pos.y, sizePx, textHex);
-            if (placementBase64) {
-              attachments.push({ filename: `placement-text-${side}.png`, content: placementBase64, content_type: "image/png" });
-              attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
-              attachmentHtml += `<li>placement-text-${side}.png - Composite mockup (text on garment)</li>`;
+          // Fallback: one combined composite server-side (backwards compat for orders without screenshots)
+          if (garmentUrl && (designUrl || textInfo)) {
+            const W = 800, H = 1000;
+            const combinedItems: CompositeItem[] = [];
+            if (designUrl) {
+              const size = Math.round((pos.size / 780) * W);
+              combinedItems.push({ kind: "image", url: designUrl, size, left: Math.round(W * pos.x / 100 - size / 2), top: Math.round(H * pos.y / 100 - size / 2) });
             }
-          }
-          if (designUrl && garmentUrl) {
-            const placementBase64 = await generateComposite(garmentUrl, designUrl, pos.x, pos.y, pos.size);
+            if (textInfo) {
+              const sizePx = Math.round((textInfo.sizeMm / 700) * 780);
+              const size = Math.round((sizePx / 780) * W);
+              const textHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
+              combinedItems.push({ kind: "text", content: textInfo.content, fontFamily: FONT_CSS_MAP[textInfo.fontId] || FONT_CSS_MAP.sans, color: textHex, size, left: Math.round(W * pos.x / 100 - size / 2), top: Math.round(H * pos.y / 100 - size / 2) });
+              attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
+            }
+            const placementBase64 = await generateCombinedComposite(garmentUrl, combinedItems);
             if (placementBase64) {
               attachments.push({ filename: `placement-${side}.png`, content: placementBase64, content_type: "image/png" });
               attachmentHtml += `<li>placement-${side}.png - Composite mockup (design on garment)</li>`;

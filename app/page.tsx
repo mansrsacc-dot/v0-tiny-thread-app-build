@@ -1368,6 +1368,8 @@ export default function TinyThreadStudio() {
           setView(targetView);
           // Two animation frames so React flushes the state update before capture
           await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          // Extra buffer for newly-rendered images on the switched view
+          await new Promise<void>(r => setTimeout(r, 500));
           await waitForImages(previewRef.current);
           // Strip zoom transform so capture is always 1:1
           const el = previewRef.current;
@@ -1375,12 +1377,12 @@ export default function TinyThreadStudio() {
           el.style.transform = "none";
           const canvas = await html2canvas(el, {
             useCORS: true,
-            allowTaint: false,
+            allowTaint: true,
             scale: 1,
             logging: false,
           });
           el.style.transform = prevTransform;
-          return canvas.toDataURL("image/png");
+          try { return canvas.toDataURL("image/png"); } catch { return null; }
         };
 
         const uploadScreenshot = async (dataUrl: string | null, side: string): Promise<string | null> => {
@@ -1396,14 +1398,13 @@ export default function TinyThreadStudio() {
           } catch { return null; }
         };
 
-        const frontDataUrl = await captureView("front");
+        // Capture each view independently so a failure on one doesn't lose the other
+        const frontDataUrl = await captureView("front").catch(() => null);
         // Always capture back for hoodies so designer sees both sides even if only one has a design
-        const backDataUrl = product === "hoodie" ? await captureView("back") : null;
+        const backDataUrl = product === "hoodie" ? await captureView("back").catch(() => null) : null;
 
-        [screenshotFrontUrl, screenshotBackUrl] = await Promise.all([
-          uploadScreenshot(frontDataUrl, "front"),
-          uploadScreenshot(backDataUrl, "back"),
-        ]);
+        screenshotFrontUrl = await uploadScreenshot(frontDataUrl, "front");
+        screenshotBackUrl  = await uploadScreenshot(backDataUrl,  "back");
       } catch (e) {
         console.error("[SCREENSHOT] Failed, continuing without screenshots:", e);
       }
