@@ -1351,45 +1351,97 @@ export default function TinyThreadStudio() {
       params.set("return_to", "/?added=true");
 
       // --- Capture front+back screenshots for designer email ---
+      // Uses native canvas API instead of html2canvas: works on iOS Safari, Android Chrome,
+      // and any screen size without DOM manipulation or view-switching race conditions.
+      // Produces a fixed 800×1000 composite using the same position/size math as the server.
       let screenshotFrontUrl: string | null = null;
       let screenshotBackUrl: string | null = null;
       try {
-        const { default: html2canvas } = await import("html2canvas");
+        const SHOT_W = 800, SHOT_H = 1000;
 
-        const waitForImages = (el: HTMLElement) =>
-          Promise.race([
-            Promise.all(
-              Array.from(el.querySelectorAll("img")).map(
-                img => new Promise<void>(resolve => {
-                  if (img.complete && img.naturalWidth > 0) { resolve(); return; }
-                  img.addEventListener("load",  () => resolve(), { once: true });
-                  img.addEventListener("error", () => resolve(), { once: true });
-                })
-              )
-            ),
-            new Promise<void>(resolve => setTimeout(resolve, 1500)),
-          ]);
+        // Route replicate CDN URLs through our proxy so canvas can draw them (CORS)
+        const proxyIfNeeded = (url: string) => {
+          if (!url || url.startsWith("data:")) return url;
+          if (url.includes("replicate.delivery") || url.includes("pbxt.replicate.delivery")) {
+            return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+          }
+          return url;
+        };
+
+        // Load an image, falling back to proxy if direct CORS load fails
+        const loadImg = (src: string): Promise<HTMLImageElement> => {
+          const tryLoad = (url: string): Promise<HTMLImageElement> =>
+            new Promise((res, rej) => {
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+              img.onload = () => res(img);
+              img.onerror = () => rej(new Error("load failed: " + url));
+              img.src = url;
+            });
+          return tryLoad(src).catch(() =>
+            tryLoad(`/api/proxy-image?url=${encodeURIComponent(src)}`)
+          );
+        };
+
+        // Ensure Google Fonts are fully loaded so canvas text matches the on-screen preview
+        if (document.fonts?.ready) await document.fonts.ready;
 
         const captureView = async (targetView: View): Promise<string | null> => {
-          if (!previewRef.current) return null;
-          setSelectedDesignId(null);
-          setView(targetView);
-          // Two animation frames so React flushes the state update before capture
-          await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-          // Extra buffer for newly-rendered images on the switched view
-          await new Promise<void>(r => setTimeout(r, 500));
-          await waitForImages(previewRef.current);
-          // Strip zoom transform so capture is always 1:1
-          const el = previewRef.current;
-          const prevTransform = el.style.transform;
-          el.style.transform = "none";
-          const canvas = await html2canvas(el, {
-            useCORS: true,
-            allowTaint: true,
-            scale: 1,
-            logging: false,
-          });
-          el.style.transform = prevTransform;
+          const canvas = document.createElement("canvas");
+          canvas.width = SHOT_W;
+          canvas.height = SHOT_H;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return null;
+
+          // 1. Garment background
+          const garmentSrc = (GARMENT_IMAGES as Record<string, Record<string, Record<string, string>>>)
+            [product]?.[color]?.[targetView];
+          if (garmentSrc) {
+            try {
+              ctx.drawImage(await loadImg(garmentSrc), 0, 0, SHOT_W, SHOT_H);
+            } catch { /* skip garment if load fails */ }
+          }
+
+          // 2. Design overlays — identical position formula to the DOM and server composite:
+          //    left = SHOT_W * position.x / 100, top = SHOT_H * position.y / 100 (center-anchored)
+          //    size = currentSizePx / 780 * SHOT_W  (780px reference space → 800px canvas)
+          const viewDesigns = designs.filter(d => d.view === targetView);
+          for (const design of viewDesigns) {
+            const sizePx = Math.round((design.currentSizePx / 780) * SHOT_W);
+            const cx = Math.round(SHOT_W * design.position.x / 100);
+            const cy = Math.round(SHOT_H * design.position.y / 100);
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            if (design.rotation) ctx.rotate((design.rotation * Math.PI) / 180);
+
+            if (design.textContent) {
+              const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
+              const textColor = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
+              const fontSize = Math.max(20, sizePx / 6);
+              ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+              ctx.fillStyle = textColor;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(design.textContent, 0, 0, sizePx);
+            } else {
+              // processedImages are base64 data: URLs (bg-removed) — no CORS needed
+              const imgSrc = proxyIfNeeded(
+                design.processedImages?.[design.style] ||
+                design.rawImageUrl ||
+                design.generatedImages?.[design.style] ||
+                ""
+              );
+              if (imgSrc) {
+                try {
+                  ctx.drawImage(await loadImg(imgSrc), -sizePx / 2, -sizePx / 2, sizePx, sizePx);
+                } catch { /* skip design image if load fails */ }
+              }
+            }
+
+            ctx.restore();
+          }
+
           try { return canvas.toDataURL("image/png"); } catch { return null; }
         };
 
@@ -1406,13 +1458,16 @@ export default function TinyThreadStudio() {
           } catch { return null; }
         };
 
-        // Capture each view independently so a failure on one doesn't lose the other
-        const frontDataUrl = await captureView("front").catch(() => null);
-        // Always capture back for hoodies so designer sees both sides even if only one has a design
-        const backDataUrl = product === "hoodie" ? await captureView("back").catch(() => null) : null;
+        // Both views can be composed in parallel — no DOM view-switching needed
+        const [frontDataUrl, backDataUrl] = await Promise.all([
+          captureView("front").catch(() => null),
+          product === "hoodie" ? captureView("back").catch(() => null) : Promise.resolve(null),
+        ]);
 
-        screenshotFrontUrl = await uploadScreenshot(frontDataUrl, "front");
-        screenshotBackUrl  = await uploadScreenshot(backDataUrl,  "back");
+        [screenshotFrontUrl, screenshotBackUrl] = await Promise.all([
+          uploadScreenshot(frontDataUrl, "front"),
+          uploadScreenshot(backDataUrl, "back"),
+        ]);
       } catch (e) {
         console.error("[SCREENSHOT] Failed, continuing without screenshots:", e);
       }
