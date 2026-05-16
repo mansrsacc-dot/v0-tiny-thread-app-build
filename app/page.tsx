@@ -1342,6 +1342,75 @@ export default function TinyThreadStudio() {
       
       params.set("return_to", "/?added=true");
 
+      // --- Capture front+back screenshots for designer email ---
+      let screenshotFrontUrl: string | null = null;
+      let screenshotBackUrl: string | null = null;
+      try {
+        const { default: html2canvas } = await import("html2canvas");
+
+        const waitForImages = (el: HTMLElement) =>
+          Promise.race([
+            Promise.all(
+              Array.from(el.querySelectorAll("img")).map(
+                img => new Promise<void>(resolve => {
+                  if (img.complete && img.naturalWidth > 0) { resolve(); return; }
+                  img.addEventListener("load",  () => resolve(), { once: true });
+                  img.addEventListener("error", () => resolve(), { once: true });
+                })
+              )
+            ),
+            new Promise<void>(resolve => setTimeout(resolve, 1500)),
+          ]);
+
+        const captureView = async (targetView: View): Promise<string | null> => {
+          if (!previewRef.current) return null;
+          setSelectedDesignId(null);
+          setView(targetView);
+          // Two animation frames so React flushes the state update before capture
+          await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          await waitForImages(previewRef.current);
+          // Strip zoom transform so capture is always 1:1
+          const el = previewRef.current;
+          const prevTransform = el.style.transform;
+          el.style.transform = "none";
+          const canvas = await html2canvas(el, {
+            useCORS: true,
+            allowTaint: false,
+            scale: 1,
+            logging: false,
+          });
+          el.style.transform = prevTransform;
+          return canvas.toDataURL("image/png");
+        };
+
+        const uploadScreenshot = async (dataUrl: string | null, side: string): Promise<string | null> => {
+          if (!dataUrl) return null;
+          try {
+            const res = await fetch("/api/store-image", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ base64Data: dataUrl, filename: `mockup_${side}_${Date.now()}.png` }),
+            });
+            const data = await res.json();
+            return data.url || null;
+          } catch { return null; }
+        };
+
+        const frontDataUrl = await captureView("front");
+        // Always capture back for hoodies so designer sees both sides even if only one has a design
+        const backDataUrl = product === "hoodie" ? await captureView("back") : null;
+
+        [screenshotFrontUrl, screenshotBackUrl] = await Promise.all([
+          uploadScreenshot(frontDataUrl, "front"),
+          uploadScreenshot(backDataUrl, "back"),
+        ]);
+      } catch (e) {
+        console.error("[SCREENSHOT] Failed, continuing without screenshots:", e);
+      }
+      if (screenshotFrontUrl) params.set("properties[_screenshot_front]", screenshotFrontUrl);
+      if (screenshotBackUrl)  params.set("properties[_screenshot_back]",  screenshotBackUrl);
+      // --- End screenshots ---
+
       // --- Auto-save designs on purchase (fire and forget) ---
       if (customer) {
         for (const design of designs) {

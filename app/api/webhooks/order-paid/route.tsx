@@ -201,6 +201,9 @@ export async function POST(req: NextRequest) {
       const backGarmentRef = getProp("_garment_back");
       const backGarmentUrl = backGarmentRef ? GARMENT_URLS[backGarmentRef] : null;
 
+      const screenshotFrontUrl = getProp("_screenshot_front");
+      const screenshotBackUrl  = getProp("_screenshot_back");
+
       // Parse text embroidery info: 'TEXT (font: Sans, 100mm, color: Red, front) | TEXT2 (font: Serif, 80mm, color: Auto, back)'
       // Backwards-compatible: also accepts old format without color: 'TEXT (font: Sans, 100mm, front)'
       const textEmbProp = getProp("Text Embroidery");
@@ -277,32 +280,47 @@ export async function POST(req: NextRequest) {
         const label = side.charAt(0).toUpperCase() + side.slice(1);
         const textInfo = textsByView[side];
 
-        if (!designUrl && !textInfo) continue;
+        const screenshotUrl = side === "front" ? screenshotFrontUrl : screenshotBackUrl;
+
+        // Include this side if it has a design, text, or a screenshot (so designer sees empty back too)
+        if (!designUrl && !textInfo && !screenshotUrl) continue;
 
         attachmentHtml += `<h4 style="margin-top: 16px; color: #3e92cc;">${label} Design:</h4><ul style="font-size: 13px; color: #666;">`;
 
-        // TEXT info (rendered alongside photo if both exist on this side)
-        if (textInfo && garmentUrl) {
-          const sizePx = Math.round((textInfo.sizeMm / 700) * 780);
-          const textHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
-          const placementBase64 = await generateTextComposite(garmentUrl, textInfo.content, textInfo.fontId, garmentColorVal, pos.x, pos.y, sizePx, textHex);
-          if (placementBase64) {
-            attachments.push({ filename: `placement-text-${side}.png`, content: placementBase64, content_type: "image/png" });
+        // 1. Composite mockup — screenshot from browser (exact customer view) or server-side fallback
+        if (screenshotUrl) {
+          const screenshotBase64 = await fetchImageAsBase64(screenshotUrl);
+          if (screenshotBase64) {
+            attachments.push({ filename: `placement-${side}.png`, content: screenshotBase64, content_type: "image/png" });
+            attachmentHtml += `<li>placement-${side}.png - Composite mockup (customer view screenshot)</li>`;
+          }
+          // Still list text specs as info (already visible in the screenshot)
+          if (textInfo) {
+            const textHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
             attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
-            attachmentHtml += `<li>placement-text-${side}.png - Composite mockup (text on garment)</li>`;
+          }
+        } else {
+          // Fallback: generate composite server-side (backwards compat for orders without screenshots)
+          if (textInfo && garmentUrl) {
+            const sizePx = Math.round((textInfo.sizeMm / 700) * 780);
+            const textHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
+            const placementBase64 = await generateTextComposite(garmentUrl, textInfo.content, textInfo.fontId, garmentColorVal, pos.x, pos.y, sizePx, textHex);
+            if (placementBase64) {
+              attachments.push({ filename: `placement-text-${side}.png`, content: placementBase64, content_type: "image/png" });
+              attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
+              attachmentHtml += `<li>placement-text-${side}.png - Composite mockup (text on garment)</li>`;
+            }
+          }
+          if (designUrl && garmentUrl) {
+            const placementBase64 = await generateComposite(garmentUrl, designUrl, pos.x, pos.y, pos.size);
+            if (placementBase64) {
+              attachments.push({ filename: `placement-${side}.png`, content: placementBase64, content_type: "image/png" });
+              attachmentHtml += `<li>placement-${side}.png - Composite mockup (design on garment)</li>`;
+            }
           }
         }
 
         if (!designUrl) { attachmentHtml += "</ul>"; continue; }
-
-        // 1. Composite mockup — garment with design placed at customer's position
-        if (garmentUrl) {
-          const placementBase64 = await generateComposite(garmentUrl, designUrl, pos.x, pos.y, pos.size);
-          if (placementBase64) {
-            attachments.push({ filename: `placement-${side}.png`, content: placementBase64, content_type: "image/png" });
-            attachmentHtml += `<li>placement-${side}.png - Composite mockup (design on garment)</li>`;
-          }
-        }
 
         // 2. Generated embroidery design — clean, no background
         const generatedBase64 = await fetchImageAsBase64(designUrl);
