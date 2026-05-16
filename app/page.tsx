@@ -1010,6 +1010,8 @@ export default function TinyThreadStudio() {
     e.stopPropagation();
     setSelectedDesignId(designId);
     const design = designs.find(d => d.id === designId);
+    // Sync style selector so the user sees which style this design uses
+    if (design && !design.textContent) setStyle(design.style);
     const pos = getPointerPos(e);
     if (design) {
       setDragState({
@@ -1249,7 +1251,13 @@ export default function TinyThreadStudio() {
       const params = new URLSearchParams();
       params.set("id", variantId);
       params.set("quantity", "1");
-      params.set("properties[Embroidery Style]", designSpecs.map(d => d.style).join(", "));
+      // Use human-readable style names; text designs have no meaningful embroidery style
+      const photoStyleNames = designs
+        .filter(d => !d.textContent)
+        .map(d => STYLES.find(s => s.id === d.style)?.name || d.style);
+      if (photoStyleNames.length > 0) {
+        params.set("properties[Embroidery Style]", photoStyleNames.join(", "));
+      }
       params.set("properties[Embroidery Size]", designSpecs.map(d => `${d.size} (${d.sizeMm}mm)`).join(", "));
       params.set("properties[Placement]", designSpecs.map(d => d.view).join(", "));
       params.set("properties[Design Count]", String(designs.length));
@@ -2367,7 +2375,11 @@ export default function TinyThreadStudio() {
                 {designs.map(design => (
                   <div
                     key={design.id}
-                    onClick={() => setSelectedDesignId(design.id)}
+                    onClick={() => {
+                      setSelectedDesignId(design.id);
+                      // Sync style selector to this design so the user sees which style is active
+                      if (!design.textContent) setStyle(design.style);
+                    }}
                     className={cn(
                       "flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-all",
                       selectedDesignId === design.id
