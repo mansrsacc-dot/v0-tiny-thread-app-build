@@ -10,8 +10,9 @@ const GARMENT_URLS: Record<string, string> = {
   "cap-white-front": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cap-white-front-kYisZ76gyCeeLb3IYogIXdTJo7mXkO.jpg",
 };
 
-const SHOPIFY_STORE = "us173z-az.myshopify.com";
-const SHOPIFY_TOKEN = "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";
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
+const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
+const SHOP_GID = process.env.SHOPIFY_SHOP_GID!;
 
 async function shopifyGQL(query: string, variables?: Record<string, unknown>) {
   const res = await fetch(`https://${SHOPIFY_STORE}/admin/api/2024-01/graphql.json`, {
@@ -137,7 +138,7 @@ async function vectorizeDesign(designUrl: string): Promise<string | null> {
     formData.append("output.gap_filler.enabled", "false");
     const vecRes = await fetch("https://vectorizer.ai/api/v1/vectorize", {
       method: "POST",
-      headers: { "Authorization": "Basic " + btoa("vkhpaa5kmksrknd:snt3ii13v1s63o4554clpecm68n87t27g580qvfq50qr143dp4h4") },
+      headers: { "Authorization": "Basic " + btoa(process.env.VECTORIZER_API_KEY!) },
       body: formData,
     });
     if (!vecRes.ok) return null;
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest) {
       // Mark as processing immediately
       await shopifyGQL(
         `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message } } }`,
-        { input: [{ ownerId: "gid://shopify/Shop/103759446347", namespace: "tinythread_processed", key, value: new Date().toISOString(), type: "single_line_text_field" }] }
+        { input: [{ ownerId: SHOP_GID, namespace: "tinythread_processed", key, value: new Date().toISOString(), type: "single_line_text_field" }] }
       );
     } catch (e) {
       console.error("[WEBHOOK] Dedup check error:", e);
@@ -356,7 +357,7 @@ export async function POST(req: NextRequest) {
 
       const emailRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
-        headers: { "Authorization": "Bearer re_GMuGpfwE_E1cAyaCFg11J354XszsD1DLo", "Content-Type": "application/json" },
+        headers: { "Authorization": `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: "TinyThread Orders <onboarding@resend.dev>",
           to: ["karvelsm@gmail.com"],

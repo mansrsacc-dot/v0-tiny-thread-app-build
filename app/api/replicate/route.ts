@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       {
         method: "POST",
         headers: {
-          "Authorization": "Token r8_PFYa3C43H9QqKJVLFieVDKnfPhGr7ep4ceA1H",
+          "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
           "Content-Type": "application/json",
           "Prefer": "wait=60"
         },
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
         }
         await new Promise(r => setTimeout(r, 2000));
         const poll = await fetch(data.urls.get, {
-          headers: { "Authorization": "Token r8_PFYa3C43H9QqKJVLFieVDKnfPhGr7ep4ceA1H" }
+          headers: { "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}` }
         });
         result = await poll.json();
       }

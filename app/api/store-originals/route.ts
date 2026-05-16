@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SHOPIFY_STORE = "us173z-az.myshopify.com";
-const SHOPIFY_TOKEN = "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";
-const SHOP_GID = "gid://shopify/Shop/103759446347";
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
+const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
+const SHOP_GID = process.env.SHOPIFY_SHOP_GID!;
 
 async function shopifyGQL(query: string, variables: Record<string, unknown> = {}) {
   const res = await fetch(`https://${SHOPIFY_STORE}/admin/api/2024-01/graphql.json`, {

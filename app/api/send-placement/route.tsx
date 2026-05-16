@@ -96,7 +96,7 @@ async function vectorizeDesign(designUrl: string): Promise<Buffer | null> {
 
     const vecRes = await fetch("https://vectorizer.ai/api/v1/vectorize", {
       method: "POST",
-      headers: { "Authorization": "Basic " + btoa("vkhpaa5kmksrknd:snt3ii13v1s63o4554clpecm68n87t27g580qvfq50qr143dp4h4") },
+      headers: { "Authorization": "Basic " + btoa(process.env.VECTORIZER_API_KEY!) },
       body: formData,
     });
 
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        "Authorization": "Bearer re_GMuGpfwE_E1cAyaCFg11J354XszsD1DLo",
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

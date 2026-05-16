@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     const response = await fetch("https://vectorizer.ai/api/v1/vectorize", {
       method: "POST",
       headers: {
-        "Authorization": "Basic " + btoa("vkhpaa5kmksrknd:snt3ii13v1s63o4554clpecm68n87t27g580qvfq50qr143dp4h4")
+        "Authorization": "Basic " + btoa(process.env.VECTORIZER_API_KEY!)
       },
       body: formData
     });

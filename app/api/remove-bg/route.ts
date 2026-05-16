@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const REPLICATE_TOKEN = "r8_PFYa3C43H9QqKJVLFieVDKnfPhGr7ep4ceA1H";
+const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!;
 const REMBG_VERSION = "fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003";
 export const maxDuration = 60;
 

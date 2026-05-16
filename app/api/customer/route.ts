@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SHOPIFY_STORE = "us173z-az.myshopify.com";
-const STOREFRONT_TOKEN = "190fa68ec00aa40fb44afbb51c4b70e7";
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
+const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
 // Simple secret for email signature verification (customer already authed on Shopify)
-const EMAIL_SECRET = "tinythread_2026_secret";
+const EMAIL_SECRET = process.env.EMAIL_SECRET!;
 
 async function storefrontQuery(query: string, variables: Record<string, unknown> = {}) {
   const res = await fetch(`https://${SHOPIFY_STORE}/api/2024-01/graphql.json`, {
