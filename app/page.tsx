@@ -777,7 +777,12 @@ export default function TinyThreadStudio() {
       });
 
       const data = await response.json();
-      
+
+      if (!response.ok || data.error) {
+        toast({ title: t.error, description: data.error || t.errorGeneric });
+        return;
+      }
+
       if (data.imageUrl) {
         // Save the raw Replicate URL before background removal (for vectorization webhook)
         const rawReplicateUrl = data.imageUrl;
@@ -833,11 +838,12 @@ export default function TinyThreadStudio() {
       }
     } catch (error) {
       console.error("Generation failed:", error);
+      toast({ title: t.error, description: t.errorGeneric });
     } finally {
       setIsGenerating(false);
       generationLockRef.current = false;
     }
-  }, [color, removeImageBackground]);
+  }, [color, removeImageBackground, toast, t]);
 
   const compressImage = (base64: string, maxWidth = 1024): Promise<string> => {
     return new Promise((resolve) => {
