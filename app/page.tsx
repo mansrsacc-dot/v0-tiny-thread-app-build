@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -1606,6 +1606,20 @@ export default function TinyThreadStudio() {
     }
   }, [designs, product, color, size, style, view, toast]);
 
+  const designLabels = designs.map(design => {
+    if (design.textContent) return `${t.textOnly}: "${design.textContent}"`;
+    const pi = design.processedImages;
+    let s = design.style;
+    if (!pi[s]) {
+      const k = Object.keys(pi).find(k2 => !!pi[k2]);
+      if (k) s = k as typeof s;
+    }
+    if (s === "standard") return t.styleStandard;
+    if (s === "outline") return t.styleOutline;
+    if (s === "pet-head") return t.stylePetHead;
+    return t.styleCar;
+  });
+
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
       {/* Garment Preview - First on mobile, Second on desktop */}
@@ -2449,7 +2463,7 @@ export default function TinyThreadStudio() {
                 {t.designLayers}
               </label>
               <div className="space-y-2">
-                {designs.map(design => (
+                {designs.map((design, designIdx) => (
                   <div
                     key={design.id}
                     onClick={() => {
@@ -2488,24 +2502,8 @@ export default function TinyThreadStudio() {
                     <div className="flex-1 min-w-0">
                       <div className={cn("text-sm font-medium truncate", theme === "dark" ? "text-white" : "text-gray-900")}>
                         {design.textContent
-                          ? `${t.textOnly}: “${design.textContent}”`
-                          : (() => {
-                              // Show the label for the style whose image is currently displayed.
-                              // design.style updates immediately on style-button click, but
-                              // processedImages[design.style] is populated only after generation
-                              // completes. Until then, the preview falls back to the previous
-                              // generated style (or the original photo), so we reflect that here.
-                              const shownStyle = (design.processedImages?.[design.style]
-                                ? design.style
-                                : (Object.keys(design.processedImages ?? {}).find(
-                                    k => !!(design.processedImages as Record<string,string>)[k]
-                                  ) as Style | undefined) ?? design.style) as Style;
-                              const labels: Record<Style, string> = {
-                                outline: t.styleOutline, standard: t.styleStandard,
-                                “pet-head”: t.stylePetHead, car: t.styleCar,
-                              };
-                              return labels[shownStyle] ?? t.styleCar;
-                            })()}
+                          ? `${t.textOnly}: "${design.textContent}"`
+                          : designLabels[designIdx]}
                       </div>
                       <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                         {design.view === "front" ? t.front : t.back}{design.textContent ? "" : ` · ${design.size}`}
