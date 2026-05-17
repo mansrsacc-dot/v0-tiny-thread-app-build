@@ -9,6 +9,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing imageUrl or style" }, { status: 400 });
     }
 
+    if (!process.env.REPLICATE_API_TOKEN) {
+      return NextResponse.json({ error: "REPLICATE_API_TOKEN is not configured" }, { status: 500 });
+    }
+
     let prompt = "";
 
     if (style === "outline") {
