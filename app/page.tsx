@@ -1393,12 +1393,28 @@ export default function TinyThreadStudio() {
           const ctx = canvas.getContext("2d");
           if (!ctx) return null;
 
-          // 1. Garment background
+          // 1. Garment background — white fill + object-contain draw so the garment
+          //    is never stretched, matching the app preview's `object-contain` behaviour.
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, SHOT_W, SHOT_H);
           const garmentSrc = (GARMENT_IMAGES as Record<string, Record<string, Record<string, string>>>)
             [product]?.[color]?.[targetView];
           if (garmentSrc) {
             try {
-              ctx.drawImage(await loadImg(garmentSrc), 0, 0, SHOT_W, SHOT_H);
+              const gImg = await loadImg(garmentSrc);
+              const ir = gImg.naturalWidth / gImg.naturalHeight;
+              const cr = SHOT_W / SHOT_H;
+              let gw: number, gh: number, gx: number, gy: number;
+              if (ir > cr) {
+                // image wider than canvas → letterbox top/bottom
+                gw = SHOT_W; gh = Math.round(SHOT_W / ir);
+                gx = 0;      gy = Math.round((SHOT_H - gh) / 2);
+              } else {
+                // image taller than canvas → pillarbox left/right
+                gh = SHOT_H; gw = Math.round(SHOT_H * ir);
+                gx = Math.round((SHOT_W - gw) / 2); gy = 0;
+              }
+              ctx.drawImage(gImg, gx, gy, gw, gh);
             } catch { /* skip garment if load fails */ }
           }
 
@@ -1477,33 +1493,39 @@ export default function TinyThreadStudio() {
 
       // --- Auto-save designs on purchase (fire and forget) ---
       if (customer) {
+        // URLs already on Vercel Blob don't need re-uploading
+        const isBlob = (url: string) =>
+          url.startsWith("https://") && url.includes("vercel-storage.com");
+
+        const uploadIfNeeded = async (src: string, filename: string): Promise<string> => {
+          if (!src) return "";
+          if (isBlob(src)) return src; // already stored — reuse the URL
+          const res = await fetch("/api/store-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              src.startsWith("data:") || src.startsWith("/")
+                ? { base64Data: src, filename }
+                : { imageUrl: src, filename }
+            ),
+          });
+          const data = await res.json();
+          return data.url || "";
+        };
+
         for (const design of designs) {
+          // Text-only designs have no image to save; skip them
+          if (design.textContent) continue;
           try {
             const genSrc = design.processedImages?.[design.style] || design.rawImageUrl || "";
-            // Upload generated image to permanent storage
-            const uploadRes = await fetch("/api/store-image", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(
-                genSrc.startsWith("data:") || genSrc.startsWith("/")
-                  ? { base64Data: genSrc, filename: `auto_gen_${customer.id}_${Date.now()}.png` }
-                  : { imageUrl: genSrc, filename: `auto_gen_${customer.id}_${Date.now()}.png` }
-              ),
-            });
-            const uploadData = await uploadRes.json();
-            const permanentGenUrl = uploadData.url || "";
+            const permanentGenUrl = await uploadIfNeeded(
+              genSrc, `auto_gen_${customer.id}_${Date.now()}.png`
+            );
 
-            // Upload original photo
-            let permanentOrigUrl = "";
-            if (design.originalImage) {
-              const origRes = await fetch("/api/store-image", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ base64Data: design.originalImage, filename: `auto_orig_${customer.id}_${Date.now()}.jpg` }),
-              });
-              const origData = await origRes.json();
-              permanentOrigUrl = origData.url || "";
-            }
+            // Upload original photo only if it's not already stored
+            const permanentOrigUrl = await uploadIfNeeded(
+              design.originalImage || "", `auto_orig_${customer.id}_${Date.now()}.jpg`
+            );
 
             // Create thumbnail for grid
             const thumb = await createThumbnail(permanentGenUrl || genSrc);
@@ -2467,7 +2489,23 @@ export default function TinyThreadStudio() {
                       <div className={cn("text-sm font-medium truncate", theme === "dark" ? "text-white" : "text-gray-900")}>
                         {design.textContent
                           ? `${t.textOnly}: “${design.textContent}”`
-                          : (design.style === "outline" ? t.styleOutline : design.style === "standard" ? t.styleStandard : design.style === "pet-head" ? t.stylePetHead : t.styleCar)}
+                          : (() => {
+                              // Show the label for the style whose image is currently displayed.
+                              // design.style updates immediately on style-button click, but
+                              // processedImages[design.style] is populated only after generation
+                              // completes. Until then, the preview falls back to the previous
+                              // generated style (or the original photo), so we reflect that here.
+                              const shownStyle = (design.processedImages?.[design.style]
+                                ? design.style
+                                : (Object.keys(design.processedImages ?? {}).find(
+                                    k => !!(design.processedImages as Record<string,string>)[k]
+                                  ) as Style | undefined) ?? design.style) as Style;
+                              const labels: Record<Style, string> = {
+                                outline: t.styleOutline, standard: t.styleStandard,
+                                “pet-head”: t.stylePetHead, car: t.styleCar,
+                              };
+                              return labels[shownStyle] ?? t.styleCar;
+                            })()}
                       </div>
                       <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                         {design.view === "front" ? t.front : t.back}{design.textContent ? "" : ` · ${design.size}`}
