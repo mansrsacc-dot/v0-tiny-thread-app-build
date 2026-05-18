@@ -188,23 +188,58 @@ export async function POST(req: NextRequest) {
   const orderId = String(body.id || "");
   console.log("[WEBHOOK] Order paid:", orderId);
 
-  // Deduplication: check if we already processed this order
-  if (orderId) {
-    try {
-      const key = `order_${orderId}`;
-      const checkResult = await shopifyGQL(`{ shop { metafield(namespace: "tinythread_processed", key: "${key}") { value } } }`);
-      if (checkResult?.data?.shop?.metafield?.value) {
-        console.log("[WEBHOOK] Already processed order", orderId, "- skipping");
-        return NextResponse.json({ success: true, skipped: true });
-      }
-      // Mark as processing immediately
-      await shopifyGQL(
-        `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message } } }`,
-        { input: [{ ownerId: SHOP_GID, namespace: "tinythread_processed", key, value: new Date().toISOString(), type: "single_line_text_field" }] }
-      );
-    } catch (e) {
-      console.error("[WEBHOOK] Dedup check error:", e);
+  if (!orderId) {
+    return NextResponse.json({ error: "Missing order ID" }, { status: 400 });
+  }
+
+  // Deduplication: write-first, verify-second pattern to survive concurrent Shopify deliveries.
+  //
+  // The old read-then-write pattern had a race: two invocations could both read "not found"
+  // before either wrote the marker, then both proceed and send duplicate emails.
+  //
+  // New pattern:
+  //   1. Check for a "done" marker — if present, skip immediately (already completed).
+  //   2. Write a unique lock value atomically.
+  //   3. Wait 400 ms so any concurrent write from another invocation can settle.
+  //   4. Read back — only the invocation whose lock value is still stored continues.
+  //      The other invocation lost the race and exits.
+  //   5. After processing, overwrite the lock with a "done" timestamp so future
+  //      retries are rejected by step 1 rather than re-entering the race.
+  const dedupKey = `order_${orderId}`;
+  const lockId = `lock:${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    // Step 1: already completed?
+    const existing = await shopifyGQL(
+      `{ shop { metafield(namespace: "tinythread_processed", key: "${dedupKey}") { value } } }`
+    );
+    const existingVal: string = existing?.data?.shop?.metafield?.value ?? "";
+    if (existingVal && !existingVal.startsWith("lock:")) {
+      console.log("[WEBHOOK] Already processed order", orderId, "- skipping");
+      return NextResponse.json({ success: true, skipped: true });
     }
+
+    // Step 2: claim ownership
+    await shopifyGQL(
+      `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message } } }`,
+      { input: [{ ownerId: SHOP_GID, namespace: "tinythread_processed", key: dedupKey, value: lockId, type: "single_line_text_field" }] }
+    );
+
+    // Step 3: let concurrent invocations finish their own writes
+    await new Promise(r => setTimeout(r, 400));
+
+    // Step 4: verify we still hold the lock (last writer wins; earlier writers exit here)
+    const verify = await shopifyGQL(
+      `{ shop { metafield(namespace: "tinythread_processed", key: "${dedupKey}") { value } } }`
+    );
+    const heldVal: string = verify?.data?.shop?.metafield?.value ?? "";
+    if (heldVal !== lockId) {
+      console.log("[WEBHOOK] Order", orderId, "claimed by another invocation - skipping");
+      return NextResponse.json({ success: true, skipped: true });
+    }
+  } catch (e) {
+    // Dedup infrastructure is down. Continue processing to avoid losing the order;
+    // accept the small risk of a duplicate email in this failure scenario.
+    console.error("[WEBHOOK] Dedup error (continuing):", e);
   }
 
   try {
@@ -413,6 +448,16 @@ export async function POST(req: NextRequest) {
       });
       const emailData = await emailRes.json();
       console.log("[WEBHOOK] Email sent:", emailData);
+    }
+
+    // Step 5: mark order as fully processed so future retries skip immediately
+    try {
+      await shopifyGQL(
+        `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message } } }`,
+        { input: [{ ownerId: SHOP_GID, namespace: "tinythread_processed", key: dedupKey, value: new Date().toISOString(), type: "single_line_text_field" }] }
+      );
+    } catch (e) {
+      console.error("[WEBHOOK] Failed to write done marker:", e);
     }
 
     return NextResponse.json({ success: true });
