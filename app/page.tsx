@@ -647,8 +647,9 @@ export default function TinyThreadStudio() {
     } catch (e) {
       console.error("[DESIGNS] Save error:", e);
       toast({ title: t.error, description: t.failedSave });
+    } finally {
+      setIsSavingDesign(false);
     }
-    setIsSavingDesign(false);
   };
 
   // Apply a saved design to the current garment
@@ -1619,7 +1620,7 @@ export default function TinyThreadStudio() {
       });
       setIsAddingToCart(false);
     }
-  }, [designs, product, color, size, style, view, toast]);
+  }, [designs, product, color, size, style, view, toast, customer]);
 
   const designLabels = designs.map(design => {
     if (design.textContent) return `${t.textOnly}: "${design.textContent}"`;
