@@ -62,6 +62,7 @@ const T: Record<Lang, Record<string, string>> = {
     next: "Tālāk",
     back_btn: "Atpakaļ",
     getStarted: "Sāksim!",
+    startCreating: "Sākt radīt",
     close: "Aizvērt",
     // Toasts
     noDesign: "Nav dizaina",
@@ -167,6 +168,7 @@ const T: Record<Lang, Record<string, string>> = {
     next: "Next",
     back_btn: "Back",
     getStarted: "Get Started!",
+    startCreating: "Start Creating",
     close: "Close",
     // Toasts
     noDesign: "No design",
@@ -322,28 +324,52 @@ const BACK_SURCHARGE: Record<string, number> = {
   car: 35,
 };
 
-// Guide content (LV and EN)
+// Guide content (LV and EN) — 4 steps
 const GUIDE_CONTENT: Record<Lang, Array<{title: string; text: string; icon: string}>> = {
   en: [
-    { title: "Choose Your Product & Color", text: "Start by selecting your garment — Hoodie or Cap — and pick your color. Your embroidery will be crafted onto this exact piece.", icon: "👕" },
-    { title: "Pick Your Embroidery Size", text: "S (45–100mm) — Small and subtle, perfect for chest logos.\nM (100–150mm) — Standard size, most popular choice.\nL (150–250mm) — Large and bold, a statement piece.\n\nYou can resize within your selected range by dragging the corner handle.", icon: "📐" },
-    { title: "Understand the Styles", text: "Outline — Clean minimal line art. Best with clear subjects, strong silhouettes. Avoid busy backgrounds.\n\nStandard Logo — Bold flat-color graphic like a sticker. Best for logos, text, badges. Avoid detailed photos.\n\nPhoto Stitch — Ultra-detailed thread painting. Best with clear well-lit photos of any subject. Avoid blurry or dark images.\n\nPet Head — Embroidered pet face portrait. Use a close-up of ONE pet's face looking at the camera. Avoid multiple pets or full body shots.", icon: "🎨" },
-    { title: "Upload Your Photo", text: "Click on the garment or the upload area to add your photo. The better your photo quality, the better your embroidery will look.\n\nTip: Use clear, well-lit images where the subject is clearly visible.", icon: "📸" },
-    { title: "Preview & Adjust", text: "See how your embroidery will look on the garment. Toggle between Original and Stitched view to compare.\n\nNot happy? Click Regenerate for a new variation (up to 4 times). Drag to reposition, resize within your selected range.", icon: "✨" },
-    { title: "Front & Back Embroidery", text: "You can add embroidery to both the front and back of your hoodie. Each side is a separate design with its own style, size, and placement.\n\nThis is completely optional — most customers start with just the front. If you'd like both sides, simply create your front design first, then add another design for the back.", icon: "↔️" },
-    { title: "Add to Cart & Order", text: "Happy with your design? Click 'Add to Cart' to place your order. We'll handcraft your unique piece in our Riga studio using professional equipment and premium thread.", icon: "🛒" },
-    { title: "Important to Know", text: "The preview you see in the studio is a digital approximation of your embroidery. The final handcrafted result may vary slightly in color, detail, and texture.\n\nThis is the beauty of real embroidery — each piece is unique, crafted with care by our artists in Riga. No two pieces are exactly alike, just like real craftsmanship should be.\n\nIf you have any questions, contact us at info@tinythread.shop", icon: "💎" }
+    {
+      title: "Choose Your Style",
+      text: "Pick a hoodie or cap, select your color and embroidery size. S for small and subtle, L for large and bold.",
+      icon: "👕",
+    },
+    {
+      title: "Upload & Generate",
+      text: "Upload any photo — your pet, car, portrait or any design. We transform it into an embroidery-ready design in seconds.",
+      icon: "📸",
+    },
+    {
+      title: "Preview & Perfect",
+      text: "Drag to reposition, resize, add text. Switch between front and back. Regenerate up to 4 times until it's exactly right.",
+      icon: "✨",
+    },
+    {
+      title: "We Craft It For You",
+      text: "Add to cart and order. Our embroidery artists in Riga handcraft your unique piece using professional equipment and premium thread. Delivery in 5–7 days.",
+      icon: "💎",
+    },
   ],
   lv: [
-    { title: "Izvēlies produktu un krāsu", text: "Sāc ar apģērba izvēli — Džemperis vai Cepure — un izvēlies krāsu. Tavs izšuvums tiks veidots tieši uz šī izstrādājuma.", icon: "👕" },
-    { title: "Izvēlies izšuvuma izmēru", text: "S (45–100mm) — Mazs un neuzkrītošs, ideāls krūšu logotipam.\nM (100–150mm) — Standarta izmērs, populārākā izvēle.\nL (150–250mm) — Liels un izteiksmīgs, pamanāms akcents.\n\nTu vari mainīt izmēru izvēlētajā diapazonā, velkot stūra rokturi.", icon: "📐" },
-    { title: "Izproti stilus", text: "Kontūra — Tīrs minimāls līniju zīmējums. Labākās bildes: skaidri objekti ar izteiktu siluetu. Izvairīties no aizņemtiem foniem.\n\nStandarta Logo — Spilgta plakana grafika kā uzlīme. Labākās bildes: logo, teksts, nozīmītes. Izvairīties no detalizētām fotogrāfijām.\n\nMīluļa Portrets — Mājdzīvnieka sejas portrets. Izmanto viena dzīvnieka sejas tuvplānu. Izvairīties no vairākiem dzīvniekiem vai pilna ķermeņa foto.\n\nAuto — Detalizēts auto portrets. Izmanto skaidru fotogrāfiju ar vienu transportlīdzekli.", icon: "🎨" },
-    { title: "Augšupielādē fotogrāfiju", text: "Klikšķini uz apģērba vai augšupielādes zonas, lai pievienotu bildi. Jo labāka fotogrāfijas kvalitāte, jo labāk izskatīsies izšuvums.\n\nPadoms: Izmanto skaidrus, labi apgaismotus attēlus.", icon: "📸" },
-    { title: "Priekšskatījums un pielāgošana", text: "Apskati, kā izšuvums izskatīsies uz apģērba. Pārslēdzies starp Oriģinālu un Izšūto skatu.\n\nNeapmierina? Klikšķini Reģenerēt jaunam variantam (līdz 4 reizēm). Velc, lai pārvietotu un mainītu izmēru.", icon: "✨" },
-    { title: "Priekšas un aizmugures izšuvums", text: "Tu vari pievienot izšuvumu gan džempera priekšā, gan aizmugurē. Katra puse ir atsevišķs dizains ar savu stilu, izmēru un izvietojumu.\n\nTā ir pilnīgi brīvprātīga iespēja — lielākā daļa klientu sāk tikai ar priekšpusi. Ja vēlies abas puses, vienkārši izveido vispirms priekšpuses dizainu, tad pievieno otru dizainu aizmugurē.", icon: "↔️" },
-    { title: "Pievieno grozam un pasūti", text: "Apmierināts ar dizainu? Klikšķini 'Pievienot grozam', lai veiktu pasūtījumu. Mēs ar rokām izgatavosim tavu unikālo izstrādājumu Rīgas studijā, izmantojot profesionālu aprīkojumu un augstākās kvalitātes diegus.", icon: "🛒" },
-    { title: "Svarīgi zināt", text: "Priekšskatījums, ko redzi studijā, ir digitāls tuvinājums tavam izšuvumam. Galīgais ar rokām izgatavotais rezultāts var nedaudz atšķirties krāsā, detaļās un tekstūrā.\n\nTā ir īsta izšuvuma burvība — katrs izstrādājums ir unikāls, rūpīgi izgatavots mūsu meistaru rokās Rīgā. Nav divu vienādu darbu, tieši tā, kā tam jābūt īstam roku darbam.\n\nJa tev ir kādi jautājumi, sazinies ar mums: info@tinythread.shop", icon: "💎" }
-  ]
+    {
+      title: "Izvēlies savu stilu",
+      text: "Izvēlies džemperi vai cepuri, krāsu un izšuvuma izmēru. S maziem un smalkiem dizainiem, L lieliem un izteiksmīgiem.",
+      icon: "👕",
+    },
+    {
+      title: "Augšupielādē un ģenerē",
+      text: "Augšupielādē jebkuru foto — mīluli, automašīnu, portretu vai jebkuru dizainu. Mēs sekundēs pārveidojam to izšuvumam gatavā dizainā.",
+      icon: "📸",
+    },
+    {
+      title: "Priekšskatī un pilnveido",
+      text: "Velciet, lai pārvietotu, mainītu izmēru vai pievienotu tekstu. Pārslēdzieties starp priekšu vai aizmuguri. Atjaunojiet līdz pat 4 reizēm, līdz rezultāts ir tieši tāds, kāds vajadzīgs.",
+      icon: "✨",
+    },
+    {
+      title: "Mēs to izgatavosim",
+      text: "Ielieciet grozā un pasūtiet. Mūsu izšuvumu meistari Rīgā ar rokām izgatavos jūsu unikālo izstrādājumu, izmantojot profesionālu aprīkojumu un augstākās kvalitātes diegus. Piegāde 5–10 dienu laikā.",
+      icon: "💎",
+    },
+  ],
 };
 
 declare global {
@@ -2737,36 +2763,62 @@ export default function TinyThreadStudio() {
 
       {/* Guide Modal */}
       {showGuide && (
-        <div className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-end px-6 pt-5 pb-3">
-              <button onClick={() => setShowGuide(false)} className="text-white/30 hover:text-white/60 text-sm">✕ {t.close}</button>
-            </div>
-            
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              <div className="text-center mb-4">
-                <span className="text-4xl">{GUIDE_CONTENT[guideLang][guideStep].icon}</span>
+        <div
+          className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-6"
+          style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(6px)" }}
+        >
+          <div className="bg-[#0f0f0f] border border-white/8 rounded-t-3xl sm:rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl">
+
+            {/* Step icon hero */}
+            <div className="relative flex flex-col items-center justify-center px-6 pt-8 pb-6 text-center"
+              style={{ background: "linear-gradient(160deg, #1a1f2e 0%, #0f0f0f 100%)" }}
+            >
+              <button
+                onClick={() => { setShowGuide(false); setGuideStep(0); }}
+                className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full text-white/30 hover:text-white/70 transition-colors text-xs"
+                style={{ background: "rgba(255,255,255,0.06)" }}
+              >✕</button>
+
+              {/* Large icon box */}
+              <div
+                className="w-24 h-24 flex items-center justify-center rounded-2xl mb-5"
+                style={{ background: "linear-gradient(135deg, rgba(62,146,204,0.18) 0%, rgba(62,146,204,0.04) 100%)", border: "1px solid rgba(62,146,204,0.2)" }}
+              >
+                <span className="text-5xl leading-none select-none">{GUIDE_CONTENT[guideLang][guideStep].icon}</span>
               </div>
-              <h3 className="text-lg font-bold text-white text-center mb-3">
+
+              <h3 className="text-xl font-bold text-white leading-snug tracking-tight">
                 {GUIDE_CONTENT[guideLang][guideStep].title}
               </h3>
-              <p className="text-white/60 text-sm whitespace-pre-line leading-relaxed">
+            </div>
+
+            {/* Body */}
+            <div className="px-7 py-5">
+              <p className="text-white/55 text-sm leading-relaxed">
                 {GUIDE_CONTENT[guideLang][guideStep].text}
               </p>
             </div>
-            
+
             {/* Footer */}
-            <div className="px-6 pb-5 pt-2 flex items-center justify-between">
-              <div className="flex gap-1.5">
-                {GUIDE_CONTENT[guideLang].map((_, i) => (
-                  <div key={i} className={cn("w-2 h-2 rounded-full transition-colors", i === guideStep ? "bg-[#3e92cc]" : "bg-white/20")} />
-                ))}
-              </div>
-              <div className="flex gap-2">
+            <div
+              className="px-7 pb-7 pt-3 flex items-center justify-between"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <span className="text-xs font-semibold text-white/25 tabular-nums tracking-wide">
+                {guideStep + 1} / {GUIDE_CONTENT[guideLang].length}
+              </span>
+
+              <div className="flex items-center gap-2">
                 {guideStep > 0 && (
-                  <button onClick={() => setGuideStep(guideStep - 1)} className="px-4 py-2 text-sm text-white/50 hover:text-white/70">{t.back_btn}</button>
+                  <button
+                    onClick={() => setGuideStep(guideStep - 1)}
+                    className="px-4 py-2 text-sm text-white/40 hover:text-white/70 rounded-xl transition-colors"
+                    style={{ background: "transparent" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  >
+                    {t.back_btn}
+                  </button>
                 )}
                 <button
                   onClick={() => {
@@ -2777,12 +2829,13 @@ export default function TinyThreadStudio() {
                       setGuideStep(0);
                     }
                   }}
-                  className="px-5 py-2 bg-[#3e92cc] text-white font-bold rounded-lg text-sm hover:bg-[#2f7bb0]"
+                  className="px-5 py-2 bg-[#3e92cc] text-white font-bold rounded-xl text-sm hover:bg-[#2f7bb0] transition-colors"
                 >
-                  {guideStep < GUIDE_CONTENT[guideLang].length - 1 ? t.next : t.getStarted}
+                  {guideStep < GUIDE_CONTENT[guideLang].length - 1 ? t.next : t.startCreating}
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       )}

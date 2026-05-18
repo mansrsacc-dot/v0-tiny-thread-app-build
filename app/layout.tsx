@@ -15,7 +15,7 @@ const _cinzel     = Cinzel({ subsets: ["latin"], weight: ["400", "700"], variabl
 
 export const metadata: Metadata = {
   title: 'TinyThread Studio',
-  description: 'AI-powered embroidery design studio - Upload photos and preview custom embroidery on garments',
+  description: 'Custom embroidery design studio - Upload photos and preview your embroidery on garments',
   generator: 'v0.app',
   icons: {
     icon: [
