@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
       originalImageUrl: design.originalImageUrl || null,
       generatedImageUrl: design.generatedImageUrl || null,
+      thumbnailUrl: design.thumbnailUrl || null,
       style: design.style || "outline",
       product: design.product || "hoodie",
       garmentColor: design.garmentColor || "black",

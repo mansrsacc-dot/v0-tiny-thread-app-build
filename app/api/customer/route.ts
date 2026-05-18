@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
 const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
+const SHOPIFY_ADMIN_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 // Simple secret for email signature verification (customer already authed on Shopify)
 const EMAIL_SECRET = process.env.EMAIL_SECRET!;
 
@@ -36,13 +37,34 @@ export async function POST(req: NextRequest) {
       if (emailSignature !== expectedSig) {
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
       }
-      // Customer is verified via Shopify theme - use email as a simple identifier
-      // Generate a stable numeric ID from email for metafield storage
+
+      // Look up the real Shopify customer ID by email so this path returns the same
+      // ID as password/token login — without this, designs saved in one session are
+      // invisible in another because the metafield keys differ.
+      try {
+        const adminRes = await fetch(
+          `https://${SHOPIFY_STORE}/admin/api/2024-01/customers/search.json?query=email:${encodeURIComponent(email)}&limit=1`,
+          { headers: { "X-Shopify-Access-Token": SHOPIFY_ADMIN_TOKEN } }
+        );
+        const adminData = await adminRes.json();
+        const shopifyCustomer = adminData.customers?.[0];
+        if (shopifyCustomer?.id) {
+          return NextResponse.json({
+            id: String(shopifyCustomer.id),
+            firstName: shopifyCustomer.first_name || email.split("@")[0],
+            lastName: shopifyCustomer.last_name || "",
+            email: email,
+          });
+        }
+      } catch (e) {
+        console.error("[CUSTOMER] Admin lookup failed, falling back to hash ID:", e);
+      }
+
+      // Fallback if Admin API is unavailable
       const encoder = new TextEncoder();
       const idData = encoder.encode(email.toLowerCase());
       const idHash = await crypto.subtle.digest("SHA-256", idData);
       const numericId = Array.from(new Uint8Array(idHash)).slice(0, 6).reduce((acc, b) => acc * 256 + b, 0).toString();
-
       return NextResponse.json({
         id: numericId,
         firstName: email.split("@")[0],
