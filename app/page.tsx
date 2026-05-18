@@ -2415,8 +2415,8 @@ export default function TinyThreadStudio() {
             />
           </div>
 
-          {/* Upload Photo */}
-          {designs.length === 0 && (
+          {/* Upload Photo — visible whenever the current view has no photo design */}
+          {!currentDesignsForView.some(d => !d.textContent) && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                 {t.uploadPhoto}
