@@ -1280,39 +1280,18 @@ export default function TinyThreadStudio() {
         }).join(" | "));
       }
       
-      // Add design image URLs for each side
+      // Garment refs for each side (set immediately — no async needed)
       const frontDesign = designs.find(d => d.view === "front");
       const backDesign = designs.find(d => d.view === "back");
-      
-      // Get design image URL - check rawImageUrl (fresh generation), processedImages, then generatedImages
-      const getDesignUrl = (d: Design | undefined) => {
-        if (!d) return null;
-        return d.rawImageUrl || d.processedImages?.[d.style] || d.generatedImages?.[d.style] || null;
-      };
-
-      const frontUrl = getDesignUrl(frontDesign);
-      if (frontUrl) {
-        params.set("properties[_design_image]", frontUrl);
-      }
-      // Always set garment ref if there's any design on this side (image OR text)
-      if (frontDesign) {
-        params.set("properties[_garment]", `${product}-${color}-front`);
-      }
-      const backUrl = getDesignUrl(backDesign);
-      if (backUrl) {
-        params.set("properties[_design_image_back]", backUrl);
-      }
-      if (backDesign) {
-        params.set("properties[_garment_back]", `${product}-${color}-back`);
-      }
+      if (frontDesign) params.set("properties[_garment]", `${product}-${color}-front`);
+      if (backDesign)  params.set("properties[_garment_back]", `${product}-${color}-back`);
+      // _design_image / _design_image_back are set later after Blob upload (see below)
 
       // Send original photos to our API for the designer email (can't fit base64 in URL params)
       try {
         const originals: Record<string, string> = {};
         if (frontDesign?.originalImage) originals.front = frontDesign.originalImage;
-        else if (frontUrl && frontUrl.startsWith("http")) originals.front = frontUrl;
         if (backDesign?.originalImage) originals.back = backDesign.originalImage;
-        else if (backUrl && backUrl.startsWith("http")) originals.back = backUrl;
         if (Object.keys(originals).length > 0) {
           fetch("/api/store-originals", {
             method: "POST",
@@ -1495,7 +1474,37 @@ export default function TinyThreadStudio() {
       }
       if (screenshotFrontUrl) params.set("properties[_screenshot_front]", screenshotFrontUrl);
       if (screenshotBackUrl)  params.set("properties[_screenshot_back]",  screenshotBackUrl);
-      // --- End screenshots ---
+
+      // --- Upload processed design images to Vercel Blob for permanent webhook access ---
+      // Replicate URLs expire; base64 data URLs can't be fetched by the webhook.
+      // Uploading to Blob gives the webhook a stable URL for generated-front/back.png.
+      const uploadDesignToBlob = async (design: Design | undefined, side: string): Promise<string | null> => {
+        if (!design || design.textContent) return null;
+        const src = design.processedImages?.[design.style] || design.rawImageUrl || design.generatedImages?.[design.style] || null;
+        if (!src) return null;
+        try {
+          const res = await fetch("/api/store-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              src.startsWith("data:")
+                ? { base64Data: src, filename: `design_${side}_${Date.now()}.png` }
+                : { imageUrl: src, filename: `design_${side}_${Date.now()}.png` }
+            ),
+          });
+          const data = await res.json();
+          return data.url || null;
+        } catch { return null; }
+      };
+      const frontPhotoDesign = designs.find(d => d.view === "front" && !d.textContent);
+      const backPhotoDesign  = designs.find(d => d.view === "back"  && !d.textContent);
+      const [frontDesignBlobUrl, backDesignBlobUrl] = await Promise.all([
+        uploadDesignToBlob(frontPhotoDesign, "front"),
+        uploadDesignToBlob(backPhotoDesign,  "back"),
+      ]);
+      if (frontDesignBlobUrl) params.set("properties[_design_image]",      frontDesignBlobUrl);
+      if (backDesignBlobUrl)  params.set("properties[_design_image_back]", backDesignBlobUrl);
+      // --- End design image upload ---
 
       // --- Auto-save designs on purchase (fire and forget) ---
       if (customer) {
