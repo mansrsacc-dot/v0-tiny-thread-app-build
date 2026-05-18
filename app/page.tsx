@@ -1984,8 +1984,8 @@ export default function TinyThreadStudio() {
               );
             })}
 
-          {/* Upload Prompt Overlay */}
-            {currentDesignsForView.filter(d => !d.textContent).length === 0 && (
+          {/* Upload Prompt Overlay — only when view has no designs at all */}
+            {currentDesignsForView.length === 0 && (
               <div 
                 className="absolute inset-0 flex items-center justify-center z-10 group cursor-pointer transition-all"
                 onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
