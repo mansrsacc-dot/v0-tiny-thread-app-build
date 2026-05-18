@@ -360,7 +360,7 @@ const GUIDE_CONTENT: Record<Lang, Array<{title: string; text: string; icon: stri
       icon: "📸",
     },
     {
-      title: "Priekšskatī un pilnveido",
+      title: "Izmanto savu iztēli",
       text: "Velciet, lai pārvietotu, mainītu izmēru vai pievienotu tekstu. Pārslēdzieties starp priekšu vai aizmuguri. Atjaunojiet līdz pat 4 reizēm, līdz rezultāts ir tieši tāds, kāds vajadzīgs.",
       icon: "✨",
     },
