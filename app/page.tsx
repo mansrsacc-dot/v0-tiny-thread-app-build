@@ -538,13 +538,17 @@ export default function TinyThreadStudio() {
 
   // Load saved designs for a customer
   const loadSavedDesigns = async (customerId: string) => {
+    console.log("[DESIGNS] loadSavedDesigns called, customerId=", customerId);
     setIsLoadingSaved(true);
     try {
       const res = await fetch(`/api/designs?customerId=${customerId}`);
       const data = await res.json();
+      console.log("[DESIGNS] loadSavedDesigns response status=", res.status, "data=", JSON.stringify(data).slice(0, 200));
       if (data.designs) {
         setSavedDesigns(data.designs);
         console.log("[DESIGNS] Loaded", data.designs.length, "saved designs");
+      } else {
+        console.warn("[DESIGNS] No designs array in response:", data);
       }
     } catch (e) {
       console.error("[DESIGNS] Load error:", e);
@@ -579,6 +583,7 @@ export default function TinyThreadStudio() {
 
   // Save current design - uploads full images to permanent storage
   const handleSaveDesign = async (design: Design) => {
+    console.log("[SAVE] handleSaveDesign called, customer=", customer?.id ?? "null", "design.style=", design.style);
     if (!customer) {
       toast({ title: t.pleaseLogin, description: t.pleaseLoginDesc });
       return;
@@ -589,6 +594,7 @@ export default function TinyThreadStudio() {
       // Prefer processedImages (background removed) over rawImageUrl
       let permanentGeneratedUrl = "";
       const generatedSrc = design.processedImages?.[design.style] || design.rawImageUrl || "";
+      console.log("[SAVE] generatedSrc type=", generatedSrc ? (generatedSrc.startsWith("data:") ? "base64" : "url") : "empty", "len=", generatedSrc.length);
       if (generatedSrc) {
         const uploadRes = await fetch("/api/store-image", {
           method: "POST",
@@ -600,6 +606,7 @@ export default function TinyThreadStudio() {
           ),
         });
         const uploadData = await uploadRes.json();
+        console.log("[SAVE] store-image result:", JSON.stringify(uploadData).slice(0, 150));
         if (uploadData.url) permanentGeneratedUrl = uploadData.url;
       }
 
@@ -618,6 +625,7 @@ export default function TinyThreadStudio() {
       // Create a small thumbnail for the grid display
       const thumbnail = await createThumbnail(permanentGeneratedUrl || generatedSrc);
 
+      console.log("[SAVE] permanentGeneratedUrl=", permanentGeneratedUrl ? permanentGeneratedUrl.slice(0, 80) : "empty");
       const res = await fetch("/api/designs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -638,6 +646,7 @@ export default function TinyThreadStudio() {
         }),
       });
       const data = await res.json();
+      console.log("[SAVE] /api/designs POST status=", res.status, "response=", JSON.stringify(data).slice(0, 200));
       if (data.success) {
         toast({ title: t.designSaved });
         await loadSavedDesigns(customer.id);
@@ -1508,6 +1517,7 @@ export default function TinyThreadStudio() {
       // --- End design image upload ---
 
       // --- Auto-save designs on purchase (fire and forget) ---
+      console.log("[AUTO-SAVE] customer=", customer?.id ?? "null", "designs=", designs.length);
       if (customer) {
         // URLs already on Vercel Blob don't need re-uploading
         const isBlob = (url: string) =>
@@ -1532,8 +1542,10 @@ export default function TinyThreadStudio() {
         for (const design of designs) {
           // Text-only designs have no image to save; skip them
           if (design.textContent) continue;
+          console.log("[AUTO-SAVE] saving design", design.id, "style=", design.style, "view=", design.view);
           try {
             const genSrc = design.processedImages?.[design.style] || design.rawImageUrl || "";
+            console.log("[AUTO-SAVE] genSrc type=", genSrc ? (genSrc.startsWith("data:") ? "base64" : "url") : "empty");
             const permanentGenUrl = await uploadIfNeeded(
               genSrc, `auto_gen_${customer.id}_${Date.now()}.png`
             );
@@ -1547,7 +1559,7 @@ export default function TinyThreadStudio() {
             const thumb = await createThumbnail(permanentGenUrl || genSrc);
 
             // Save to designs API
-            await fetch("/api/designs", {
+            const saveRes = await fetch("/api/designs", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -1567,9 +1579,11 @@ export default function TinyThreadStudio() {
                 },
               }),
             });
+            const saveData = await saveRes.json();
+            console.log("[AUTO-SAVE] API response status=", saveRes.status, JSON.stringify(saveData).slice(0, 150));
             console.log("[AUTO-SAVE] Saved design:", design.style, design.view);
           } catch (e) {
-            console.error("[AUTO-SAVE] Failed:", e);
+            console.error("[AUTO-SAVE] Failed for design", design.id, ":", e);
           }
         }
       }

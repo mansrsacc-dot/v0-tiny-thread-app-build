@@ -19,19 +19,31 @@ function metaKey(customerId: string) {
 
 async function getDesigns(customerId: string): Promise<any[]> {
   const key = metaKey(customerId);
+  console.log(`[DESIGNS] getDesigns customerId=${customerId} key=${key}`);
   const result = await shopifyGQL(
     `{ shop { metafield(namespace: "tinythread_designs", key: "${key}") { value } } }`
   );
+  console.log(`[DESIGNS] getDesigns GQL result:`, JSON.stringify(result?.data ?? result?.errors ?? result).slice(0, 300));
   const val = result?.data?.shop?.metafield?.value;
-  return val ? JSON.parse(val) : [];
+  const parsed = val ? JSON.parse(val) : [];
+  console.log(`[DESIGNS] getDesigns found ${parsed.length} designs`);
+  return parsed;
 }
 
 async function saveDesigns(customerId: string, designs: any[]) {
   const key = metaKey(customerId);
-  await shopifyGQL(
-    `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message } } }`,
-    { input: [{ ownerId: SHOP_GID, namespace: "tinythread_designs", key, value: JSON.stringify(designs), type: "json" }] }
+  const valueJson = JSON.stringify(designs);
+  console.log(`[DESIGNS] saveDesigns customerId=${customerId} key=${key} count=${designs.length} valueLen=${valueJson.length}`);
+  const result = await shopifyGQL(
+    `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message field } } }`,
+    { input: [{ ownerId: SHOP_GID, namespace: "tinythread_designs", key, value: valueJson, type: "json" }] }
   );
+  const userErrors = result?.data?.metafieldsSet?.userErrors;
+  if (userErrors?.length) {
+    console.error(`[DESIGNS] saveDesigns userErrors:`, JSON.stringify(userErrors));
+    throw new Error(`Shopify metafield error: ${userErrors.map((e: any) => e.message).join(", ")}`);
+  }
+  console.log(`[DESIGNS] saveDesigns OK, stored key=${key}`);
 }
 
 // GET /api/designs?customerId=xxx
