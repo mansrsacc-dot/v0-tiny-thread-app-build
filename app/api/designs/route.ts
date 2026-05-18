@@ -1,72 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
-const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
-const SHOP_GID = process.env.SHOPIFY_SHOP_GID!;
-
-async function shopifyGQL(query: string, variables: Record<string, unknown> = {}) {
-  const res = await fetch(`https://${SHOPIFY_STORE}/admin/api/2024-01/graphql.json`, {
-    method: "POST",
-    headers: { "X-Shopify-Access-Token": SHOPIFY_TOKEN, "Content-Type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  return res.json();
-}
-
-function metaKey(customerId: string) {
-  return `user_${customerId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-}
-
-async function getDesigns(customerId: string): Promise<any[]> {
-  const key = metaKey(customerId);
-  console.log(`[DESIGNS] getDesigns customerId=${customerId} key=${key}`);
-  const result = await shopifyGQL(
-    `{ shop { metafield(namespace: "tinythread_designs", key: "${key}") { value } } }`
-  );
-  console.log(`[DESIGNS] getDesigns GQL result:`, JSON.stringify(result?.data ?? result?.errors ?? result).slice(0, 300));
-  const val = result?.data?.shop?.metafield?.value;
-  const parsed = val ? JSON.parse(val) : [];
-  console.log(`[DESIGNS] getDesigns found ${parsed.length} designs`);
-  return parsed;
-}
-
-async function saveDesigns(customerId: string, designs: any[]) {
-  const key = metaKey(customerId);
-  const valueJson = JSON.stringify(designs);
-  console.log(`[DESIGNS] saveDesigns customerId=${customerId} key=${key} count=${designs.length} valueLen=${valueJson.length}`);
-  const result = await shopifyGQL(
-    `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message field } } }`,
-    { input: [{ ownerId: SHOP_GID, namespace: "tinythread_designs", key, value: valueJson, type: "json" }] }
-  );
-  const userErrors = result?.data?.metafieldsSet?.userErrors;
-  if (userErrors?.length) {
-    console.error(`[DESIGNS] saveDesigns userErrors:`, JSON.stringify(userErrors));
-    throw new Error(`Shopify metafield error: ${userErrors.map((e: any) => e.message).join(", ")}`);
-  }
-  console.log(`[DESIGNS] saveDesigns OK, stored key=${key}`);
-}
+import { put, list, del } from "@vercel/blob";
 
 // GET /api/designs?customerId=xxx
+// Lists all blobs under designs/{customerId}/ and returns their JSON content.
 export async function GET(req: NextRequest) {
   const customerId = req.nextUrl.searchParams.get("customerId");
   if (!customerId) return NextResponse.json({ error: "Missing customerId" }, { status: 400 });
+
   try {
-    const designs = await getDesigns(customerId);
+    const prefix = `designs/${customerId}/`;
+    console.log(`[DESIGNS] GET listing blobs with prefix=${prefix}`);
+    const { blobs } = await list({ prefix });
+    console.log(`[DESIGNS] GET found ${blobs.length} blobs`);
+
+    const designs = (
+      await Promise.all(
+        blobs.map(async (blob) => {
+          try {
+            const res = await fetch(blob.url);
+            if (!res.ok) return null;
+            return await res.json();
+          } catch {
+            return null;
+          }
+        })
+      )
+    )
+      .filter(Boolean)
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     return NextResponse.json({ designs });
   } catch (error: any) {
+    console.error("[DESIGNS] GET error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// POST /api/designs - save a design
+// POST /api/designs — save a design as a JSON blob
 export async function POST(req: NextRequest) {
   try {
     const { customerId, design } = await req.json();
     if (!customerId || !design) return NextResponse.json({ error: "Missing data" }, { status: 400 });
 
-    const designs = await getDesigns(customerId);
+    const designId = `design_${Date.now()}`;
     const newDesign = {
-      id: `design_${Date.now()}`,
+      id: designId,
       createdAt: new Date().toISOString(),
       originalImageUrl: design.originalImageUrl || null,
       generatedImageUrl: design.generatedImageUrl || null,
@@ -79,25 +57,39 @@ export async function POST(req: NextRequest) {
       sizePx: design.sizePx || 150,
       view: design.view || "front",
     };
-    designs.push(newDesign);
-    const trimmed = designs.slice(-20);
-    await saveDesigns(customerId, trimmed);
-    return NextResponse.json({ success: true, design: newDesign, total: trimmed.length });
+
+    const pathname = `designs/${customerId}/${designId}.json`;
+    console.log(`[DESIGNS] POST saving to Blob path=${pathname}`);
+    const blob = await put(pathname, JSON.stringify(newDesign), {
+      access: "public",
+      contentType: "application/json",
+      addRandomSuffix: false,
+    });
+    console.log(`[DESIGNS] POST saved OK url=${blob.url}`);
+
+    return NextResponse.json({ success: true, design: newDesign });
   } catch (error: any) {
+    console.error("[DESIGNS] POST error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// DELETE /api/designs
+// DELETE /api/designs — remove a single design blob
 export async function DELETE(req: NextRequest) {
   try {
     const { customerId, designId } = await req.json();
     if (!customerId || !designId) return NextResponse.json({ error: "Missing data" }, { status: 400 });
-    const designs = await getDesigns(customerId);
-    const filtered = designs.filter((d: any) => d.id !== designId);
-    await saveDesigns(customerId, filtered);
-    return NextResponse.json({ success: true, remaining: filtered.length });
+
+    const prefix = `designs/${customerId}/${designId}`;
+    const { blobs } = await list({ prefix });
+    if (blobs.length > 0) {
+      await Promise.all(blobs.map((b) => del(b.url)));
+      console.log(`[DESIGNS] DELETE removed ${blobs.length} blob(s) for designId=${designId}`);
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error("[DESIGNS] DELETE error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
