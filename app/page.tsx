@@ -649,7 +649,11 @@ export default function TinyThreadStudio() {
       console.log("[SAVE] /api/designs POST status=", res.status, "response=", JSON.stringify(data).slice(0, 200));
       if (data.success) {
         toast({ title: t.designSaved });
-        await loadSavedDesigns(customer.id);
+        if (data.design) {
+          setSavedDesigns(prev => [...prev, data.design]);
+        } else {
+          await loadSavedDesigns(customer.id);
+        }
       } else {
         toast({ title: t.error, description: data.error || t.failedSave });
       }
@@ -1581,6 +1585,7 @@ export default function TinyThreadStudio() {
             });
             const saveData = await saveRes.json();
             console.log("[AUTO-SAVE] API response status=", saveRes.status, JSON.stringify(saveData).slice(0, 150));
+            if (saveData.design) setSavedDesigns(prev => [...prev, saveData.design]);
             console.log("[AUTO-SAVE] Saved design:", design.style, design.view);
           } catch (e) {
             console.error("[AUTO-SAVE] Failed for design", design.id, ":", e);
