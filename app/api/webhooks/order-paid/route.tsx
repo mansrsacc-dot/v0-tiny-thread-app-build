@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { NextRequest, NextResponse } from "next/server";
+import { put, list } from "@vercel/blob";
 
 const GARMENT_URLS: Record<string, string> = {
   "hoodie-black-front": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-black-front-L8JNMTYtT2Xneu4ym3Ax12fau4pIHq.jpg",
@@ -192,54 +193,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing order ID" }, { status: 400 });
   }
 
-  // Deduplication: write-first, verify-second pattern to survive concurrent Shopify deliveries.
+  // Deduplication: check-before / mark-after using Vercel Blob.
   //
-  // The old read-then-write pattern had a race: two invocations could both read "not found"
-  // before either wrote the marker, then both proceed and send duplicate emails.
+  // Strategy: the done marker is written ONLY after the email is successfully sent.
+  // The first invocation sees no marker and proceeds. Shopify retries arrive later
+  // (Shopify's minimum retry delay is ~19 seconds), by which time the marker exists.
   //
-  // New pattern:
-  //   1. Check for a "done" marker — if present, skip immediately (already completed).
-  //   2. Write a unique lock value atomically.
-  //   3. Wait 400 ms so any concurrent write from another invocation can settle.
-  //   4. Read back — only the invocation whose lock value is still stored continues.
-  //      The other invocation lost the race and exits.
-  //   5. After processing, overwrite the lock with a "done" timestamp so future
-  //      retries are rejected by step 1 rather than re-entering the race.
-  const dedupKey = `order_${orderId}`;
-  const lockId = `lock:${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // The previous lock/claim approach used Shopify metafields which have eventual
+  // consistency — writes weren't immediately readable, so all concurrent invocations
+  // would write a lock, read back a stale value, and all skip (0 emails sent).
+  const dedupBlobPath = `processed/order_${orderId}.txt`;
   try {
-    // Step 1: already completed?
-    const existing = await shopifyGQL(
-      `{ shop { metafield(namespace: "tinythread_processed", key: "${dedupKey}") { value } } }`
-    );
-    const existingVal: string = existing?.data?.shop?.metafield?.value ?? "";
-    if (existingVal && !existingVal.startsWith("lock:")) {
+    const { blobs } = await list({ prefix: `processed/order_${orderId}` });
+    if (blobs.length > 0) {
       console.log("[WEBHOOK] Already processed order", orderId, "- skipping");
       return NextResponse.json({ success: true, skipped: true });
     }
-
-    // Step 2: claim ownership
-    await shopifyGQL(
-      `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message } } }`,
-      { input: [{ ownerId: SHOP_GID, namespace: "tinythread_processed", key: dedupKey, value: lockId, type: "single_line_text_field" }] }
-    );
-
-    // Step 3: let concurrent invocations finish their own writes
-    await new Promise(r => setTimeout(r, 400));
-
-    // Step 4: verify we still hold the lock (last writer wins; earlier writers exit here)
-    const verify = await shopifyGQL(
-      `{ shop { metafield(namespace: "tinythread_processed", key: "${dedupKey}") { value } } }`
-    );
-    const heldVal: string = verify?.data?.shop?.metafield?.value ?? "";
-    if (heldVal !== lockId) {
-      console.log("[WEBHOOK] Order", orderId, "claimed by another invocation - skipping");
-      return NextResponse.json({ success: true, skipped: true });
-    }
   } catch (e) {
-    // Dedup infrastructure is down. Continue processing to avoid losing the order;
-    // accept the small risk of a duplicate email in this failure scenario.
-    console.error("[WEBHOOK] Dedup error (continuing):", e);
+    console.error("[WEBHOOK] Dedup check error (continuing):", e);
   }
 
   try {
@@ -463,12 +434,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Step 5: mark order as fully processed so future retries skip immediately
+    // Mark order as fully processed — written after emails are sent so the
+    // first invocation is never blocked before it has a chance to run.
     try {
-      await shopifyGQL(
-        `mutation ($input: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $input) { metafields { key } userErrors { message } } }`,
-        { input: [{ ownerId: SHOP_GID, namespace: "tinythread_processed", key: dedupKey, value: new Date().toISOString(), type: "single_line_text_field" }] }
-      );
+      await put(dedupBlobPath, new Date().toISOString(), {
+        access: "public",
+        addRandomSuffix: false,
+      });
+      console.log("[WEBHOOK] Done marker written for order", orderId);
     } catch (e) {
       console.error("[WEBHOOK] Failed to write done marker:", e);
     }
