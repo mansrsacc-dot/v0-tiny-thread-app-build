@@ -435,19 +435,32 @@ export async function POST(req: NextRequest) {
         </div>
       `;
 
-      const emailRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "TinyThread Orders <onboarding@resend.dev>",
-          to: ["karvelsm@gmail.com"],
-          subject: `New Order #${orderNumber} - ${item.title}`,
-          html: emailHtml,
-          attachments,
-        }),
-      });
-      const emailData = await emailRes.json();
-      console.log("[WEBHOOK] Email sent:", emailData);
+      if (!process.env.RESEND_API_KEY) {
+        console.error("[WEBHOOK] RESEND_API_KEY env var is not set — email NOT sent for order", orderNumber);
+      } else {
+        const totalSizeKB = Math.round(
+          attachments.reduce((s, a) => s + a.content.length * 0.75, 0) / 1024
+        );
+        console.log(`[WEBHOOK] Sending email for order ${orderNumber} | attachments=${attachments.length} | ~${totalSizeKB}KB`);
+        const emailRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "TinyThread Orders <onboarding@resend.dev>",
+            to: ["karvelsm@gmail.com"],
+            subject: `New Order #${orderNumber} - ${item.title}`,
+            html: emailHtml,
+            attachments,
+          }),
+        });
+        let emailData: any;
+        try { emailData = await emailRes.json(); } catch { emailData = {}; }
+        if (!emailRes.ok) {
+          console.error(`[WEBHOOK] Resend API error HTTP ${emailRes.status} for order ${orderNumber}:`, JSON.stringify(emailData));
+        } else {
+          console.log(`[WEBHOOK] Email sent OK id=${emailData?.id} order=${orderNumber}`);
+        }
+      }
     }
 
     // Step 5: mark order as fully processed so future retries skip immediately
