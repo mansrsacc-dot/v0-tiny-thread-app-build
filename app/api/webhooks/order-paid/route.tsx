@@ -237,8 +237,28 @@ export async function POST(req: NextRequest) {
       const backGarmentRef = getProp("_garment_back");
       const backGarmentUrl = backGarmentRef ? GARMENT_URLS[backGarmentRef] : null;
 
-      const screenshotFrontUrl = getProp("_screenshot_front");
-      const screenshotBackUrl  = getProp("_screenshot_back");
+      const leftSleeveDesignUrl  = getProp("_design_image_left_sleeve");
+      const rightSleeveDesignUrl = getProp("_design_image_right_sleeve");
+
+      const screenshotFrontUrl      = getProp("_screenshot_front");
+      const screenshotBackUrl       = getProp("_screenshot_back");
+      const screenshotLeftSleeveUrl  = getProp("_screenshot_left_sleeve");
+      const screenshotRightSleeveUrl = getProp("_screenshot_right_sleeve");
+
+      // Parse Sleeve Embroidery property (same format as Text Embroidery but with "Left Sleeve"/"Right Sleeve")
+      const sleeveEmbProp = getProp("Sleeve Embroidery");
+      const sleeveTextsByView: Record<string, { content: string; fontName: string; fontId: string; colorLabel: string }> = {};
+      if (sleeveEmbProp) {
+        for (const entry of sleeveEmbProp.split(" | ")) {
+          const m = entry.match(/^"(.+)" \(font: (.+?), 100mm, color: (.+?), (Left Sleeve|Right Sleeve)\)$/);
+          if (m) {
+            const [, content, fontName, colorLabel, sideLabel] = m;
+            const key = sideLabel === "Left Sleeve" ? "left-sleeve" : "right-sleeve";
+            const fontId = Object.keys(FONT_NAME_MAP).find(k => FONT_NAME_MAP[k] === fontName) || "sans";
+            sleeveTextsByView[key] = { content, fontName, fontId, colorLabel };
+          }
+        }
+      }
 
       // Parse text embroidery info: 'TEXT (font: Sans, 100mm, color: Red, front) | TEXT2 (font: Serif, 80mm, color: Auto, back)'
       // Backwards-compatible: also accepts old format without color: 'TEXT (font: Sans, 100mm, front)'
@@ -307,19 +327,23 @@ export async function POST(req: NextRequest) {
       const attachments: { filename: string; content: string; content_type: string }[] = [];
       let attachmentHtml = "";
 
-      // Process each side
-      for (const side of ["front", "back"] as const) {
-        const designUrl = side === "front" ? frontDesignUrl : backDesignUrl;
-        const garmentUrl = side === "front" ? frontGarmentUrl : backGarmentUrl;
-        const pos = side === "front" ? frontPos : backPos;
-        const originalBase64 = side === "front" ? frontOriginalBase64 : backOriginalBase64;
-        const label = side.charAt(0).toUpperCase() + side.slice(1);
-        const textInfo = textsByView[side];
+      // Process each side including sleeves
+      type SideKey = "front" | "back" | "left-sleeve" | "right-sleeve";
+      for (const side of ["front", "back", "left-sleeve", "right-sleeve"] as SideKey[]) {
+        const isSleeve = side === "left-sleeve" || side === "right-sleeve";
+        const designUrl = side === "front" ? frontDesignUrl : side === "back" ? backDesignUrl : side === "left-sleeve" ? leftSleeveDesignUrl : rightSleeveDesignUrl;
+        const garmentUrl = side === "front" ? frontGarmentUrl : side === "back" ? backGarmentUrl : null;
+        const pos = side === "front" ? frontPos : side === "back" ? backPos : { x: 50, y: 40, size: 150 };
+        const originalBase64 = side === "front" ? frontOriginalBase64 : side === "back" ? backOriginalBase64 : null;
+        const label = isSleeve ? (side === "left-sleeve" ? "Left Sleeve" : "Right Sleeve") : side.charAt(0).toUpperCase() + side.slice(1);
+        const textInfo = isSleeve ? undefined : textsByView[side];
+        const sleeveTextInfo = isSleeve ? sleeveTextsByView[side] : undefined;
+        const effectiveTextInfo = textInfo || (sleeveTextInfo ? { content: sleeveTextInfo.content, fontName: sleeveTextInfo.fontName, sizeMm: 100, fontId: sleeveTextInfo.fontId, colorLabel: sleeveTextInfo.colorLabel } : undefined);
 
-        const screenshotUrl = side === "front" ? screenshotFrontUrl : screenshotBackUrl;
+        const screenshotUrl = side === "front" ? screenshotFrontUrl : side === "back" ? screenshotBackUrl : side === "left-sleeve" ? screenshotLeftSleeveUrl : screenshotRightSleeveUrl;
 
-        // Include this side if it has a design, text, or a screenshot (so designer sees empty back too)
-        if (!designUrl && !textInfo && !screenshotUrl) continue;
+        // Include this side if it has a design, text, or a screenshot
+        if (!designUrl && !effectiveTextInfo && !screenshotUrl) continue;
 
         attachmentHtml += `<h4 style="margin-top: 16px; color: #3e92cc;">${label} Design:</h4><ul style="font-size: 13px; color: #666;">`;
 
@@ -331,31 +355,34 @@ export async function POST(req: NextRequest) {
             attachmentHtml += `<li>placement-${side}.png - Composite mockup (customer view screenshot)</li>`;
           }
           // Still list text specs as info (already visible in the screenshot)
-          if (textInfo) {
-            const textHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
-            attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
+          if (effectiveTextInfo) {
+            const textHex = colorLabelToHex(effectiveTextInfo.colorLabel, garmentColorVal);
+            attachmentHtml += `<li><strong>TEXT:</strong> "${effectiveTextInfo.content}" — Font: ${effectiveTextInfo.fontName}, Size: ${effectiveTextInfo.sizeMm}mm, Thread color: ${effectiveTextInfo.colorLabel} (${textHex})</li>`;
           }
         } else {
-          // Fallback: one combined composite server-side (backwards compat for orders without screenshots)
-          if (garmentUrl && (designUrl || textInfo)) {
+          // Fallback: server-side composite (only for front/back where garmentUrl exists)
+          if (garmentUrl && (designUrl || effectiveTextInfo)) {
             const W = 800, H = 1000;
             const combinedItems: CompositeItem[] = [];
             if (designUrl) {
               const size = Math.round((pos.size / 780) * W);
               combinedItems.push({ kind: "image", url: designUrl, size, left: Math.round(W * pos.x / 100 - size / 2), top: Math.round(H * pos.y / 100 - size / 2) });
             }
-            if (textInfo) {
-              const sizePx = Math.round((textInfo.sizeMm / 700) * 780);
+            if (effectiveTextInfo) {
+              const sizePx = Math.round((effectiveTextInfo.sizeMm / 700) * 780);
               const size = Math.round((sizePx / 780) * W);
-              const textHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
-              combinedItems.push({ kind: "text", content: textInfo.content, fontFamily: FONT_CSS_MAP[textInfo.fontId] || FONT_CSS_MAP.sans, color: textHex, size, left: Math.round(W * pos.x / 100 - size / 2), top: Math.round(H * pos.y / 100 - size / 2) });
-              attachmentHtml += `<li><strong>TEXT:</strong> "${textInfo.content}" — Font: ${textInfo.fontName}, Size: ${textInfo.sizeMm}mm, Thread color: ${textInfo.colorLabel} (${textHex})</li>`;
+              const textHex = colorLabelToHex(effectiveTextInfo.colorLabel, garmentColorVal);
+              combinedItems.push({ kind: "text", content: effectiveTextInfo.content, fontFamily: FONT_CSS_MAP[effectiveTextInfo.fontId] || FONT_CSS_MAP.sans, color: textHex, size, left: Math.round(W * pos.x / 100 - size / 2), top: Math.round(H * pos.y / 100 - size / 2) });
+              attachmentHtml += `<li><strong>TEXT:</strong> "${effectiveTextInfo.content}" — Font: ${effectiveTextInfo.fontName}, Size: ${effectiveTextInfo.sizeMm}mm, Thread color: ${effectiveTextInfo.colorLabel} (${textHex})</li>`;
             }
             const placementBase64 = await generateCombinedComposite(garmentUrl, combinedItems);
             if (placementBase64) {
               attachments.push({ filename: `placement-${side}.png`, content: placementBase64, content_type: "image/png" });
               attachmentHtml += `<li>placement-${side}.png - Composite mockup (design on garment)</li>`;
             }
+          } else if (isSleeve && designUrl) {
+            // Sleeve fallback: just attach the design image (no garment composite available)
+            attachmentHtml += `<li>See generated-${side}.png below for sleeve design</li>`;
           }
         }
 

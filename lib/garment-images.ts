@@ -23,7 +23,7 @@ export const GARMENT_IMAGES = {
 
 export type Product = "hoodie" | "cap";
 export type Color = "black" | "white";
-export type View = "front" | "back";
+export type View = "front" | "back" | "left-sleeve" | "right-sleeve";
 export type Size = "S" | "M" | "L";
 export type Style = "outline" | "standard" | "pet-head" | "car";
 
