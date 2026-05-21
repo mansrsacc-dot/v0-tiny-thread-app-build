@@ -838,11 +838,11 @@ export default function TinyThreadStudio() {
     });
   }, []);
 
-  const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false, isSleeve = false) => {
-    console.log("[generateEmbroidery] called", { designId, styleType, isSleeve, locked: generationLockRef.current });
+  const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false): Promise<boolean> => {
+    console.log("[generateEmbroidery] called", { designId, styleType, locked: generationLockRef.current });
     if (generationLockRef.current) {
-      console.log("[generateEmbroidery] BLOCKED by lock — toast will NOT fire");
-      return;
+      console.log("[generateEmbroidery] BLOCKED by lock — returning false");
+      return false;
     }
     generationLockRef.current = true;
     setIsGenerating(true);
@@ -862,7 +862,7 @@ export default function TinyThreadStudio() {
 
       if (!response.ok || data.error) {
         toast({ title: t.error, description: data.error || t.errorGeneric });
-        return;
+        return false;
       }
 
       if (data.imageUrl) {
@@ -897,13 +897,13 @@ export default function TinyThreadStudio() {
         } else {
           processed = await removeImageBackground(data.imageUrl, styleType, color);
         }
-        
+
         setDesigns(prev => prev.map(d => {
           if (d.id === designId) {
             const currentHistory = d.generationHistory[styleType] || [];
             const newHistory = [...currentHistory, data.imageUrl];
             const newIndex = newHistory.length - 1;
-            
+
             return {
               ...d,
               generatedImages: { ...d.generatedImages, [styleType]: data.imageUrl },
@@ -917,15 +917,14 @@ export default function TinyThreadStudio() {
         }));
 
         setShowStitched(true);
-        console.log("[generateEmbroidery] generation succeeded, isSleeve=", isSleeve);
-        if (isSleeve) {
-          console.log("[generateEmbroidery] firing sleeve toast:", t.sleeveTextReminder);
-          toast({ description: t.sleeveTextReminder, duration: 7000 });
-        }
+        console.log("[generateEmbroidery] succeeded, returning true");
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Generation failed:", error);
       toast({ title: t.error, description: t.errorGeneric });
+      return false;
     } finally {
       setIsGenerating(false);
       generationLockRef.current = false;
@@ -996,10 +995,17 @@ export default function TinyThreadStudio() {
       setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(newDesign.id);
 
-      generateEmbroidery(newDesign.id, base64, style, false, sleevePlacement);
+      console.log("[handleFileUpload] awaiting generateEmbroidery, sleevePlacement=", sleevePlacement);
+      const success = await generateEmbroidery(newDesign.id, base64, style);
+      console.log("[handleFileUpload] generateEmbroidery returned", success, "sleevePlacement=", sleevePlacement);
+
+      if (success && sleevePlacement) {
+        console.log("[handleFileUpload] showing sleeve text reminder toast");
+        toast({ description: t.sleeveTextReminder, duration: 7000 });
+      }
     };
     reader.readAsDataURL(file);
-  }, [designs.length, style, view, size, removeBackground, generateEmbroidery]);
+  }, [designs.length, style, view, size, removeBackground, generateEmbroidery, toast, t]);
 
   const handleAddText = useCallback(() => {
     const trimmed = textInput.trim();
