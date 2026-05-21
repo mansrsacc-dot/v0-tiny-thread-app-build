@@ -731,15 +731,17 @@ export default function TinyThreadStudio() {
   const applySavedDesign = (saved: any) => {
     try {
       const savedStyle = saved.style || style;
-      const savedView = saved.view || view;
+      // Always place the design on the view the user is currently looking at,
+      // not the view it was originally saved from.
+      const targetView = view;
       const fullUrl = saved.generatedImageUrl || saved.thumbnailUrl || saved.originalImageUrl || "";
       const newDesign: Design = {
         id: `saved_${Date.now()}`,
         style: savedStyle,
         size: saved.size || size,
-        view: savedView,
+        view: targetView,
         position: saved.position || { x: 50, y: 40 },
-        currentSizePx: saved.sizePx || 150,
+        currentSizePx: isSleeveView(targetView) ? SLEEVE_DESIGN_SIZE_PX : (saved.sizePx || 150),
         generatedImages: fullUrl ? { [savedStyle]: fullUrl } : {},
         processedImages: fullUrl ? { [savedStyle]: fullUrl } : {},
         removeBackground: false,
@@ -752,14 +754,13 @@ export default function TinyThreadStudio() {
       };
 
       setDesigns(prev => {
-        const existing = prev.filter(d => d.view !== savedView);
+        const existing = prev.filter(d => d.view !== targetView);
         return [...existing, newDesign];
       });
       setSelectedDesignId(newDesign.id);
-      if (savedView === "front" || savedView === "back") setView(savedView);
       if (["outline", "standard", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
-      if (saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
-      setShowStitched(true); // Show the generated design, not the original photo
+      if (!isSleeveView(targetView) && saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
+      setShowStitched(true);
       setShowSavedDesigns(false);
       toast({ title: t.designApplied });
     } catch (e) {
