@@ -5,8 +5,8 @@ const TOKEN = process.env.REPLICATE_API_TOKEN;
 if (!TOKEN) { console.error('Set REPLICATE_API_TOKEN env var'); process.exit(1); }
 
 const VARIANTS = {
-  black: "photorealistic flat lay product photography of a black cotton hoodie sleeve on pure white background, full sleeve from shoulder seam to ribbed wrist cuff, sleeve folded flat and laid horizontally, clean soft studio lighting, no person, no model, high detail texture, professional apparel photography",
-  cream: "photorealistic flat lay product photography of a cream off-white cotton hoodie sleeve on pure white background, full sleeve from shoulder seam to ribbed wrist cuff, sleeve folded flat and laid horizontally, clean soft studio lighting, no person, no model, high detail texture, professional apparel photography",
+  black: "photorealistic hoodie sleeve full length from shoulder seam to ribbed cuff, black hoodie fabric, flat lay photography, pure white background, studio lighting, showing shoulder connection seam at top of frame, ribbed wrist cuff at bottom, sleeve centered vertically in frame, no cropping, full sleeve visible, no person, no model, professional apparel product photography",
+  cream: "photorealistic hoodie sleeve full length from shoulder seam to ribbed cuff, warm cream beige hoodie fabric, flat lay photography, pure white background, studio lighting, showing shoulder connection seam at top of frame, ribbed wrist cuff at bottom, sleeve centered vertically in frame, no cropping, full sleeve visible, no person, no model, professional apparel product photography",
 };
 
 async function poll(url) {

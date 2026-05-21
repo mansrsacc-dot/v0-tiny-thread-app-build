@@ -838,7 +838,11 @@ export default function TinyThreadStudio() {
   }, []);
 
   const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false, isSleeve = false) => {
-    if (generationLockRef.current) return;
+    console.log("[generateEmbroidery] called", { designId, styleType, isSleeve, locked: generationLockRef.current });
+    if (generationLockRef.current) {
+      console.log("[generateEmbroidery] BLOCKED by lock — toast will NOT fire");
+      return;
+    }
     generationLockRef.current = true;
     setIsGenerating(true);
 
@@ -912,7 +916,9 @@ export default function TinyThreadStudio() {
         }));
 
         setShowStitched(true);
+        console.log("[generateEmbroidery] generation succeeded, isSleeve=", isSleeve);
         if (isSleeve) {
+          console.log("[generateEmbroidery] firing sleeve toast:", t.sleeveTextReminder);
           toast({ description: t.sleeveTextReminder, duration: 7000 });
         }
       }
@@ -967,6 +973,7 @@ export default function TinyThreadStudio() {
       }
 
       const sleevePlacement = isSleeveView(view);
+      console.log("[handleFileUpload] view=", view, "sleevePlacement=", sleevePlacement);
       const newDesign: Design = {
         id: `design-${Date.now()}`,
         originalImage: base64,
