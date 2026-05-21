@@ -500,8 +500,6 @@ export default function TinyThreadStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationLockRef = useRef(false);
   const previewRef = useRef<HTMLDivElement>(null);
-  // Track which sleeve design IDs have already shown the "add free text" reminder
-  const sleeveToastShownRef = useRef<Set<string>>(new Set());
   const [zoom, setZoom] = useState(1);
   // Track preview width so design sizes scale responsively on small screens.
   // Reference width 400px = the size-constraint values (60-260 px) were originally tuned against.
@@ -518,20 +516,6 @@ export default function TinyThreadStudio() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  // Show a one-time toast when a sleeve design first gets its generated image
-  useEffect(() => {
-    for (const design of designs) {
-      if (
-        isSleeveView(design.view) &&
-        !design.textContent &&
-        design.processedImages?.[design.style] &&
-        !sleeveToastShownRef.current.has(design.id)
-      ) {
-        sleeveToastShownRef.current.add(design.id);
-        toast({ description: t.sleeveTextReminder, duration: 7000 });
-      }
-    }
-  }, [designs, toast, t]);
 
   // Visual scale: reduce on-screen size so designs match real-life embroidery proportions
   // on the hoodie (max 250mm on a ~550mm chest = ~45% of body width). Stored sizePx and
@@ -853,7 +837,7 @@ export default function TinyThreadStudio() {
     });
   }, []);
 
-  const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false) => {
+  const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false, isSleeve = false) => {
     if (generationLockRef.current) return;
     generationLockRef.current = true;
     setIsGenerating(true);
@@ -928,6 +912,9 @@ export default function TinyThreadStudio() {
         }));
 
         setShowStitched(true);
+        if (isSleeve) {
+          toast({ description: t.sleeveTextReminder, duration: 7000 });
+        }
       }
     } catch (error) {
       console.error("Generation failed:", error);
@@ -1000,8 +987,8 @@ export default function TinyThreadStudio() {
 
       setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(newDesign.id);
-      
-      generateEmbroidery(newDesign.id, base64, style);
+
+      generateEmbroidery(newDesign.id, base64, style, false, sleevePlacement);
     };
     reader.readAsDataURL(file);
   }, [designs.length, style, view, size, removeBackground, generateEmbroidery]);
@@ -1556,46 +1543,21 @@ export default function TinyThreadStudio() {
           } catch { return null; }
         };
 
-        // Draw sleeve shape on canvas for screenshots (matches the SVG flat-laid sleeve)
-        const drawSleeveOnCanvas = (ctx: CanvasRenderingContext2D, side: "left-sleeve" | "right-sleeve", W: number, H: number) => {
-          const isBlack = color === "black";
-          const sx = W / 400, sy = H / 500; // scale from SVG 400x500 coords
-          ctx.save();
-          if (side === "right-sleeve") { ctx.translate(W, 0); ctx.scale(-1, 1); }
-          ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
-          // Sleeve body trapezoid
-          const bodyGrad = ctx.createLinearGradient(0, 0, W, 0);
-          bodyGrad.addColorStop(0,    isBlack ? "#181818" : "#DDD0B8");
-          bodyGrad.addColorStop(0.14, isBlack ? "#242424" : "#F4ECD8");
-          bodyGrad.addColorStop(0.86, isBlack ? "#242424" : "#F4ECD8");
-          bodyGrad.addColorStop(1,    isBlack ? "#181818" : "#DDD0B8");
-          ctx.beginPath();
-          ctx.moveTo(80*sx, 70*sy);
-          ctx.bezierCurveTo(132*sx,48*sy, 268*sx,48*sy, 320*sx,70*sy);
-          ctx.lineTo(294*sx, 395*sy);
-          ctx.lineTo(106*sx, 395*sy);
-          ctx.closePath();
-          ctx.fillStyle = bodyGrad; ctx.fill();
-          // Cuff
-          const cuffGrad = ctx.createLinearGradient(0, 0, W, 0);
-          cuffGrad.addColorStop(0,    isBlack ? "#111" : "#C8BCAA");
-          cuffGrad.addColorStop(0.18, isBlack ? "#1c1c1c" : "#E6DACC");
-          cuffGrad.addColorStop(0.82, isBlack ? "#1c1c1c" : "#E6DACC");
-          cuffGrad.addColorStop(1,    isBlack ? "#111" : "#C8BCAA");
-          ctx.beginPath();
-          ctx.moveTo(106*sx, 395*sy); ctx.lineTo(294*sx, 395*sy);
-          ctx.lineTo(288*sx, 460*sy); ctx.lineTo(112*sx, 460*sy);
-          ctx.closePath();
-          ctx.fillStyle = cuffGrad; ctx.fill();
-          ctx.restore();
-        };
-
         const captureSleeveView = async (side: "left-sleeve" | "right-sleeve"): Promise<string | null> => {
           const canvas = document.createElement("canvas");
           canvas.width = SHOT_W; canvas.height = SHOT_H;
           const ctx = canvas.getContext("2d");
           if (!ctx) return null;
-          drawSleeveOnCanvas(ctx, side, SHOT_W, SHOT_H);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, SHOT_W, SHOT_H);
+          // Draw the static sleeve photo as background
+          try {
+            const sleeveImg = await loadImg(`/sleeves/sleeve-${color === "white" ? "cream" : color}.jpg`);
+            ctx.save();
+            if (side === "right-sleeve") { ctx.translate(SHOT_W, 0); ctx.scale(-1, 1); }
+            ctx.drawImage(sleeveImg, 0, 0, SHOT_W, SHOT_H);
+            ctx.restore();
+          } catch { /* white background fallback already set */ }
           const viewDesigns = designs.filter(d => d.view === side);
           for (const design of viewDesigns) {
             const sizePx = Math.round((design.currentSizePx / 780) * SHOT_W);
@@ -1894,95 +1856,15 @@ export default function TinyThreadStudio() {
               }
             }}
           >
-            {isSleeveView(view) ? (() => {
-              const isBlack = color === "black";
-              // Flat-fabric palette — minimal edge-to-center contrast (not cylindrical)
-              const bodyFill  = isBlack ? "#242424" : "#F4ECD8";
-              const bodyEdge  = isBlack ? "#181818" : "#DDD0B8";
-              const cuffFill  = isBlack ? "#1c1c1c" : "#E6DACC";
-              const cuffEdge  = isBlack ? "#111111" : "#C8BCAA";
-              const seamColor = isBlack ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.18)";
-              const ribColor  = isBlack ? "rgba(0,0,0,0.30)" : "rgba(0,0,0,0.10)";
-              const sheenStop = isBlack ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.30)";
-              const foldLine  = isBlack ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.07)";
-              const zone      = "rgba(62,146,204,0.45)";
-              const flip = view === "right-sleeve" ? "scale(-1,1) translate(-400,0)" : undefined;
-              return (
-                <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" className="w-full h-full" data-testid="garment-mockup">
-                  <defs>
-                    {/* Flat-lit fabric: very gentle edge darkening, not cylindrical */}
-                    <linearGradient id="slv-flat" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%"   stopColor={bodyEdge}/>
-                      <stop offset="14%"  stopColor={bodyFill}/>
-                      <stop offset="86%"  stopColor={bodyFill}/>
-                      <stop offset="100%" stopColor={bodyEdge}/>
-                    </linearGradient>
-                    <linearGradient id="slv-cuff-g" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%"   stopColor={cuffEdge}/>
-                      <stop offset="18%"  stopColor={cuffFill}/>
-                      <stop offset="82%"  stopColor={cuffFill}/>
-                      <stop offset="100%" stopColor={cuffEdge}/>
-                    </linearGradient>
-                    {/* Top-lit sheen — fabric lit from above */}
-                    <linearGradient id="slv-sheen" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%"   stopColor={sheenStop}/>
-                      <stop offset="35%"  stopColor="rgba(255,255,255,0)"/>
-                    </linearGradient>
-                    <filter id="slv-shadow" x="-10%" y="-5%" width="120%" height="115%">
-                      <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="rgba(0,0,0,0.22)"/>
-                    </filter>
-                  </defs>
-                  <g transform={flip}>
-                    {/* Drop shadow under entire sleeve */}
-                    <path
-                      d="M 80,70 C 132,48 268,48 320,70 L 294,395 L 106,395 Z"
-                      fill={isBlack ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.15)"}
-                      transform="translate(4,6)"
-                      style={{ filter: "blur(8px)" }}
-                    />
-                    {/* Sleeve body — flat trapezoid, wide at shoulder, tapers to cuff */}
-                    <path
-                      d="M 80,70 C 132,48 268,48 320,70 L 294,395 L 106,395 Z"
-                      fill="url(#slv-flat)"
-                    />
-                    {/* Top-lit fabric sheen */}
-                    <path
-                      d="M 80,70 C 132,48 268,48 320,70 L 294,395 L 106,395 Z"
-                      fill="url(#slv-sheen)"
-                    />
-                    {/* Shoulder-cap seam — curved stitch line at top (distinctive sleeve shape) */}
-                    <path d="M 80,70 C 132,48 268,48 320,70"
-                      fill="none" stroke={seamColor} strokeWidth="2" strokeDasharray="5,4"/>
-                    {/* Underarm seam — left edge */}
-                    <line x1="80" y1="70" x2="106" y2="395"
-                      stroke={seamColor} strokeWidth="1.5" strokeDasharray="4,4"/>
-                    {/* Overarm seam — right edge */}
-                    <line x1="320" y1="70" x2="294" y2="395"
-                      stroke={seamColor} strokeWidth="1.5" strokeDasharray="4,4"/>
-                    {/* Center press-fold crease — very faint, shows flat-laid fabric */}
-                    <line x1="200" y1="70" x2="200" y2="395"
-                      stroke={foldLine} strokeWidth="1.5"/>
-                    {/* Cuff / ribbing band */}
-                    <path d="M 106,395 L 294,395 L 288,460 L 112,460 Z"
-                      fill="url(#slv-cuff-g)"/>
-                    {/* Ribbing vertical ribs */}
-                    {Array.from({length: 10}).map((_, i) => (
-                      <rect key={i} x={118 + i * 17} y={397} width={8} height={60} fill={ribColor} rx={1}/>
-                    ))}
-                    {/* Cuff top seam */}
-                    <line x1="106" y1="395" x2="294" y2="395"
-                      stroke={seamColor} strokeWidth="1.5" strokeDasharray="4,3"/>
-                    {/* Design placement zone with corner markers */}
-                    <rect x="128" y="128" width="144" height="206" rx="10"
-                      fill="none" stroke={zone} strokeWidth="1.5" strokeDasharray="8,5"/>
-                    <circle cx="128" cy="128" r="3" fill={zone}/>
-                    <circle cx="272" cy="128" r="3" fill={zone}/>
-                    <circle cx="128" cy="334" r="3" fill={zone}/>
-                    <circle cx="272" cy="334" r="3" fill={zone}/>
-                  </g>
-                </svg>
-              );
-            })() : (
+            {isSleeveView(view) ? (
+              <img
+                src={`/sleeves/sleeve-${color === "white" ? "cream" : color}.jpg`}
+                alt={`Hoodie ${view === "left-sleeve" ? "left" : "right"} sleeve`}
+                className="w-full h-full object-contain"
+                style={view === "right-sleeve" ? { transform: "scaleX(-1)" } : undefined}
+                data-testid="garment-mockup"
+              />
+            ) : (
               <img
                 src={getGarmentImage()!}
                 alt={`${product} ${color} ${view}`}
