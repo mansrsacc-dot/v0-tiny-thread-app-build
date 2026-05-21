@@ -117,15 +117,16 @@ const T: Record<Lang, Record<string, string>> = {
     addTextCta: "Pievienot tekstu (+€12)",
     textTooLong: "Maksimums 20 simboli",
     cancel: "Atcelt",
-    leftSleeve: "Kreisā Piedurne",
-    rightSleeve: "Labā Piedurne",
+    leftSleeve: "Kreisā Piedurkne",
+    rightSleeve: "Labā Piedurkne",
     sleeveSizeFixed: "100×100mm (fiksēts)",
-    addToLeftSleeve: "Pievienot dizainu kreisajai piedurnei",
-    addToRightSleeve: "Pievienot dizainu labajai piedurnei",
-    sleeveTextTooLong: "Maksimums 10 simboli uz piedurnes",
-    sleevePriceInfo: "Piedurne ar dizainu",
-    sleevePriceText: "Teksts uz piedurnes",
-    inclSleeve: "iekļ. piedurne",
+    addToLeftSleeve: "Pievienot dizainu kreisajai piedurknei",
+    addToRightSleeve: "Pievienot dizainu labajai piedurknei",
+    sleeveTextTooLong: "Maksimums 10 simboli uz piedurknes",
+    sleevePriceInfo: "Piedurkne ar dizainu",
+    sleevePriceText: "Teksts uz piedurknes",
+    inclSleeve: "iekļ. piedurkne",
+    sleeveTextReminder: "Pievienojiet tekstu līdz 10 simboliem bez maksas!",
   },
   en: {
     product: "Product",
@@ -241,6 +242,7 @@ const T: Record<Lang, Record<string, string>> = {
     sleevePriceInfo: "Sleeve with design",
     sleevePriceText: "Text on sleeve",
     inclSleeve: "incl. sleeve",
+    sleeveTextReminder: "Add up to 10 characters of text for free!",
   },
 };
 
@@ -498,6 +500,8 @@ export default function TinyThreadStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationLockRef = useRef(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  // Track which sleeve design IDs have already shown the "add free text" reminder
+  const sleeveToastShownRef = useRef<Set<string>>(new Set());
   const [zoom, setZoom] = useState(1);
   // Track preview width so design sizes scale responsively on small screens.
   // Reference width 400px = the size-constraint values (60-260 px) were originally tuned against.
@@ -514,6 +518,21 @@ export default function TinyThreadStudio() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  // Show a one-time toast when a sleeve design first gets its generated image
+  useEffect(() => {
+    for (const design of designs) {
+      if (
+        isSleeveView(design.view) &&
+        !design.textContent &&
+        design.processedImages?.[design.style] &&
+        !sleeveToastShownRef.current.has(design.id)
+      ) {
+        sleeveToastShownRef.current.add(design.id);
+        toast({ description: t.sleeveTextReminder, duration: 7000 });
+      }
+    }
+  }, [designs, toast, t]);
+
   // Visual scale: reduce on-screen size so designs match real-life embroidery proportions
   // on the hoodie (max 250mm on a ~550mm chest = ~45% of body width). Stored sizePx and
   // mm calculations stay unchanged — this only affects visual rendering.
@@ -1537,30 +1556,35 @@ export default function TinyThreadStudio() {
           } catch { return null; }
         };
 
-        // Draw sleeve shape on canvas for screenshots
+        // Draw sleeve shape on canvas for screenshots (matches the SVG flat-laid sleeve)
         const drawSleeveOnCanvas = (ctx: CanvasRenderingContext2D, side: "left-sleeve" | "right-sleeve", W: number, H: number) => {
           const isBlack = color === "black";
+          const sx = W / 400, sy = H / 500; // scale from SVG 400x500 coords
           ctx.save();
           if (side === "right-sleeve") { ctx.translate(W, 0); ctx.scale(-1, 1); }
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+          // Sleeve body trapezoid
           const bodyGrad = ctx.createLinearGradient(0, 0, W, 0);
-          bodyGrad.addColorStop(0, isBlack ? "#111" : "#d4c9b0");
-          bodyGrad.addColorStop(0.22, isBlack ? "#1e1e1e" : "#F4ECD8");
-          bodyGrad.addColorStop(0.78, isBlack ? "#1e1e1e" : "#F4ECD8");
-          bodyGrad.addColorStop(1, isBlack ? "#111" : "#d4c9b0");
+          bodyGrad.addColorStop(0,    isBlack ? "#181818" : "#DDD0B8");
+          bodyGrad.addColorStop(0.14, isBlack ? "#242424" : "#F4ECD8");
+          bodyGrad.addColorStop(0.86, isBlack ? "#242424" : "#F4ECD8");
+          bodyGrad.addColorStop(1,    isBlack ? "#181818" : "#DDD0B8");
           ctx.beginPath();
-          ctx.moveTo(136, 116); ctx.quadraticCurveTo(W / 2, 84, W - 136, 116);
-          ctx.lineTo(W - 172, H * 0.816); ctx.quadraticCurveTo(W / 2, H * 0.848, 172, H * 0.816);
+          ctx.moveTo(80*sx, 70*sy);
+          ctx.bezierCurveTo(132*sx,48*sy, 268*sx,48*sy, 320*sx,70*sy);
+          ctx.lineTo(294*sx, 395*sy);
+          ctx.lineTo(106*sx, 395*sy);
           ctx.closePath();
           ctx.fillStyle = bodyGrad; ctx.fill();
+          // Cuff
           const cuffGrad = ctx.createLinearGradient(0, 0, W, 0);
-          cuffGrad.addColorStop(0, isBlack ? "#0d0d0d" : "#c8bfa8");
-          cuffGrad.addColorStop(0.5, isBlack ? "#161616" : "#e8ddc8");
-          cuffGrad.addColorStop(1, isBlack ? "#0d0d0d" : "#c8bfa8");
+          cuffGrad.addColorStop(0,    isBlack ? "#111" : "#C8BCAA");
+          cuffGrad.addColorStop(0.18, isBlack ? "#1c1c1c" : "#E6DACC");
+          cuffGrad.addColorStop(0.82, isBlack ? "#1c1c1c" : "#E6DACC");
+          cuffGrad.addColorStop(1,    isBlack ? "#111" : "#C8BCAA");
           ctx.beginPath();
-          ctx.moveTo(172, H * 0.816); ctx.quadraticCurveTo(W / 2, H * 0.848, W - 172, H * 0.816);
-          ctx.lineTo(W - 180, H * 0.924); ctx.quadraticCurveTo(W / 2, H * 0.956, 180, H * 0.924);
+          ctx.moveTo(106*sx, 395*sy); ctx.lineTo(294*sx, 395*sy);
+          ctx.lineTo(288*sx, 460*sy); ctx.lineTo(112*sx, 460*sy);
           ctx.closePath();
           ctx.fillStyle = cuffGrad; ctx.fill();
           ctx.restore();
@@ -1872,45 +1896,89 @@ export default function TinyThreadStudio() {
           >
             {isSleeveView(view) ? (() => {
               const isBlack = color === "black";
-              const edgeShadow = isBlack ? "#111111" : "#d4c9b0";
-              const bodyFill = isBlack ? "#1e1e1e" : "#F4ECD8";
-              const cuffFill = isBlack ? "#161616" : "#e8ddc8";
-              const cuffEdge = isBlack ? "#0d0d0d" : "#c8bfa8";
-              const seamColor = isBlack ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.12)";
-              const ribColor = isBlack ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.30)";
+              // Flat-fabric palette — minimal edge-to-center contrast (not cylindrical)
+              const bodyFill  = isBlack ? "#242424" : "#F4ECD8";
+              const bodyEdge  = isBlack ? "#181818" : "#DDD0B8";
+              const cuffFill  = isBlack ? "#1c1c1c" : "#E6DACC";
+              const cuffEdge  = isBlack ? "#111111" : "#C8BCAA";
+              const seamColor = isBlack ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.18)";
+              const ribColor  = isBlack ? "rgba(0,0,0,0.30)" : "rgba(0,0,0,0.10)";
+              const sheenStop = isBlack ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.30)";
+              const foldLine  = isBlack ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.07)";
+              const zone      = "rgba(62,146,204,0.45)";
               const flip = view === "right-sleeve" ? "scale(-1,1) translate(-400,0)" : undefined;
               return (
                 <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" className="w-full h-full" data-testid="garment-mockup">
                   <defs>
-                    <linearGradient id="slv-body" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor={edgeShadow}/>
-                      <stop offset="22%" stopColor={bodyFill}/>
-                      <stop offset="78%" stopColor={bodyFill}/>
-                      <stop offset="100%" stopColor={edgeShadow}/>
+                    {/* Flat-lit fabric: very gentle edge darkening, not cylindrical */}
+                    <linearGradient id="slv-flat" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%"   stopColor={bodyEdge}/>
+                      <stop offset="14%"  stopColor={bodyFill}/>
+                      <stop offset="86%"  stopColor={bodyFill}/>
+                      <stop offset="100%" stopColor={bodyEdge}/>
                     </linearGradient>
-                    <linearGradient id="slv-cuff" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor={cuffEdge}/>
-                      <stop offset="50%" stopColor={cuffFill}/>
+                    <linearGradient id="slv-cuff-g" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%"   stopColor={cuffEdge}/>
+                      <stop offset="18%"  stopColor={cuffFill}/>
+                      <stop offset="82%"  stopColor={cuffFill}/>
                       <stop offset="100%" stopColor={cuffEdge}/>
                     </linearGradient>
+                    {/* Top-lit sheen — fabric lit from above */}
+                    <linearGradient id="slv-sheen" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%"   stopColor={sheenStop}/>
+                      <stop offset="35%"  stopColor="rgba(255,255,255,0)"/>
+                    </linearGradient>
+                    <filter id="slv-shadow" x="-10%" y="-5%" width="120%" height="115%">
+                      <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="rgba(0,0,0,0.22)"/>
+                    </filter>
                   </defs>
                   <g transform={flip}>
-                    {/* Sleeve body */}
-                    <path d="M 68,58 Q 200,42 332,58 L 314,408 Q 200,424 86,408 Z" fill="url(#slv-body)"/>
-                    {/* Shoulder seam */}
-                    <path d="M 68,58 Q 200,42 332,58" fill="none" stroke={seamColor} strokeWidth="2.5" strokeDasharray="7,5"/>
-                    {/* Left side seam */}
-                    <line x1="68" y1="58" x2="86" y2="408" stroke={seamColor} strokeWidth="1.5" strokeDasharray="5,4"/>
-                    {/* Cuff band */}
-                    <path d="M 86,408 Q 200,424 314,408 L 310,462 Q 200,478 90,462 Z" fill="url(#slv-cuff)"/>
-                    {/* Cuff ribbing */}
-                    {Array.from({length: 8}).map((_, i) => (
-                      <rect key={i} x={100 + i * 27} y={411} width={13} height={48} fill={ribColor} rx={1}/>
+                    {/* Drop shadow under entire sleeve */}
+                    <path
+                      d="M 80,70 C 132,48 268,48 320,70 L 294,395 L 106,395 Z"
+                      fill={isBlack ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.15)"}
+                      transform="translate(4,6)"
+                      style={{ filter: "blur(8px)" }}
+                    />
+                    {/* Sleeve body — flat trapezoid, wide at shoulder, tapers to cuff */}
+                    <path
+                      d="M 80,70 C 132,48 268,48 320,70 L 294,395 L 106,395 Z"
+                      fill="url(#slv-flat)"
+                    />
+                    {/* Top-lit fabric sheen */}
+                    <path
+                      d="M 80,70 C 132,48 268,48 320,70 L 294,395 L 106,395 Z"
+                      fill="url(#slv-sheen)"
+                    />
+                    {/* Shoulder-cap seam — curved stitch line at top (distinctive sleeve shape) */}
+                    <path d="M 80,70 C 132,48 268,48 320,70"
+                      fill="none" stroke={seamColor} strokeWidth="2" strokeDasharray="5,4"/>
+                    {/* Underarm seam — left edge */}
+                    <line x1="80" y1="70" x2="106" y2="395"
+                      stroke={seamColor} strokeWidth="1.5" strokeDasharray="4,4"/>
+                    {/* Overarm seam — right edge */}
+                    <line x1="320" y1="70" x2="294" y2="395"
+                      stroke={seamColor} strokeWidth="1.5" strokeDasharray="4,4"/>
+                    {/* Center press-fold crease — very faint, shows flat-laid fabric */}
+                    <line x1="200" y1="70" x2="200" y2="395"
+                      stroke={foldLine} strokeWidth="1.5"/>
+                    {/* Cuff / ribbing band */}
+                    <path d="M 106,395 L 294,395 L 288,460 L 112,460 Z"
+                      fill="url(#slv-cuff-g)"/>
+                    {/* Ribbing vertical ribs */}
+                    {Array.from({length: 10}).map((_, i) => (
+                      <rect key={i} x={118 + i * 17} y={397} width={8} height={60} fill={ribColor} rx={1}/>
                     ))}
-                    {/* Edge highlight right */}
-                    <line x1="332" y1="58" x2="314" y2="408" stroke={isBlack ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.55)"} strokeWidth="2"/>
-                    {/* Design placement zone */}
-                    <rect x="135" y="115" width="140" height="215" rx="12" fill="none" stroke="rgba(62,146,204,0.40)" strokeWidth="1.5" strokeDasharray="9,5"/>
+                    {/* Cuff top seam */}
+                    <line x1="106" y1="395" x2="294" y2="395"
+                      stroke={seamColor} strokeWidth="1.5" strokeDasharray="4,3"/>
+                    {/* Design placement zone with corner markers */}
+                    <rect x="128" y="128" width="144" height="206" rx="10"
+                      fill="none" stroke={zone} strokeWidth="1.5" strokeDasharray="8,5"/>
+                    <circle cx="128" cy="128" r="3" fill={zone}/>
+                    <circle cx="272" cy="128" r="3" fill={zone}/>
+                    <circle cx="128" cy="334" r="3" fill={zone}/>
+                    <circle cx="272" cy="334" r="3" fill={zone}/>
                   </g>
                 </svg>
               );
