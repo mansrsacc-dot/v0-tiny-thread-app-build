@@ -115,6 +115,7 @@ const T: Record<Lang, Record<string, string>> = {
     textPrice: "Tekstu pievienošana",
     textOnly: "Teksts",
     addTextCta: "Pievienot tekstu (+€12)",
+    addTextFree: "Pievienot tekstu — BEZMAKSAS",
     textTooLong: "Maksimums 20 simboli",
     cancel: "Atcelt",
     leftSleeve: "Kreisā Piedurkne",
@@ -231,6 +232,7 @@ const T: Record<Lang, Record<string, string>> = {
     textPrice: "Text addition",
     textOnly: "Text",
     addTextCta: "Add Text (+€12)",
+    addTextFree: "Add text — FREE",
     textTooLong: "Maximum 20 characters",
     cancel: "Cancel",
     leftSleeve: "Left Sleeve",
@@ -2813,22 +2815,26 @@ export default function TinyThreadStudio() {
           )}
 
           {/* Add Text Button (only if there's no text on current side) */}
-          {!designs.some(d => d.view === view && !!d.textContent) && (
-            <button
-              onClick={() => setShowTextModal(true)}
-              className={cn(
-                "w-full py-2.5 text-sm font-medium rounded-lg border border-dashed transition-all flex items-center justify-center gap-2",
-                theme === "dark"
-                  ? "border-[#3e92cc]/40 text-[#3e92cc] hover:bg-[#3e92cc]/10"
-                  : "border-[#3e92cc]/60 text-[#3e92cc] hover:bg-[#3e92cc]/10"
-              )}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
-              </svg>
-              {t.addTextCta}
-            </button>
-          )}
+          {!designs.some(d => d.view === view && !!d.textContent) && (() => {
+            const sleeveHasPhoto = isSleeveView(view) && designs.some(d => d.view === view && !d.textContent);
+            const label = sleeveHasPhoto ? t.addTextFree : t.addTextCta;
+            return (
+              <button
+                onClick={() => setShowTextModal(true)}
+                className={cn(
+                  "w-full py-2.5 text-sm font-medium rounded-lg border border-dashed transition-all flex items-center justify-center gap-2",
+                  sleeveHasPhoto
+                    ? (theme === "dark" ? "border-green-500/50 text-green-400 hover:bg-green-500/10" : "border-green-500/60 text-green-600 hover:bg-green-500/10")
+                    : (theme === "dark" ? "border-[#3e92cc]/40 text-[#3e92cc] hover:bg-[#3e92cc]/10" : "border-[#3e92cc]/60 text-[#3e92cc] hover:bg-[#3e92cc]/10")
+                )}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+                {label}
+              </button>
+            );
+          })()}
 
           {/* Save Design Button */}
           {customer && designs.length > 0 && (
