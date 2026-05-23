@@ -120,7 +120,7 @@ const T: Record<Lang, Record<string, string>> = {
     cancel: "Atcelt",
     leftSleeve: "Kreisā Piedurkne",
     rightSleeve: "Labā Piedurkne",
-    sleeveSizeFixed: "100×100mm (fiksēts)",
+    sleeveSizeFixed: "Fiksēts",
     addToLeftSleeve: "Pievienot dizainu kreisajai piedurknei",
     addToRightSleeve: "Pievienot dizainu labajai piedurknei",
     sleeveTextTooLong: "Maksimums 10 simboli uz piedurknes",
@@ -244,7 +244,7 @@ const T: Record<Lang, Record<string, string>> = {
     cancel: "Cancel",
     leftSleeve: "Left Sleeve",
     rightSleeve: "Right Sleeve",
-    sleeveSizeFixed: "100×100mm (fixed)",
+    sleeveSizeFixed: "Fixed",
     addToLeftSleeve: "Add design to left sleeve",
     addToRightSleeve: "Add design to right sleeve",
     sleeveTextTooLong: "Maximum 10 characters on sleeve",
@@ -2263,7 +2263,7 @@ export default function TinyThreadStudio() {
                         "absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap",
                         theme === "dark" ? "bg-neutral-800 text-neutral-300" : "bg-white text-gray-700 shadow-sm"
                       )}>
-                        {isSleeveView(design.view) ? "100×100mm" : `~${getSizeInMm(design.currentSizePx, design.size)}mm`}
+                        {isSleeveView(design.view) ? t.sleeveSizeFixed : `~${getSizeInMm(design.currentSizePx, design.size)}mm`}
                       </div>
                       
                       {/* Regenerate & History Controls - Below Design */}
