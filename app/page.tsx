@@ -1701,7 +1701,13 @@ export default function TinyThreadStudio() {
               );
               if (imgSrc) {
                 try {
-                  ctx.drawImage(await loadImg(imgSrc), -sizePx / 2, -sizePx / 2, sizePx, sizePx);
+                  const dImg = await loadImg(imgSrc);
+                  // object-contain within the sizePx square, matching CSS `object-contain`
+                  const dir = dImg.naturalWidth / dImg.naturalHeight;
+                  let dw: number, dh: number;
+                  if (dir >= 1) { dw = sizePx; dh = Math.round(sizePx / dir); }
+                  else          { dh = sizePx; dw = Math.round(sizePx * dir); }
+                  ctx.drawImage(dImg, -dw / 2, -dh / 2, dw, dh);
                 } catch { /* skip design image if load fails */ }
               }
             }
@@ -1769,7 +1775,14 @@ export default function TinyThreadStudio() {
               ctx.fillText(design.textContent, 0, 0, sizePx);
             } else {
               const imgSrc = proxyIfNeeded(design.processedImages?.[design.style] || design.rawImageUrl || design.generatedImages?.[design.style] || "");
-              if (imgSrc) { try { ctx.drawImage(await loadImg(imgSrc), -sizePx / 2, -sizePx / 2, sizePx, sizePx); } catch {} }
+              if (imgSrc) { try {
+                const dImg = await loadImg(imgSrc);
+                const dir = dImg.naturalWidth / dImg.naturalHeight;
+                let dw: number, dh: number;
+                if (dir >= 1) { dw = sizePx; dh = Math.round(sizePx / dir); }
+                else          { dh = sizePx; dw = Math.round(sizePx * dir); }
+                ctx.drawImage(dImg, -dw / 2, -dh / 2, dw, dh);
+              } catch {} }
             }
             ctx.restore();
           }
