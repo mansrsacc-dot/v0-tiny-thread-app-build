@@ -1732,12 +1732,22 @@ export default function TinyThreadStudio() {
           if (!ctx) return null;
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, SHOT_W, SHOT_H);
-          // Draw the static sleeve photo as background
+          // Draw the static sleeve photo as background using object-contain (same as DOM preview)
           try {
             const sleeveImg = await loadImg(`/sleeves/sleeve-${color === "white" ? "cream" : color}.jpg`);
+            const ir = sleeveImg.naturalWidth / sleeveImg.naturalHeight;
+            const cr = SHOT_W / SHOT_H;
+            let gw: number, gh: number, gx: number, gy: number;
+            if (ir > cr) {
+              gw = SHOT_W; gh = Math.round(SHOT_W / ir);
+              gx = 0;      gy = Math.round((SHOT_H - gh) / 2);
+            } else {
+              gh = SHOT_H; gw = Math.round(SHOT_H * ir);
+              gx = Math.round((SHOT_W - gw) / 2); gy = 0;
+            }
             ctx.save();
             if (side === "right-sleeve") { ctx.translate(SHOT_W, 0); ctx.scale(-1, 1); }
-            ctx.drawImage(sleeveImg, 0, 0, SHOT_W, SHOT_H);
+            ctx.drawImage(sleeveImg, gx, gy, gw, gh);
             ctx.restore();
           } catch { /* white background fallback already set */ }
           const viewDesigns = designs.filter(d => d.view === side);

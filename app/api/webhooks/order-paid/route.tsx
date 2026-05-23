@@ -286,7 +286,7 @@ export async function POST(req: NextRequest) {
       }
       const garmentColorVal = (frontGarmentRef || backGarmentRef || "").includes("white") ? "white" : "black";
 
-      let positionsData: { view: string; x: number; y: number; size: number }[] = [];
+      let positionsData: { view: string; x: number; y: number; size: number; rotation?: number }[] = [];
       try { positionsData = JSON.parse(getProp("_positions") || "[]"); } catch {}
       const frontPos = positionsData.find(p => p.view === "front") || { x: 50, y: 40, size: 150 };
       const backPos = positionsData.find(p => p.view === "back") || { x: 50, y: 40, size: 150 };
@@ -405,9 +405,40 @@ export async function POST(req: NextRequest) {
         attachmentHtml += "</ul>";
       }
 
-      const positionInfo = positionsData.map(p =>
-        `${p.view}: x=${Math.round(p.x)}%, y=${Math.round(p.y)}%, size=${Math.round((p.size / 780) * 700)}mm`
-      ).join("<br>");
+      // Build detailed per-design dimension info for the designer
+      const positionInfo = positionsData.map(p => {
+        const sizeMm = Math.round((p.size / 780) * 700);
+        const isSleeve = p.view === "left-sleeve" || p.view === "right-sleeve";
+        const label = p.view === "left-sleeve" ? "Left Sleeve"
+                    : p.view === "right-sleeve" ? "Right Sleeve"
+                    : p.view.charAt(0).toUpperCase() + p.view.slice(1);
+
+        const textInfo = textsByView[p.view];
+        const sleeveText = sleeveTextsByView[p.view];
+
+        let desc: string;
+        if (textInfo) {
+          const colorHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
+          desc = `Text "${textInfo.content}" — ${textInfo.fontName}, ${sizeMm}mm width, color: ${textInfo.colorLabel} (${colorHex})`;
+        } else if (sleeveText) {
+          const colorHex = colorLabelToHex(sleeveText.colorLabel, garmentColorVal);
+          desc = `Text "${sleeveText.content}" — ${sleeveText.fontName}, ${sizeMm}mm width, color: ${sleeveText.colorLabel} (${colorHex})`;
+        } else if (isSleeve) {
+          const sideLabel = p.view === "left-sleeve" ? "Left Sleeve" : "Right Sleeve";
+          const m = sleeveEmbProp?.split(" | ").find((e: string) => e.includes(sideLabel) && !e.startsWith('"'))?.match(/^(.+?) \(/);
+          const styleName = m?.[1] || "Design";
+          desc = `${styleName} — ${sizeMm}mm × ${sizeMm}mm`;
+        } else {
+          // Front/back photo design — style string may be "A, B" when both sides have designs
+          const styleList = style.split(", ").filter(Boolean);
+          const viewIdx = p.view === "front" ? 0 : 1;
+          const styleName = styleList[viewIdx] || styleList[0] || "Design";
+          desc = `${styleName} — ${sizeMm}mm × ${sizeMm}mm`;
+        }
+
+        const rotStr = p.rotation ? ` (${Math.round(p.rotation)}° rotation)` : "";
+        return `<strong>${label}:</strong> ${desc}, position x=${Math.round(p.x)}% y=${Math.round(p.y)}%${rotStr}`;
+      }).join("<br>");
 
       const emailHtml = `
         <div style="font-family: system-ui, sans-serif; max-width: 600px;">
@@ -424,7 +455,7 @@ export async function POST(req: NextRequest) {
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Designs</td><td style="padding: 8px; border: 1px solid #ddd;">${designCount}</td></tr>
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Price</td><td style="padding: 8px; border: 1px solid #ddd;">${item.price}</td></tr>
           </table>
-          ${positionInfo ? `<p style="margin-top: 12px; font-size: 13px;"><strong>Position:</strong><br>${positionInfo}</p>` : ""}
+          ${positionInfo ? `<p style="margin-top: 12px; font-size: 13px;"><strong>Embroidery Details:</strong><br>${positionInfo}</p>` : ""}
           <h3>Attachments (${attachments.length} files):</h3>
           ${attachmentHtml || "<p>No attachments generated</p>"}
           <p style="font-size: 12px; color: #999; margin-top: 8px;">Per side: composite mockup (design on garment), embroidery design (clean), SVG vector</p>
