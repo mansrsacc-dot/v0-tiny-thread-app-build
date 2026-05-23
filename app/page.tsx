@@ -128,6 +128,13 @@ const T: Record<Lang, Record<string, string>> = {
     sleevePriceText: "Teksts uz piedurknes",
     inclSleeve: "iekļ. piedurkne",
     sleeveTextReminder: "Pievienojiet tekstu līdz 10 simboliem bez maksas!",
+    orderMultiple: "Pasūtīt vairākus vienādus",
+    orderMultipleTooltip: "Pasūtīt vienādu dizainu dažādos izmēros vai daudzumā draugiem, ģimenei vai grupai",
+    orderMultipleTitle: "Pasūtīt vairākus vienādus",
+    orderMultipleTotal: "Kopā",
+    orderMultipleAddBtn: "Pievienot grozam",
+    orderMultipleAdding: "Pievieno...",
+    orderMultipleSizeNA: "Drīzumā",
   },
   en: {
     product: "Product",
@@ -245,6 +252,13 @@ const T: Record<Lang, Record<string, string>> = {
     sleevePriceText: "Text on sleeve",
     inclSleeve: "incl. sleeve",
     sleeveTextReminder: "Add up to 10 characters of text for free!",
+    orderMultiple: "Order multiple identical",
+    orderMultipleTooltip: "Order the same design in multiple sizes or quantities for friends, family or groups",
+    orderMultipleTitle: "Order multiple identical",
+    orderMultipleTotal: "Total",
+    orderMultipleAddBtn: "Add to Cart",
+    orderMultipleAdding: "Adding...",
+    orderMultipleSizeNA: "Coming soon",
   },
 };
 
@@ -488,8 +502,11 @@ export default function TinyThreadStudio() {
   const [textFontInput, setTextFontInput] = useState(TEXT_FONTS[0].id);
   const [textColorInput, setTextColorInput] = useState<string>(""); // "" = auto
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [showMultipleModal, setShowMultipleModal] = useState(false);
+  const [multipleQtys, setMultipleQtys] = useState<Record<string, number>>({ S: 0, M: 0, L: 0, XL: 0 });
+  const [isAddingMultiple, setIsAddingMultiple] = useState(false);
+  const [showMultipleTooltip, setShowMultipleTooltip] = useState(false);
 
-  
   // Customer & saved designs state
   const [customer, setCustomer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
   const [savedDesigns, setSavedDesigns] = useState<any[]>([]);
@@ -545,6 +562,14 @@ export default function TinyThreadStudio() {
   const regularTextCount = designs.filter(d => !!d.textContent && !isSleeveView(d.view)).length;
   const textSurcharge = (regularTextCount + sleeveTextOnlyCount) * TEXT_PRICE;
   const currentPrice = basePrice + backSurcharge + sleeveSurcharge + textSurcharge;
+
+  // Multiple-order modal: compute live total from qty selectors
+  const multipleOrderTotal = (() => {
+    const stylePrices = (PRICING[product] || {})[primaryPhotoStyle] || {};
+    const sizes = product === "hoodie" ? ["S", "M", "L"] : ["S", "M"];
+    return sizes.reduce((sum, sz) => sum + (multipleQtys[sz] || 0) * (stylePrices[sz] || 0), 0);
+  })();
+  const multipleOrderTotalQty = Object.values(multipleQtys).reduce((a, b) => a + b, 0);
 
   // Check if first visit and show welcome popup
   useEffect(() => {
@@ -1308,6 +1333,147 @@ export default function TinyThreadStudio() {
     }
     setShowConfirmCart(true);
   }, [designs.length, toast]);
+
+  // Handle "Order multiple identical" — adds one cart line per chosen size
+  const handleAddMultipleToCart = useCallback(async () => {
+    if (designs.length === 0) return;
+    const allReady = designs.every(d => d.textContent || d.processedImages?.[d.style]);
+    if (!allReady) {
+      toast({ title: t.notReady, description: t.notReadyDesc });
+      return;
+    }
+
+    const photoFront = designs.find(d => d.view === "front" && !d.textContent);
+    const photoBack  = designs.find(d => d.view === "back"  && !d.textContent);
+    const hasFrontAndBack = !!photoFront && !!photoBack;
+    const variantStyleRaw = photoFront?.style || photoBack?.style || style;
+    const variantStyle = variantStyleRaw === "car" ? "pet-head" : variantStyleRaw;
+
+    // Only sizes that have Shopify variant IDs (XL not yet available)
+    const availableSizeKeys = product === "hoodie" ? ["S", "M", "L"] : ["S", "M"];
+    const cartItems = availableSizeKeys
+      .map(sz => {
+        const qty = multipleQtys[sz] || 0;
+        if (qty === 0) return null;
+        const vKey = hasFrontAndBack
+          ? `${product}-${color}-${sz}-${variantStyle}-fb`
+          : `${product}-${color}-${sz}-${variantStyle}`;
+        const variantId = VARIANT_IDS[vKey];
+        return variantId ? { id: variantId, quantity: qty, size: sz } : null;
+      })
+      .filter(Boolean) as { id: string; quantity: number; size: string }[];
+
+    if (cartItems.length === 0) {
+      toast({ title: t.errorCart, description: t.errorGeneric });
+      return;
+    }
+
+    setIsAddingMultiple(true);
+    try {
+      const orderRef = `order_${Date.now()}`;
+
+      // Store originals fire-and-forget
+      const originals: Record<string, string> = {};
+      const frontD = designs.find(d => d.view === "front");
+      const backD = designs.find(d => d.view === "back");
+      if (frontD?.originalImage) originals.front = frontD.originalImage;
+      if (backD?.originalImage) originals.back = backD.originalImage;
+      if (Object.keys(originals).length > 0) {
+        fetch("/api/store-originals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderRef, originals }),
+        }).catch(() => {});
+      }
+
+      // Upload design images to Vercel Blob for webhook access
+      const uploadDesignToBlob = async (design: Design | undefined, side: string): Promise<string | null> => {
+        if (!design || design.textContent) return null;
+        const src = design.processedImages?.[design.style] || design.rawImageUrl || design.generatedImages?.[design.style] || null;
+        if (!src) return null;
+        try {
+          const res = await fetch("/api/store-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              src.startsWith("data:")
+                ? { base64Data: src, filename: `design_${side}_${Date.now()}.png` }
+                : { imageUrl: src, filename: `design_${side}_${Date.now()}.png` }
+            ),
+          });
+          const d = await res.json();
+          return d.url || null;
+        } catch { return null; }
+      };
+
+      const [frontBlobUrl, backBlobUrl, leftSleeveBlobUrl, rightSleeveBlobUrl] = await Promise.all([
+        uploadDesignToBlob(designs.find(d => d.view === "front"        && !d.textContent), "front"),
+        uploadDesignToBlob(designs.find(d => d.view === "back"         && !d.textContent), "back"),
+        uploadDesignToBlob(designs.find(d => d.view === "left-sleeve"  && !d.textContent), "left-sleeve"),
+        uploadDesignToBlob(designs.find(d => d.view === "right-sleeve" && !d.textContent), "right-sleeve"),
+      ]);
+
+      const photoStyleNames = designs
+        .filter(d => !d.textContent)
+        .map(d => STYLES.find(s => s.id === d.style)?.name || d.style);
+      const textDesigns = designs.filter(d => !!d.textContent);
+
+      const sharedProps: Record<string, string> = {
+        "_order_ref": orderRef,
+        "Design Count": String(designs.length),
+        "Placement": designs.map(d => d.view).join(", "),
+        "Order Type": "Multiple",
+        "_positions": JSON.stringify(designs.map(d => ({
+          view: d.view, x: d.position.x, y: d.position.y,
+          size: d.currentSizePx || 150, rotation: d.rotation || 0,
+        }))),
+      };
+      if (photoStyleNames.length > 0) sharedProps["Embroidery Style"] = photoStyleNames.join(", ");
+      if (frontD) sharedProps["_garment"] = `${product}-${color}-front`;
+      if (backD)  sharedProps["_garment_back"] = `${product}-${color}-back`;
+      if (frontBlobUrl)      sharedProps["_design_image"]               = frontBlobUrl;
+      if (backBlobUrl)       sharedProps["_design_image_back"]          = backBlobUrl;
+      if (leftSleeveBlobUrl)  sharedProps["_design_image_left_sleeve"]  = leftSleeveBlobUrl;
+      if (rightSleeveBlobUrl) sharedProps["_design_image_right_sleeve"] = rightSleeveBlobUrl;
+      if (textDesigns.length > 0) {
+        sharedProps["Text Embroidery"] = textDesigns.map(d => {
+          const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
+          const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100;
+          const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
+          const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
+          return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
+        }).join(" | ");
+      }
+
+      const designSizeMm = designs.map(d => d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100);
+      const items = cartItems.map(({ id, quantity, size }) => ({
+        id,
+        quantity,
+        properties: {
+          ...sharedProps,
+          "Embroidery Size": designs.map((d, i) => `${size} (${designSizeMm[i]}mm)`).join(", "),
+        },
+      }));
+
+      const addRes = await fetch("https://tinythread.shop/cart/add.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ items }),
+      });
+
+      if (addRes.ok) {
+        window.location.href = "https://tinythread.shop/cart";
+      } else {
+        throw new Error("cart/add.js returned " + addRes.status);
+      }
+    } catch (e) {
+      console.error("[MULTIPLE ORDER] Failed:", e);
+      toast({ title: t.errorCart, description: t.errorGeneric });
+    } finally {
+      setIsAddingMultiple(false);
+    }
+  }, [multipleQtys, designs, product, color, style, toast, t]);
 
   // Handle Add to Cart - uses Shopify's cart/add URL to add to the REAL browser cart
   const handleAddToCart = useCallback(async () => {
@@ -2863,7 +3029,7 @@ export default function TinyThreadStudio() {
           )}
 
           {/* Add to Cart Button - Desktop (in sidebar flow) */}
-          <div className="hidden md:block space-y-1">
+          <div className="hidden md:block space-y-1.5">
             <Button
               data-testid="add-to-cart"
               onClick={handleAddToCartClick}
@@ -2879,6 +3045,45 @@ export default function TinyThreadStudio() {
                 <>{t.addToCart} — €{currentPrice}</>
               )}
             </Button>
+            {/* Order multiple identical */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setMultipleQtys({ S: 0, M: 0, L: 0, XL: 0 }); setShowMultipleModal(true); }}
+                disabled={designs.length === 0}
+                className={cn(
+                  "flex-1 py-2 text-xs font-medium rounded-lg border border-dashed transition-all disabled:opacity-40 disabled:cursor-not-allowed",
+                  theme === "dark"
+                    ? "border-white/20 text-white/50 hover:border-white/40 hover:text-white/80 hover:bg-white/5"
+                    : "border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                {t.orderMultiple}
+              </button>
+              <div className="relative shrink-0">
+                <button
+                  onMouseEnter={() => setShowMultipleTooltip(true)}
+                  onMouseLeave={() => setShowMultipleTooltip(false)}
+                  onClick={() => setShowMultipleTooltip(v => !v)}
+                  className={cn(
+                    "w-5 h-5 rounded-full border text-xs flex items-center justify-center transition-colors",
+                    theme === "dark"
+                      ? "border-white/25 text-white/40 hover:border-white/50 hover:text-white/70"
+                      : "border-gray-300 text-gray-400 hover:border-gray-500 hover:text-gray-600"
+                  )}
+                  aria-label="Info"
+                >ℹ</button>
+                {showMultipleTooltip && (
+                  <div className={cn(
+                    "absolute bottom-full right-0 mb-2 px-3 py-2 text-xs rounded-lg w-64 z-50 shadow-lg pointer-events-none",
+                    theme === "dark"
+                      ? "bg-neutral-800 border border-white/10 text-white/80"
+                      : "bg-white border border-gray-200 text-gray-700"
+                  )}>
+                    {t.orderMultipleTooltip}
+                  </div>
+                )}
+              </div>
+            </div>
             <p className={cn("text-xs text-center", theme === "dark" ? "text-white/30" : "text-gray-400")}>
               {t.designFilesSent}
             </p>
@@ -2906,6 +3111,42 @@ export default function TinyThreadStudio() {
             <>{t.addToCart} — €{currentPrice}</>
           )}
         </Button>
+        <div className="flex items-center gap-2 mt-1.5">
+          <button
+            onClick={() => { setMultipleQtys({ S: 0, M: 0, L: 0, XL: 0 }); setShowMultipleModal(true); }}
+            disabled={designs.length === 0}
+            className={cn(
+              "flex-1 py-1.5 text-xs font-medium rounded-lg border border-dashed transition-all disabled:opacity-40 disabled:cursor-not-allowed",
+              theme === "dark"
+                ? "border-white/20 text-white/50 hover:border-white/40 hover:text-white/70"
+                : "border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700"
+            )}
+          >
+            {t.orderMultiple}
+          </button>
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowMultipleTooltip(v => !v)}
+              className={cn(
+                "w-5 h-5 rounded-full border text-xs flex items-center justify-center",
+                theme === "dark"
+                  ? "border-white/25 text-white/40"
+                  : "border-gray-300 text-gray-400"
+              )}
+              aria-label="Info"
+            >ℹ</button>
+            {showMultipleTooltip && (
+              <div className={cn(
+                "absolute bottom-full right-0 mb-2 px-3 py-2 text-xs rounded-lg w-64 z-50 shadow-lg",
+                theme === "dark"
+                  ? "bg-neutral-800 border border-white/10 text-white/80"
+                  : "bg-white border border-gray-200 text-gray-700"
+              )}>
+                {t.orderMultipleTooltip}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Welcome Popup - First Visit */}
@@ -3137,6 +3378,130 @@ export default function TinyThreadStudio() {
         );
       })()}
 
+      {/* Order Multiple Identical Modal */}
+      {showMultipleModal && (() => {
+        const hoodieSizes = [
+          { key: "S",  label: "S"    },
+          { key: "M",  label: "M"    },
+          { key: "L",  label: "L"    },
+          { key: "XL", label: "XL"   },
+        ];
+        const capSizes = [
+          { key: "S", label: "S/M"  },
+          { key: "M", label: "L/XL" },
+        ];
+        const sizes = product === "hoodie" ? hoodieSizes : capSizes;
+        const pricingTable = (PRICING[product] || {})[primaryPhotoStyle] || {};
+        const photoFrontForModal = designs.find(d => d.view === "front" && !d.textContent);
+        const photoBackForModal  = designs.find(d => d.view === "back"  && !d.textContent);
+        const hasFBModal = !!photoFrontForModal && !!photoBackForModal;
+        const variantStyleForModal = ((photoFrontForModal?.style || photoBackForModal?.style || style) === "car" ? "pet-head" : (photoFrontForModal?.style || photoBackForModal?.style || style));
+
+        return (
+          <div
+            className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget) setShowMultipleModal(false); }}
+          >
+            <div className={cn(
+              "rounded-2xl p-6 w-full max-w-sm shadow-2xl",
+              theme === "dark" ? "bg-[#1e1b18] border border-white/10" : "bg-white border border-gray-200"
+            )}>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <h2 className={cn("text-base font-bold", theme === "dark" ? "text-white" : "text-gray-900")}>
+                  {t.orderMultipleTitle}
+                </h2>
+                <button
+                  onClick={() => setShowMultipleModal(false)}
+                  className={cn(
+                    "w-7 h-7 flex items-center justify-center rounded-full text-sm transition-colors",
+                    theme === "dark" ? "text-white/40 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                  )}
+                >✕</button>
+              </div>
+
+              {/* Size columns */}
+              <div className={cn("grid gap-2 mb-5", product === "hoodie" ? "grid-cols-4" : "grid-cols-2")}>
+                {sizes.map(({ key, label }) => {
+                  const price = pricingTable[key] as number | undefined;
+                  const vKey = hasFBModal
+                    ? `${product}-${color}-${key}-${variantStyleForModal}-fb`
+                    : `${product}-${color}-${key}-${variantStyleForModal}`;
+                  const hasVariant = !!VARIANT_IDS[vKey];
+                  const qty = multipleQtys[key] || 0;
+
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-2.5 rounded-xl border",
+                        theme === "dark" ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50",
+                        !hasVariant && "opacity-40"
+                      )}
+                    >
+                      <span className={cn("font-bold text-sm", theme === "dark" ? "text-white" : "text-gray-900")}>{label}</span>
+                      {price != null && hasVariant ? (
+                        <span className={cn("text-xs", theme === "dark" ? "text-white/45" : "text-gray-400")}>€{price}</span>
+                      ) : (
+                        <span className={cn("text-xs", theme === "dark" ? "text-white/30" : "text-gray-400")}>{t.orderMultipleSizeNA}</span>
+                      )}
+                      {hasVariant ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) - 1) }))}
+                            disabled={qty === 0}
+                            className={cn(
+                              "w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30",
+                              theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                            )}
+                          >−</button>
+                          <span className={cn("w-5 text-center text-sm font-bold tabular-nums", theme === "dark" ? "text-white" : "text-gray-900")}>{qty}</span>
+                          <button
+                            onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.min(10, (prev[key] || 0) + 1) }))}
+                            disabled={qty === 10}
+                            className={cn(
+                              "w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30",
+                              theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                            )}
+                          >+</button>
+                        </div>
+                      ) : (
+                        <span className={cn("text-sm", theme === "dark" ? "text-white/20" : "text-gray-300")}>—</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Live total */}
+              <div className={cn(
+                "flex items-center justify-between py-3 border-t mb-4",
+                theme === "dark" ? "border-white/10" : "border-gray-200"
+              )}>
+                <span className={cn("text-sm", theme === "dark" ? "text-white/50" : "text-gray-500")}>{t.orderMultipleTotal}</span>
+                <span className={cn("font-bold text-lg", theme === "dark" ? "text-white" : "text-gray-900")}>€{multipleOrderTotal}</span>
+              </div>
+
+              {/* Add to Cart */}
+              <Button
+                onClick={handleAddMultipleToCart}
+                disabled={multipleOrderTotalQty === 0 || isAddingMultiple}
+                className="w-full bg-[#d8315b] hover:bg-[#c02850] text-white font-bold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAddingMultiple ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {t.orderMultipleAdding}
+                  </>
+                ) : (
+                  <>{t.orderMultipleAddBtn}{multipleOrderTotal > 0 ? ` — €${multipleOrderTotal}` : ""}</>
+                )}
+              </Button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Confirmation Popup Before Add to Cart */}
       {showConfirmCart && (
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
@@ -3144,12 +3509,12 @@ export default function TinyThreadStudio() {
             <div className="text-4xl mb-4">🧵</div>
             <h2 className="text-xl font-bold text-white mb-2">{t.confirmTitle}</h2>
             <p className="text-white/50 text-sm mb-6">{t.confirmDesc}</p>
-            
+
             {/* Show option to add back design if only front exists */}
             {designs.length === 1 && (
               <p className="text-[#3e92cc]/70 text-xs mb-6">{t.confirmAddBack}</p>
             )}
-            
+
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => {
