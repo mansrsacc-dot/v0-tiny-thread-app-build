@@ -3369,7 +3369,7 @@ export default function TinyThreadStudio() {
                   disabled={!textInput.trim()}
                   className="flex-1 px-4 py-2.5 rounded-lg bg-[#d8315b] hover:bg-[#c02850] text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {editingTextId ? t.addText : t.addTextCta}
+                  {editingTextId ? t.addText : (isSleeveView(view) && designs.some(d => d.view === view && !d.textContent)) ? t.addTextFree : t.addTextCta}
                 </button>
               </div>
             </div>
