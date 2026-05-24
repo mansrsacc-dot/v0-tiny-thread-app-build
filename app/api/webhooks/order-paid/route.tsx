@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { NextRequest, NextResponse } from "next/server";
 import { put, list } from "@vercel/blob";
-import { Jimp } from "jimp";
+import sharp from "sharp";
 
 const GARMENT_URLS: Record<string, string> = {
   "hoodie-black-front": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-black-front-L8JNMTYtT2Xneu4ym3Ax12fau4pIHq.jpg",
@@ -169,9 +169,11 @@ async function analyzeDesignImage(url: string, sizePx: number): Promise<{
     const res = await fetch(url);
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
-    const img = await Jimp.fromBuffer(buf);
-    const imgW = img.width;
-    const imgH = img.height;
+
+    const instance = sharp(buf);
+    const meta = await instance.metadata();
+    const imgW = meta.width;
+    const imgH = meta.height;
     if (!imgW || !imgH) return null;
 
     // Compute rendered dimensions respecting object-contain into sizePx × sizePx
@@ -183,12 +185,13 @@ async function analyzeDesignImage(url: string, sizePx: number): Promise<{
     const widthMm  = Math.round((dw / 780) * 700);
     const heightMm = Math.round((dh / 780) * 700);
 
-    // Count non-transparent pixels (alpha channel > 0)
+    // Extract raw RGBA pixel data and count non-transparent pixels (alpha > 0)
+    const { data } = await instance.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     let nonTransparent = 0;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 0) nonTransparent++;
+    }
     const total = imgW * imgH;
-    img.scan((x, y, idx) => {
-      if (img.bitmap.data[idx + 3] > 0) nonTransparent++;
-    });
     const fillFraction = total > 0 ? nonTransparent / total : 1;
 
     return { widthMm, heightMm, fillFraction };
