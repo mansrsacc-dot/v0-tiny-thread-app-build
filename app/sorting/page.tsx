@@ -32,7 +32,7 @@ interface Order {
 type SizeMap = Record<string, number>;
 type Stock = {
   hoodie: { black: SizeMap; cream: SizeMap; white: SizeMap };
-  cap:    { black: SizeMap; cream: SizeMap };
+  cap:    { black: number; cream: number };
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -51,8 +51,8 @@ const DEFAULT_STOCK: Stock = {
     white: { S: 0, M: 0, L: 0, XL: 0 },
   },
   cap: {
-    black: { S: 0, M: 0 },
-    cream: { S: 0, M: 0 },
+    black: 0,
+    cream: 0,
   },
 };
 
@@ -390,16 +390,20 @@ export default function SortingPage() {
     size: string,
     value: number
   ) {
-    setEditStock((prev) => ({
-      ...prev,
-      [productType]: {
-        ...prev[productType],
-        [color]: {
-          ...(prev[productType] as any)[color],
-          [size]: value,
+    if (productType === "cap") {
+      setEditStock((prev) => ({
+        ...prev,
+        cap: { ...prev.cap, [color]: value },
+      }));
+    } else {
+      setEditStock((prev) => ({
+        ...prev,
+        hoodie: {
+          ...prev.hoodie,
+          [color]: { ...(prev.hoodie as any)[color], [size]: value },
         },
-      },
-    }));
+      }));
+    }
   }
 
   // ── Computed values
@@ -625,18 +629,36 @@ export default function SortingPage() {
                   onUpdate={updateStockValue}
                 />
 
-                {/* Caps */}
-                <StockSection
-                  title="Cepures"
-                  productType="cap"
-                  colors={[
-                    { key: "black", label: "Melna" },
-                    { key: "cream", label: "Krēmas" },
-                  ]}
-                  sizes={["S", "M"]}
-                  editStock={editStock}
-                  onUpdate={updateStockValue}
-                />
+                {/* Caps — single quantity per color, no size variants */}
+                <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-white text-sm">Cepures</h3>
+                    <span className="text-white/40 text-xs">
+                      Kopā: {editStock.cap.black + editStock.cap.cream}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {([["black", "Melna"], ["cream", "Krēmas"]] as const).map(([key, label]) => {
+                      const val = editStock.cap[key];
+                      const low = val <= LOW_STOCK_THRESHOLD;
+                      return (
+                        <div key={key} className="flex items-center justify-between border-t border-white/5 pt-3 first:border-0 first:pt-0">
+                          <span className="text-white/70 text-sm">{label}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={999}
+                            value={val}
+                            onChange={(e) => updateStockValue("cap", key, "", Math.max(0, parseInt(e.target.value) || 0))}
+                            className={`w-16 text-center text-sm font-bold rounded-lg border py-1.5 bg-white/5 focus:outline-none focus:border-white/30 transition-colors ${
+                              low ? "border-red-500/50 text-red-400" : "border-white/10 text-white"
+                            }`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 {/* Save button */}
                 <div className="flex items-center gap-4 pt-2">
@@ -658,10 +680,9 @@ export default function SortingPage() {
                       if (qty <= LOW_STOCK_THRESHOLD) low.push(`Džemperis ${colorLabels[color] || color} ${size}: ${qty}`);
                     }
                   }
-                  for (const [color, sizes] of Object.entries(editStock.cap)) {
-                    for (const [size, qty] of Object.entries(sizes as SizeMap)) {
-                      if (qty <= LOW_STOCK_THRESHOLD) low.push(`Cepure ${colorLabels[color] || color} ${size}: ${qty}`);
-                    }
+                  const capLabels: Record<string, string> = { black: "Melna", cream: "Krēmas" };
+                  for (const [color, qty] of Object.entries(editStock.cap)) {
+                    if ((qty as number) <= LOW_STOCK_THRESHOLD) low.push(`Cepure ${capLabels[color] || color}: ${qty}`);
                   }
                   if (low.length === 0) return null;
                   return (

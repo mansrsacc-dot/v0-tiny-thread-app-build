@@ -10,8 +10,8 @@ const DEFAULT_STOCK = {
     white:  { S: 0, M: 0, L: 0, XL: 0 },
   },
   cap: {
-    black:  { S: 0, M: 0 },
-    cream:  { S: 0, M: 0 },
+    black: 0,
+    cream: 0,
   },
 };
 
