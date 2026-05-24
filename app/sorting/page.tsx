@@ -345,6 +345,8 @@ export default function SortingPage() {
         sessionStorage.setItem("sorting_auth", passwordInput);
         setAuthToken(passwordInput);
         setAuthed(true);
+      } else if (res.status === 500) {
+        setAuthError("Serveris nav konfigurēts — pārbaudiet SORTING_PASSWORD vides mainīgo");
       } else {
         setAuthError("Nepareiza parole");
       }
