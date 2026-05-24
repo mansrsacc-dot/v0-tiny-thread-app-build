@@ -1041,6 +1041,11 @@ export default function TinyThreadStudio() {
       setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(newDesign.id);
 
+      // On mobile, scroll the garment preview into view so the customer sees generation happening
+      if (window.innerWidth < 1024 && previewRef.current) {
+        previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
       if (style === "car") {
         setCarPlatePending({ designId: newDesign.id, base64, sleevePlacement });
         setCarPlateStep("ask");
@@ -1297,7 +1302,7 @@ export default function TinyThreadStudio() {
       });
     }, 1000);
     
-    generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, selectedDesign.style, true);
+    generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, selectedDesign.style, true, selectedDesign.licensePlate);
   }, [cooldown, isGenerating, selectedDesign, generateEmbroidery]);
 
   const navigateHistory = useCallback(async (direction: "prev" | "next") => {
