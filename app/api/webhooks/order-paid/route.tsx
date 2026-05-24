@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { NextRequest, NextResponse } from "next/server";
 import { put, list } from "@vercel/blob";
+import { Jimp } from "jimp";
 
 const GARMENT_URLS: Record<string, string> = {
   "hoodie-black-front": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hoodie-black-front-L8JNMTYtT2Xneu4ym3Ax12fau4pIHq.jpg",
@@ -159,6 +160,44 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
   } catch { return null; }
 }
 
+// Count non-transparent pixels to get actual embroidery fill fraction.
+// sizePx is the design's bounding-box size in the 780px-tall preview coordinate space.
+async function analyzeDesignImage(url: string, sizePx: number): Promise<{
+  widthMm: number; heightMm: number; fillFraction: number;
+} | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    const img = await Jimp.fromBuffer(buf);
+    const imgW = img.width;
+    const imgH = img.height;
+    if (!imgW || !imgH) return null;
+
+    // Compute rendered dimensions respecting object-contain into sizePx × sizePx
+    const ir = imgW / imgH;
+    let dw: number, dh: number;
+    if (ir >= 1) { dw = sizePx; dh = Math.round(sizePx / ir); }
+    else         { dh = sizePx; dw = Math.round(sizePx * ir); }
+    // Convert px to mm (780px preview height = 700mm)
+    const widthMm  = Math.round((dw / 780) * 700);
+    const heightMm = Math.round((dh / 780) * 700);
+
+    // Count non-transparent pixels (alpha channel > 0)
+    let nonTransparent = 0;
+    const total = imgW * imgH;
+    img.scan((x, y, idx) => {
+      if (img.bitmap.data[idx + 3] > 0) nonTransparent++;
+    });
+    const fillFraction = total > 0 ? nonTransparent / total : 1;
+
+    return { widthMm, heightMm, fillFraction };
+  } catch (e) {
+    console.error("[WEBHOOK] analyzeDesignImage error:", e);
+    return null;
+  }
+}
+
 async function vectorizeDesign(designUrl: string): Promise<string | null> {
   try {
     const imageRes = await fetch(designUrl);
@@ -291,6 +330,23 @@ export async function POST(req: NextRequest) {
       try { positionsData = JSON.parse(getProp("_positions") || "[]"); } catch {}
       const frontPos = positionsData.find(p => p.view === "front") || { x: 50, y: 40, size: 150 };
       const backPos = positionsData.find(p => p.view === "back") || { x: 50, y: 40, size: 150 };
+
+      // Pre-compute pixel-based fill analysis for each photo design (async)
+      const designUrlByView: Record<string, string | null> = {
+        "front": frontDesignUrl, "back": backDesignUrl,
+        "left-sleeve": leftSleeveDesignUrl, "right-sleeve": rightSleeveDesignUrl,
+      };
+      const analysisMap: Record<string, { widthMm: number; heightMm: number; fillFraction: number } | null> = {};
+      await Promise.all(
+        positionsData
+          .filter(p => !textsByView[p.view] && !sleeveTextsByView[p.view])
+          .map(async p => {
+            const url = designUrlByView[p.view];
+            if (url) {
+              analysisMap[p.view] = await analyzeDesignImage(url, p.size);
+            }
+          })
+      );
 
       // Retrieve original photos from shop metafield
       let frontOriginalBase64: string | null = null;
@@ -428,13 +484,25 @@ export async function POST(req: NextRequest) {
           const sideLabel = p.view === "left-sleeve" ? "Left Sleeve" : "Right Sleeve";
           const m = sleeveEmbProp?.split(" | ").find((e: string) => e.includes(sideLabel) && !e.startsWith('"'))?.match(/^(.+?) \(/);
           const styleName = m?.[1] || "Design";
-          desc = `${styleName} — ${sizeMm}mm × ${sizeMm}mm`;
+          const analysis = analysisMap[p.view];
+          if (analysis) {
+            const areaCm2 = Math.round((analysis.widthMm * analysis.heightMm * analysis.fillFraction) / 10) / 10;
+            desc = `${styleName} — ${analysis.widthMm}mm × ${analysis.heightMm}mm, faktiskā platība: ~${areaCm2} cm²`;
+          } else {
+            desc = `${styleName} — ${sizeMm}mm × ${sizeMm}mm`;
+          }
         } else {
           // Front/back photo design — style string may be "A, B" when both sides have designs
           const styleList = style.split(", ").filter(Boolean);
           const viewIdx = p.view === "front" ? 0 : 1;
           const styleName = styleList[viewIdx] || styleList[0] || "Design";
-          desc = `${styleName} — ${sizeMm}mm × ${sizeMm}mm`;
+          const analysis = analysisMap[p.view];
+          if (analysis) {
+            const areaCm2 = Math.round((analysis.widthMm * analysis.heightMm * analysis.fillFraction) / 10) / 10;
+            desc = `${styleName} — ${analysis.widthMm}mm × ${analysis.heightMm}mm, faktiskā platība: ~${areaCm2} cm²`;
+          } else {
+            desc = `${styleName} — ${sizeMm}mm × ${sizeMm}mm`;
+          }
         }
 
         const rotStr = p.rotation ? ` (${Math.round(p.rotation)}° rotation)` : "";
