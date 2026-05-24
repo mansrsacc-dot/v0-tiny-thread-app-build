@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { imageUrl, style, garmentColor } = body;
+    const { imageUrl, style, garmentColor, licensePlate } = body;
 
     if (!imageUrl || !style) {
       return NextResponse.json({ error: "Missing imageUrl or style" }, { status: 400 });
@@ -28,7 +28,14 @@ export async function POST(req: NextRequest) {
     } else if (style === "pet-head") {
       prompt = "extract just the head of the pet from this photo. Keep the exact same facial expression, tongue position, eye shape, and all facial features identical to the original photo. Create a clean smooth digital portrait of just the pet head on solid pure white background (#FFFFFF). Head and face only, no body. Smooth clean colors, no texture, no brush strokes, no grain. Sharp clean edges. Do not change or alter any facial features. Pure white background only, no shadows, no objects, no scenery.";
     } else if (style === "car") {
-      prompt = "take the car or vehicle from this photo. Keep the exact same shape, proportions, body lines, wheels, and all details identical to the original photo. Convert into a clean digital illustration with simplified smooth color areas and defined edges. Slightly stylized, not photorealistic. Solid pure white background (#FFFFFF). No texture, no brush strokes, no grain, no noise. Only the vehicle, no background objects, no people, no scenery, no shadows. License plate must be clearly visible and fully legible — the number plate text is the most important detail, preserve every character on the number plate exactly as it appears in the original photo.";
+      const carBase = "take the car or vehicle from this photo. Keep the exact same shape, proportions, body lines, wheels, and all details identical to the original photo. Convert into a clean digital illustration with simplified smooth color areas and defined edges. Slightly stylized, not photorealistic. Solid pure white background (#FFFFFF). No texture, no brush strokes, no grain, no noise. Only the vehicle, no background objects, no people, no scenery, no shadows.";
+      if (licensePlate === undefined || licensePlate === null) {
+        prompt = carBase + " License plate must be clearly visible and fully legible — the number plate text is the most important detail, preserve every character on the number plate exactly as it appears in the original photo.";
+      } else if (licensePlate === "") {
+        prompt = carBase + " No license plate, completely remove license plate, clean car without any number plate visible.";
+      } else {
+        prompt = carBase + ` License plate clearly visible showing exact text '${licensePlate}', number plate is the most important detail, preserve exact plate characters.`;
+      }
     } else {
       prompt = "make closest objects whichever are most significant to picture into an artistic rendering. no background objects.";
     }

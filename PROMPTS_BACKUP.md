@@ -43,11 +43,28 @@ extract just the head of the pet from this photo. Keep the exact same facial exp
 ---
 
 ## Car (`style === "car"`)
+
+Base prompt (shared across all three variants):
 ```
-take the car or vehicle from this photo. Keep the exact same shape, proportions, body lines, wheels, and all details identical to the original photo. Convert into a clean digital illustration with simplified smooth color areas and defined edges. Slightly stylized, not photorealistic. Solid pure white background (#FFFFFF). No texture, no brush strokes, no grain, no noise. Only the vehicle, no background objects, no people, no scenery, no shadows. License plate must be clearly visible and fully legible — the number plate text is the most important detail, preserve every character on the number plate exactly as it appears in the original photo.
+take the car or vehicle from this photo. Keep the exact same shape, proportions, body lines, wheels, and all details identical to the original photo. Convert into a clean digital illustration with simplified smooth color areas and defined edges. Slightly stylized, not photorealistic. Solid pure white background (#FFFFFF). No texture, no brush strokes, no grain, no noise. Only the vehicle, no background objects, no people, no scenery, no shadows.
 ```
 
-> Updated 2026-05-22: added license plate preservation instructions.
+### Variant A — `licensePlate === undefined || null` (user not asked / legacy orders)
+```
+[base] + License plate must be clearly visible and fully legible — the number plate text is the most important detail, preserve every character on the number plate exactly as it appears in the original photo.
+```
+
+### Variant B — `licensePlate === ""` (user chose Nē / no plate)
+```
+[base] + No license plate, completely remove license plate, clean car without any number plate visible.
+```
+
+### Variant C — `licensePlate === "NL725"` (user chose Jā and typed plate)
+```
+[base] + License plate clearly visible showing exact text 'NL725', number plate is the most important detail, preserve exact plate characters.
+```
+
+> Updated 2026-05-24: split into three variants controlled by `licensePlate` param (undefined/null = legacy preserve, "" = remove plate, string = show specific plate text). Customer sees popup asking Jā/Nē before generation starts.
 
 ---
 

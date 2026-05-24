@@ -240,6 +240,7 @@ export async function POST(req: NextRequest) {
       const leftSleeveDesignUrl  = getProp("_design_image_left_sleeve");
       const rightSleeveDesignUrl = getProp("_design_image_right_sleeve");
 
+      const licensePlate = getProp("License Plate");
       const screenshotFrontUrl      = getProp("_screenshot_front");
       const screenshotBackUrl       = getProp("_screenshot_back");
       const screenshotLeftSleeveUrl  = getProp("_screenshot_left_sleeve");
@@ -454,6 +455,7 @@ export async function POST(req: NextRequest) {
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Placement</td><td style="padding: 8px; border: 1px solid #ddd;">${placement}</td></tr>
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Designs</td><td style="padding: 8px; border: 1px solid #ddd;">${designCount}</td></tr>
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Price</td><td style="padding: 8px; border: 1px solid #ddd;">${item.price}</td></tr>
+            ${licensePlate !== null ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Numura zīme</td><td style="padding: 8px; border: 1px solid #ddd;">${licensePlate}</td></tr>` : ""}
           </table>
           ${positionInfo ? `<p style="margin-top: 12px; font-size: 13px;"><strong>Embroidery Details:</strong><br>${positionInfo}</p>` : ""}
           <h3>Attachments (${attachments.length} files):</h3>

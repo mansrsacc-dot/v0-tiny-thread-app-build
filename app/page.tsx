@@ -128,6 +128,12 @@ const T: Record<Lang, Record<string, string>> = {
     sleevePriceText: "Teksts uz piedurknes",
     inclSleeve: "iekļ. piedurkne",
     sleeveTextReminder: "Pievienojiet tekstu līdz 10 simboliem bez maksas!",
+    carPlateQuestion: "Vai vēlaties lai tiktu iekļauta Jūsu numura zīme?",
+    carPlateYes: "Jā",
+    carPlateNo: "Nē",
+    carPlateInputLabel: "Ievadiet numura zīmi",
+    carPlateInputPlaceholder: "piem. NL725",
+    carPlateConfirm: "Apstiprināt",
     orderMultiple: "Pasūtīt vairākus vienādus",
     orderMultipleTooltip: "Pasūtīt vienādu dizainu dažādos izmēros vai daudzumā draugiem, ģimenei vai grupai",
     orderMultipleTitle: "Pasūtīt vairākus vienādus",
@@ -252,6 +258,12 @@ const T: Record<Lang, Record<string, string>> = {
     sleevePriceText: "Text on sleeve",
     inclSleeve: "incl. sleeve",
     sleeveTextReminder: "Add up to 10 characters of text for free!",
+    carPlateQuestion: "Would you like your license plate to be included?",
+    carPlateYes: "Yes",
+    carPlateNo: "No",
+    carPlateInputLabel: "Enter your license plate",
+    carPlateInputPlaceholder: "e.g. NL725",
+    carPlateConfirm: "Confirm",
     orderMultiple: "Order multiple identical",
     orderMultipleTooltip: "Order the same design in multiple sizes or quantities for friends, family or groups",
     orderMultipleTitle: "Order multiple identical",
@@ -434,6 +446,7 @@ interface Design {
   textContent?: string;
   textFont?: string;
   textColor?: string; // hex - if not set, uses default (white on black, black on white)
+  licensePlate?: string; // undefined = not asked, "" = no plate, string = plate text
 }
 
 // Embroidery thread color palette - common thread colors available for text
@@ -506,6 +519,10 @@ export default function TinyThreadStudio() {
   const [multipleQtys, setMultipleQtys] = useState<Record<string, number>>({ S: 0, M: 0, L: 0, XL: 0 });
   const [isAddingMultiple, setIsAddingMultiple] = useState(false);
   const [showMultipleTooltip, setShowMultipleTooltip] = useState(false);
+  const [showCarPlatePopup, setShowCarPlatePopup] = useState(false);
+  const [carPlatePending, setCarPlatePending] = useState<{ designId: string; base64: string; sleevePlacement: boolean } | null>(null);
+  const [carPlateStep, setCarPlateStep] = useState<"ask" | "input">("ask");
+  const [carPlateInput, setCarPlateInput] = useState("");
 
   // Customer & saved designs state
   const [customer, setCustomer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
@@ -865,7 +882,7 @@ export default function TinyThreadStudio() {
     });
   }, []);
 
-  const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false): Promise<boolean> => {
+  const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false, licensePlate?: string): Promise<boolean> => {
     console.log("[generateEmbroidery] called", { designId, styleType, locked: generationLockRef.current });
     if (generationLockRef.current) {
       console.log("[generateEmbroidery] BLOCKED by lock — returning false");
@@ -882,6 +899,7 @@ export default function TinyThreadStudio() {
           imageUrl: imageBase64,
           style: styleType,
           garmentColor: color,
+          ...(licensePlate !== undefined && { licensePlate }),
         }),
       });
 
@@ -938,6 +956,7 @@ export default function TinyThreadStudio() {
               generationHistory: { ...d.generationHistory, [styleType]: newHistory },
               currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
               rawImageUrl: rawReplicateUrl,
+              ...(licensePlate !== undefined && { licensePlate }),
             };
           }
           return d;
@@ -1022,13 +1041,20 @@ export default function TinyThreadStudio() {
       setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(newDesign.id);
 
-      console.log("[handleFileUpload] awaiting generateEmbroidery, sleevePlacement=", sleevePlacement);
-      const success = await generateEmbroidery(newDesign.id, base64, style);
-      console.log("[handleFileUpload] generateEmbroidery returned", success, "sleevePlacement=", sleevePlacement);
+      if (style === "car") {
+        setCarPlatePending({ designId: newDesign.id, base64, sleevePlacement });
+        setCarPlateStep("ask");
+        setCarPlateInput("");
+        setShowCarPlatePopup(true);
+      } else {
+        console.log("[handleFileUpload] awaiting generateEmbroidery, sleevePlacement=", sleevePlacement);
+        const success = await generateEmbroidery(newDesign.id, base64, style);
+        console.log("[handleFileUpload] generateEmbroidery returned", success, "sleevePlacement=", sleevePlacement);
 
-      if (success && sleevePlacement) {
-        console.log("[handleFileUpload] showing sleeve text reminder toast");
-        toast({ description: t.sleeveTextReminder, duration: 7000 });
+        if (success && sleevePlacement) {
+          console.log("[handleFileUpload] showing sleeve text reminder toast");
+          toast({ description: t.sleeveTextReminder, duration: 7000 });
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -1435,6 +1461,10 @@ export default function TinyThreadStudio() {
       if (backBlobUrl)       sharedProps["_design_image_back"]          = backBlobUrl;
       if (leftSleeveBlobUrl)  sharedProps["_design_image_left_sleeve"]  = leftSleeveBlobUrl;
       if (rightSleeveBlobUrl) sharedProps["_design_image_right_sleeve"] = rightSleeveBlobUrl;
+      const carPhotoDesignMulti = designs.find(d => !d.textContent && d.style === "car");
+      if (carPhotoDesignMulti && carPhotoDesignMulti.licensePlate !== undefined) {
+        sharedProps["License Plate"] = carPhotoDesignMulti.licensePlate || "Nav nepieciešama";
+      }
       if (textDesigns.length > 0) {
         sharedProps["Text Embroidery"] = textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
@@ -1549,6 +1579,13 @@ export default function TinyThreadStudio() {
       const backDesign = designs.find(d => d.view === "back");
       if (frontDesign) params.set("properties[_garment]", `${product}-${color}-front`);
       if (backDesign)  params.set("properties[_garment_back]", `${product}-${color}-back`);
+
+      // License plate (car style only)
+      const carPhotoDesign = designs.find(d => !d.textContent && d.style === "car");
+      if (carPhotoDesign && carPhotoDesign.licensePlate !== undefined) {
+        params.set("properties[License Plate]", carPhotoDesign.licensePlate || "Nav nepieciešama");
+      }
+
       // _design_image / _design_image_back are set later after Blob upload (see below)
 
       // Send original photos to our API for the designer email (can't fit base64 in URL params)
@@ -3524,6 +3561,74 @@ export default function TinyThreadStudio() {
           </div>
         );
       })()}
+
+      {/* Car License Plate Popup */}
+      {showCarPlatePopup && carPlatePending && (
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-sm w-full">
+            {carPlateStep === "ask" ? (
+              <>
+                <h2 className="text-lg font-bold text-white mb-6 text-center">{t.carPlateQuestion}</h2>
+                <div className="flex gap-3">
+                  <button
+                    onClick={async () => {
+                      setShowCarPlatePopup(false);
+                      const { designId, base64, sleevePlacement } = carPlatePending;
+                      setCarPlatePending(null);
+                      const success = await generateEmbroidery(designId, base64, "car", false, "");
+                      if (success && sleevePlacement) toast({ description: t.sleeveTextReminder, duration: 7000 });
+                    }}
+                    className="flex-1 px-4 py-3 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/15"
+                  >
+                    {t.carPlateNo}
+                  </button>
+                  <button
+                    onClick={() => setCarPlateStep("input")}
+                    className="flex-1 px-4 py-3 rounded-lg bg-[#d8315b] hover:bg-[#c02850] text-white text-sm font-bold"
+                  >
+                    {t.carPlateYes}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-white mb-4 text-center">{t.carPlateInputLabel}</h2>
+                <input
+                  type="text"
+                  value={carPlateInput}
+                  onChange={e => setCarPlateInput(e.target.value.toUpperCase())}
+                  placeholder={t.carPlateInputPlaceholder}
+                  maxLength={10}
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white text-center text-lg font-bold placeholder-white/30 border border-white/10 focus:border-white/30 outline-none mb-4"
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setCarPlateStep("ask")}
+                    className="flex-1 px-4 py-3 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/15"
+                  >
+                    {t.back}
+                  </button>
+                  <button
+                    disabled={!carPlateInput.trim()}
+                    onClick={async () => {
+                      const plate = carPlateInput.trim();
+                      setShowCarPlatePopup(false);
+                      const { designId, base64, sleevePlacement } = carPlatePending;
+                      setCarPlatePending(null);
+                      const success = await generateEmbroidery(designId, base64, "car", false, plate);
+                      if (success && sleevePlacement) toast({ description: t.sleeveTextReminder, duration: 7000 });
+                    }}
+                    className="flex-1 px-4 py-3 rounded-lg bg-[#d8315b] hover:bg-[#c02850] text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {t.carPlateConfirm}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Popup Before Add to Cart */}
       {showConfirmCart && (
