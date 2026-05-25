@@ -2751,19 +2751,15 @@ export default function TinyThreadStudio() {
                     key={s}
                     onClick={() => {
                       setSize(s);
-                      if (selectedDesign) {
-                        setDesigns(prev => prev.map(d => {
-                          if (d.id === selectedDesign.id) {
-                            const constraints = SIZE_CONSTRAINTS[s];
-                            return {
-                              ...d,
-                              size: s,
-                              currentSizePx: constraints.min + (constraints.max - constraints.min) / 2,
-                            };
-                          }
-                          return d;
-                        }));
-                      }
+                      const constraints = SIZE_CONSTRAINTS[s];
+                      setDesigns(prev => prev.map(d => {
+                        if (isSleeveView(d.view)) return d;
+                        return {
+                          ...d,
+                          size: s,
+                          currentSizePx: Math.max(constraints.min, Math.min(constraints.max, d.currentSizePx)),
+                        };
+                      }));
                     }}
                     className={cn(
                       "py-2 px-2 rounded-lg border text-center transition-all",
