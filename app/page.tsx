@@ -1711,6 +1711,16 @@ export default function TinyThreadStudio() {
             } catch { /* skip garment if load fails */ }
           }
 
+          // TinyThread label overlay on hoodie back view
+          if (product === "hoodie" && targetView === "back") {
+            try {
+              const labelImg = await loadImg("/Screenshot_1.png");
+              const labelW = Math.round(SHOT_W * 0.11);
+              const labelH = Math.round(labelW * (labelImg.naturalHeight / labelImg.naturalWidth));
+              ctx.drawImage(labelImg, Math.round(SHOT_W / 2 - labelW / 2), Math.round(SHOT_H * 0.20), labelW, labelH);
+            } catch { /* skip label if load fails */ }
+          }
+
           // 2. Design overlays — identical position formula to the DOM and server composite:
           //    left = SHOT_W * position.x / 100, top = SHOT_H * position.y / 100 (center-anchored)
           //    size = currentSizePx / 780 * SHOT_W  (780px reference space → 800px canvas)
@@ -2118,6 +2128,17 @@ export default function TinyThreadStudio() {
                 className="w-full h-full object-contain"
                 crossOrigin="anonymous"
                 data-testid="garment-mockup"
+              />
+            )}
+
+            {/* TinyThread clothing label — back neck area, hoodie only */}
+            {product === "hoodie" && view === "back" && (
+              <img
+                src="/Screenshot_1.png"
+                alt=""
+                aria-hidden="true"
+                className="absolute pointer-events-none select-none"
+                style={{ left: "50%", top: "20%", transform: "translateX(-50%)", width: "11%" }}
               />
             )}
 
