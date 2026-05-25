@@ -1711,11 +1711,11 @@ export default function TinyThreadStudio() {
             } catch { /* skip garment if load fails */ }
           }
 
-          // TinyThread label overlay on hoodie back view
-          if (product === "hoodie" && targetView === "back") {
+          // TinyThread label overlay on hoodie front view
+          if (product === "hoodie" && targetView === "front") {
             try {
               const labelImg = await loadImg("/Screenshot_1.png");
-              const labelW = Math.round(SHOT_W * 0.11);
+              const labelW = Math.round(SHOT_W * 0.14);
               const labelH = Math.round(labelW * (labelImg.naturalHeight / labelImg.naturalWidth));
               ctx.drawImage(labelImg, Math.round(SHOT_W / 2 - labelW / 2), Math.round(SHOT_H * 0.20), labelW, labelH);
             } catch { /* skip label if load fails */ }
@@ -2131,14 +2131,14 @@ export default function TinyThreadStudio() {
               />
             )}
 
-            {/* TinyThread clothing label — back neck area, hoodie only */}
-            {product === "hoodie" && view === "back" && (
+            {/* TinyThread clothing label — front neck area, hoodie only */}
+            {product === "hoodie" && view === "front" && (
               <img
                 src="/Screenshot_1.png"
                 alt=""
                 aria-hidden="true"
                 className="absolute pointer-events-none select-none"
-                style={{ left: "50%", top: "20%", transform: "translateX(-50%)", width: "11%" }}
+                style={{ left: "50%", top: "20%", transform: "translateX(-50%)", width: "14%" }}
               />
             )}
 
