@@ -1717,7 +1717,15 @@ export default function TinyThreadStudio() {
               const labelImg = await loadImg("/Screenshot_1.png");
               const labelW = Math.round(SHOT_W * 0.14);
               const labelH = Math.round(labelW * (labelImg.naturalHeight / labelImg.naturalWidth));
-              ctx.drawImage(labelImg, Math.round(SHOT_W / 2 - labelW / 2), Math.round(SHOT_H * 0.20), labelW, labelH);
+              const labelX = Math.round(SHOT_W / 2 - labelW / 2);
+              const labelY = Math.round(SHOT_H * 0.29);
+              const pad = 8;
+              ctx.fillStyle = "#ffffff";
+              ctx.shadowColor = "rgba(0,0,0,0.2)";
+              ctx.shadowBlur = 6;
+              ctx.fillRect(labelX - pad, labelY - pad, labelW + pad * 2, labelH + pad * 2);
+              ctx.shadowBlur = 0;
+              ctx.drawImage(labelImg, labelX, labelY, labelW, labelH);
             } catch { /* skip label if load fails */ }
           }
 
@@ -2133,13 +2141,27 @@ export default function TinyThreadStudio() {
 
             {/* TinyThread clothing label — front neck area, hoodie only */}
             {product === "hoodie" && view === "front" && (
-              <img
-                src="/Screenshot_1.png"
-                alt=""
-                aria-hidden="true"
+              <div
                 className="absolute pointer-events-none select-none"
-                style={{ left: "50%", top: "20%", transform: "translateX(-50%)", width: "14%" }}
-              />
+                style={{
+                  left: "50%",
+                  top: "29%",
+                  transform: "translateX(-50%)",
+                  background: "white",
+                  border: "1px solid rgba(0,0,0,0.18)",
+                  borderRadius: "3px",
+                  padding: "3px 7px",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
+                  lineHeight: 0,
+                }}
+              >
+                <img
+                  src="/Screenshot_1.png"
+                  alt=""
+                  aria-hidden="true"
+                  style={{ width: "70px", display: "block" }}
+                />
+              </div>
             )}
 
             {/* Design Overlays */}
