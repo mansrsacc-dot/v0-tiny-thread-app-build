@@ -1711,25 +1711,7 @@ export default function TinyThreadStudio() {
             } catch { /* skip garment if load fails */ }
           }
 
-          // TinyThread label overlay on hoodie front view
-          if (product === "hoodie" && targetView === "front") {
-            try {
-              const labelImg = await loadImg("/Screenshot_1.png");
-              const labelW = Math.round(SHOT_W * 0.14);
-              const labelH = Math.round(labelW * (labelImg.naturalHeight / labelImg.naturalWidth));
-              const labelX = Math.round(SHOT_W / 2 - labelW / 2);
-              const labelY = Math.round(SHOT_H * 0.29);
-              const pad = 8;
-              ctx.fillStyle = "#ffffff";
-              ctx.shadowColor = "rgba(0,0,0,0.2)";
-              ctx.shadowBlur = 6;
-              ctx.fillRect(labelX - pad, labelY - pad, labelW + pad * 2, labelH + pad * 2);
-              ctx.shadowBlur = 0;
-              ctx.drawImage(labelImg, labelX, labelY, labelW, labelH);
-            } catch { /* skip label if load fails */ }
-          }
-
-          // 2. Design overlays — identical position formula to the DOM and server composite:
+// 2. Design overlays — identical position formula to the DOM and server composite:
           //    left = SHOT_W * position.x / 100, top = SHOT_H * position.y / 100 (center-anchored)
           //    size = currentSizePx / 780 * SHOT_W  (780px reference space → 800px canvas)
           const viewDesigns = designs.filter(d => d.view === targetView);
@@ -2139,32 +2121,7 @@ export default function TinyThreadStudio() {
               />
             )}
 
-            {/* TinyThread clothing label — front neck area, hoodie only */}
-            {product === "hoodie" && view === "front" && (
-              <div
-                className="absolute pointer-events-none select-none"
-                style={{
-                  left: "50%",
-                  top: "29%",
-                  transform: "translateX(-50%)",
-                  background: "white",
-                  border: "1px solid rgba(0,0,0,0.18)",
-                  borderRadius: "3px",
-                  padding: "3px 7px",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
-                  lineHeight: 0,
-                }}
-              >
-                <img
-                  src="/Screenshot_1.png"
-                  alt=""
-                  aria-hidden="true"
-                  style={{ width: "70px", display: "block" }}
-                />
-              </div>
-            )}
-
-            {/* Design Overlays */}
+{/* Design Overlays */}
             {currentDesignsForView.map(design => {
               // Helper to proxy cross-origin images for html2canvas
               const getDisplayUrl = (url: string) => {
