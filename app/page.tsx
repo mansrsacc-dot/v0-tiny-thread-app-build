@@ -141,6 +141,9 @@ const T: Record<Lang, Record<string, string>> = {
     orderMultipleAddBtn: "Pievienot grozam",
     orderMultipleAdding: "Pievieno...",
     orderMultipleSizeNA: "Drīzumā",
+    addAnotherDesign: "Pievienot vēl dizainu šai pusei",
+    maxDesignsPerSide: "Maksimālais dizainu skaits šai pusei sasniegts",
+    additionalDesign: "Papildu dizains",
   },
   en: {
     product: "Product",
@@ -271,6 +274,9 @@ const T: Record<Lang, Record<string, string>> = {
     orderMultipleAddBtn: "Add to Cart",
     orderMultipleAdding: "Adding...",
     orderMultipleSizeNA: "Coming soon",
+    addAnotherDesign: "Add another design to this side",
+    maxDesignsPerSide: "Maximum designs reached for this side",
+    additionalDesign: "Additional design",
   },
 };
 
@@ -485,6 +491,19 @@ const SLEEVE_TEXT_MAX_CHARS = 10;
 const SLEEVE_DESIGN_SIZE_PX = 150; // fixed ~100mm visual size
 // Shopify variant ID for €25 sleeve add-on (create in Shopify, then fill in)
 const SLEEVE_PHOTO_ADDON_VARIANT_ID = "";
+const MAX_DESIGNS_PER_SIDE = 3;
+const ADDITIONAL_DESIGN_PRICING: Record<Style, Record<"S" | "M", number>> = {
+  outline:    { S: 17, M: 35 },
+  standard:   { S: 21, M: 41 },
+  "pet-head": { S: 21, M: 41 },
+  car:        { S: 21, M: 41 },
+};
+const ADDITIONAL_DESIGN_VARIANT_IDS: Record<Style, Record<"S" | "M", string>> = {
+  outline:    { S: "", M: "" },
+  standard:   { S: "", M: "" },
+  "pet-head": { S: "", M: "" },
+  car:        { S: "", M: "" },
+};
 const isSleeveView = (v: string) => v === "left-sleeve" || v === "right-sleeve";
 
 export default function TinyThreadStudio() {
@@ -578,7 +597,19 @@ export default function TinyThreadStudio() {
   ).length;
   const regularTextCount = designs.filter(d => !!d.textContent && !isSleeveView(d.view)).length;
   const textSurcharge = (regularTextCount + sleeveTextOnlyCount) * TEXT_PRICE;
-  const currentPrice = basePrice + backSurcharge + sleeveSurcharge + textSurcharge;
+  const additionalDesignSurcharge = (() => {
+    let total = 0;
+    for (const v of ["front", "back"] as View[]) {
+      const photosOnSide = designs.filter(d => d.view === v && !d.textContent);
+      for (let i = 1; i < photosOnSide.length; i++) {
+        const d = photosOnSide[i];
+        const eff = (d.size === "L" ? "M" : d.size) as "S" | "M";
+        total += ADDITIONAL_DESIGN_PRICING[d.style]?.[eff] || 0;
+      }
+    }
+    return total;
+  })();
+  const currentPrice = basePrice + backSurcharge + sleeveSurcharge + textSurcharge + additionalDesignSurcharge;
 
   // Multiple-order modal: compute live total from qty selectors
   const multipleOrderTotal = (() => {
@@ -1000,12 +1031,14 @@ export default function TinyThreadStudio() {
   };
 
   const handleFileUpload = useCallback((file: File) => {
-    // Limit: 1 photo per side
-    const photoOnThisView = designs.some(d => d.view === view && !d.textContent);
-    if (photoOnThisView) {
-      alert("You already have a photo design on this side. Delete it first to upload a new one.");
+    // Limit: max 3 photos per side
+    const photosOnThisView = designs.filter(d => d.view === view && !d.textContent).length;
+    if (photosOnThisView >= MAX_DESIGNS_PER_SIDE) {
+      toast({ title: t.maxDesignsPerSide });
       return;
     }
+    // 2nd and 3rd designs are capped at M (not L)
+    const effectiveSize: Size = (!isSleeveView(view) && photosOnThisView >= 1 && size === "L") ? "M" : size;
 
     const reader = new FileReader();
     reader.onloadend = async () => {
@@ -1025,8 +1058,8 @@ export default function TinyThreadStudio() {
         originalImage: base64,
         style: style,
         view: view,
-        size: sleevePlacement ? "M" : size,
-        currentSizePx: sleevePlacement ? SLEEVE_DESIGN_SIZE_PX : SIZE_CONSTRAINTS[size].min + (SIZE_CONSTRAINTS[size].max - SIZE_CONSTRAINTS[size].min) / 2,
+        size: sleevePlacement ? "M" : effectiveSize,
+        currentSizePx: sleevePlacement ? SLEEVE_DESIGN_SIZE_PX : SIZE_CONSTRAINTS[effectiveSize].min + (SIZE_CONSTRAINTS[effectiveSize].max - SIZE_CONSTRAINTS[effectiveSize].min) / 2,
         position: { x: 50, y: 40 },
         generatedImages: {},
         processedImages: {},
@@ -1613,7 +1646,8 @@ export default function TinyThreadStudio() {
         x: d.position.x,
         y: d.position.y,
         size: d.currentSizePx || 150,
-        rotation: d.rotation || 0
+        rotation: d.rotation || 0,
+        style: d.style,
       }));
       params.set("properties[_positions]", JSON.stringify(positionInfo));
       
@@ -1985,12 +2019,20 @@ export default function TinyThreadStudio() {
       }
       // --- End auto-save ---
 
-      // If there are text/sleeve add-ons, use cart/add.js multi-item add
+      // If there are text/sleeve/additional-design add-ons, use cart/add.js multi-item add
       const regularTextCount2 = designs.filter(d => !!d.textContent && !isSleeveView(d.view)).length;
       const sleeveTextOnly2Count = designs.filter(d => isSleeveView(d.view) && !!d.textContent && !designs.some(o => o.view === d.view && !o.textContent)).length;
       const billableTextCount = regularTextCount2 + sleeveTextOnly2Count;
       const sleevePhotoCount = designs.filter(d => isSleeveView(d.view) && !d.textContent).length;
-      const needsMultiAdd = (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) || (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID);
+      const additionalPhotoDesigns: { design: (typeof designs)[0]; addSize: "S" | "M" }[] = [];
+      for (const v of ["front", "back"] as View[]) {
+        const photosOnSide = designs.filter(d => d.view === v && !d.textContent);
+        for (let i = 1; i < photosOnSide.length; i++) {
+          const d = photosOnSide[i];
+          additionalPhotoDesigns.push({ design: d, addSize: (d.size === "L" ? "M" : d.size) as "S" | "M" });
+        }
+      }
+      const needsMultiAdd = (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) || (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) || additionalPhotoDesigns.length > 0;
       if (needsMultiAdd) {
         // Build items array for multi-add
         const propsObj: Record<string, string> = {};
@@ -2007,6 +2049,14 @@ export default function TinyThreadStudio() {
         }
         if (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) {
           items.push({ id: SLEEVE_PHOTO_ADDON_VARIANT_ID, quantity: sleevePhotoCount, properties: { "_for_order_ref": propsObj["_order_ref"] || "" } });
+        }
+        for (const { design: addDesign, addSize } of additionalPhotoDesigns) {
+          const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
+          if (addVariantId) {
+            const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
+            const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
+            items.push({ id: addVariantId, quantity: 1, properties: { "_for_order_ref": propsObj["_order_ref"] || "", "Style": styleName, "Size": `${addSize} (${sizeMm}mm)`, "Placement": addDesign.view } });
+          }
         }
         try {
           const addRes = await fetch("https://tinythread.shop/cart/add.js", {
@@ -2854,6 +2904,9 @@ export default function TinyThreadStudio() {
               {textSurcharge > 0 && (
                 <span className="text-[#3e92cc]/60 text-xs ml-1">({t.textPrice} +€{textSurcharge})</span>
               )}
+              {additionalDesignSurcharge > 0 && (
+                <span className="text-[#3e92cc]/60 text-xs ml-1">({t.additionalDesign} +€{additionalDesignSurcharge})</span>
+              )}
             </div>
           </div>
 
@@ -3035,6 +3088,26 @@ export default function TinyThreadStudio() {
                     )}
                   >
                     + {otherView === "back" ? t.addToBack : t.addToFront} (+€{surcharge})
+                  </button>
+                );
+              })()}
+              {/* Add another design to current side (2nd or 3rd photo on front/back) */}
+              {!isSleeveView(view) && (() => {
+                const photosOnCurrentView = designs.filter(d => d.view === view && !d.textContent).length;
+                if (photosOnCurrentView < 1 || photosOnCurrentView >= MAX_DESIGNS_PER_SIDE) return null;
+                const eff = (size === "L" ? "M" : size) as "S" | "M";
+                const addPrice = ADDITIONAL_DESIGN_PRICING[style]?.[eff] || 0;
+                return (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                      "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
+                      theme === "dark"
+                        ? "border-[#3e92cc]/50 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/20"
+                        : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
+                    )}
+                  >
+                    + {t.addAnotherDesign} (+€{addPrice})
                   </button>
                 );
               })()}

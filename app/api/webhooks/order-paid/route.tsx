@@ -329,7 +329,7 @@ export async function POST(req: NextRequest) {
       }
       const garmentColorVal = (frontGarmentRef || backGarmentRef || "").includes("white") ? "white" : "black";
 
-      let positionsData: { view: string; x: number; y: number; size: number; rotation?: number }[] = [];
+      let positionsData: { view: string; x: number; y: number; size: number; rotation?: number; style?: string }[] = [];
       try { positionsData = JSON.parse(getProp("_positions") || "[]"); } catch {}
       const frontPos = positionsData.find(p => p.view === "front") || { x: 50, y: 40, size: 150 };
       const backPos = positionsData.find(p => p.view === "back") || { x: 50, y: 40, size: 150 };
@@ -495,10 +495,21 @@ export async function POST(req: NextRequest) {
             desc = `${styleName} — ${sizeMm}mm × ${sizeMm}mm`;
           }
         } else {
-          // Front/back photo design — style string may be "A, B" when both sides have designs
-          const styleList = style.split(", ").filter(Boolean);
-          const viewIdx = p.view === "front" ? 0 : 1;
-          const styleName = styleList[viewIdx] || styleList[0] || "Design";
+          // Front/back photo design — use style from _positions if available (new orders),
+          // fall back to parsing the "Embroidery Style" property (legacy orders)
+          const STYLE_NAME_MAP: Record<string, string> = {
+            outline: "Outline (Kontūra)",
+            standard: "Standard Logo",
+            "pet-head": "Pet Head (Mīluļa Portrets)",
+            car: "Car Embroidery (Mašīnas izšuvums)",
+          };
+          const styleName = p.style
+            ? (STYLE_NAME_MAP[p.style] || p.style)
+            : (() => {
+                const styleList = style.split(", ").filter(Boolean);
+                const viewIdx = p.view === "front" ? 0 : 1;
+                return styleList[viewIdx] || styleList[0] || "Design";
+              })();
           const analysis = analysisMap[p.view];
           if (analysis) {
             const areaCm2 = Math.round((analysis.widthMm * analysis.heightMm * analysis.fillFraction) / 10) / 10;
