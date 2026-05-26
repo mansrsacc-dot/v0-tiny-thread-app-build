@@ -77,8 +77,8 @@ async function generateTextComposite(garmentUrl: string, textContent: string, fo
     const fontFamily = FONT_CSS_MAP[fontId] || FONT_CSS_MAP.sans;
 
     const img = new ImageResponse(
-      (<div style={{ width: W, height: H, position: "relative", display: "flex" }}>
-        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }} />
+      (<div style={{ width: W, height: H, position: "relative", display: "flex", background: "#ffffff" }}>
+        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "contain" }} />
         <div style={{
           position: "absolute",
           left, top,
@@ -111,8 +111,8 @@ async function generateCombinedComposite(garmentUrl: string, items: CompositeIte
   try {
     const W = 800, H = 1000;
     const img = new ImageResponse(
-      (<div style={{ width: W, height: H, position: "relative", display: "flex" }}>
-        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }} />
+      (<div style={{ width: W, height: H, position: "relative", display: "flex", background: "#ffffff" }}>
+        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "contain" }} />
         {items.map((item, i) =>
           item.kind === "image"
             ? <img key={i} src={item.url} width={item.size} height={item.size} style={{ position: "absolute", left: item.left, top: item.top, width: item.size, height: item.size }} />
@@ -140,8 +140,8 @@ async function generateComposite(garmentUrl: string, designUrl: string, posX: nu
     const left = Math.round(W * posX / 100 - designSize / 2);
     const top = Math.round(H * posY / 100 - designSize / 2);
     const img = new ImageResponse(
-      (<div style={{ width: W, height: H, position: "relative", display: "flex" }}>
-        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }} />
+      (<div style={{ width: W, height: H, position: "relative", display: "flex", background: "#ffffff" }}>
+        <img src={garmentUrl} width={W} height={H} style={{ position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "contain" }} />
         <img src={designUrl} width={designSize} height={designSize} style={{ position: "absolute", left, top, width: designSize, height: designSize }} />
       </div>),
       { width: W, height: H }
