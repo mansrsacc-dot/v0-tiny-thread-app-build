@@ -833,13 +833,34 @@ export default function TinyThreadStudio() {
         licensePlate: saved.licensePlate,
       };
 
+      console.log("[APPLY] designs before:", designs.map(d => ({ id: d.id, view: d.view, style: d.style })));
+      console.log("[APPLY] selectedDesignId:", selectedDesignId, "targetView:", targetView);
+
       setDesigns(prev => {
-        // Replace only the active design slot; leave all other designs on this view untouched.
-        if (selectedDesignId && prev.some(d => d.id === selectedDesignId)) {
-          return prev.map(d => d.id === selectedDesignId ? newDesign : d);
+        console.log("[APPLY] setDesigns prev:", prev.map(d => ({ id: d.id, view: d.view })));
+
+        // 1. Active design selected — replace only that slot by index.
+        const activeIdx = selectedDesignId ? prev.findIndex(d => d.id === selectedDesignId) : -1;
+        if (activeIdx >= 0) {
+          console.log("[APPLY] replacing active index:", activeIdx);
+          const result = prev.map((d, i) => i === activeIdx ? newDesign : d);
+          console.log("[APPLY] designs after (active replace):", result.map(d => ({ id: d.id, view: d.view })));
+          return result;
         }
-        // No active slot — replace all designs on this view with the new one.
-        return [...prev.filter(d => d.view !== targetView), newDesign];
+
+        // 2. No selection — replace the first photo design on this view (never wipe all).
+        const primaryIdx = prev.findIndex(d => d.view === targetView && !d.textContent);
+        console.log("[APPLY] fallback primaryIdx:", primaryIdx);
+        if (primaryIdx >= 0) {
+          const result = prev.map((d, i) => i === primaryIdx ? newDesign : d);
+          console.log("[APPLY] designs after (primary replace):", result.map(d => ({ id: d.id, view: d.view })));
+          return result;
+        }
+
+        // 3. No designs on this view at all — just add.
+        const result = [...prev, newDesign];
+        console.log("[APPLY] designs after (add):", result.map(d => ({ id: d.id, view: d.view })));
+        return result;
       });
       setSelectedDesignId(newDesign.id);
       if (["outline", "standard", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
