@@ -834,8 +834,12 @@ export default function TinyThreadStudio() {
       };
 
       setDesigns(prev => {
-        const existing = prev.filter(d => d.view !== targetView);
-        return [...existing, newDesign];
+        // Replace only the active design slot; leave all other designs on this view untouched.
+        if (selectedDesignId && prev.some(d => d.id === selectedDesignId)) {
+          return prev.map(d => d.id === selectedDesignId ? newDesign : d);
+        }
+        // No active slot — replace all designs on this view with the new one.
+        return [...prev.filter(d => d.view !== targetView), newDesign];
       });
       setSelectedDesignId(newDesign.id);
       if (["outline", "standard", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
