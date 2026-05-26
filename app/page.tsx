@@ -3087,7 +3087,7 @@ export default function TinyThreadStudio() {
                         : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
                     )}
                   >
-                    + {otherView === "back" ? t.addToBack : t.addToFront} (+€{surcharge})
+                    + {otherView === "back" ? t.addToBack : t.addToFront}
                   </button>
                 );
               })()}
@@ -3107,7 +3107,7 @@ export default function TinyThreadStudio() {
                         : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
                     )}
                   >
-                    + {t.addAnotherDesign} (+€{addPrice})
+                    + {t.addAnotherDesign}
                   </button>
                 );
               })()}
