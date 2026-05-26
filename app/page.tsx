@@ -782,6 +782,7 @@ export default function TinyThreadStudio() {
             position: design.position,
             sizePx: design.currentSizePx,
             view: design.view,
+            licensePlate: design.licensePlate,
           },
         }),
       });
@@ -829,6 +830,7 @@ export default function TinyThreadStudio() {
         regenerationCount: 0,
         rawImageUrl: null,
         rotation: 0,
+        licensePlate: saved.licensePlate,
       };
 
       setDesigns(prev => {
