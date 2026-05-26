@@ -235,24 +235,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing order ID" }, { status: 400 });
   }
 
-  // Deduplication: check-before / mark-after using Vercel Blob.
+  // Deduplication: check-then-claim using Vercel Blob.
   //
-  // Strategy: the done marker is written ONLY after the email is successfully sent.
-  // The first invocation sees no marker and proceeds. Shopify retries arrive later
-  // (Shopify's minimum retry delay is ~19 seconds), by which time the marker exists.
-  //
-  // The previous lock/claim approach used Shopify metafields which have eventual
-  // consistency — writes weren't immediately readable, so all concurrent invocations
-  // would write a lock, read back a stale value, and all skip (0 emails sent).
+  // The marker is written IMMEDIATELY after the check (before any slow work).
+  // Shopify retries arrive ~5-19s later — by then the marker exists and the
+  // retry is skipped. Writing after emails (old approach) left a large window
+  // where a retry could pass the check while the first invocation was still running.
   const dedupBlobPath = `processed/order_${orderId}.txt`;
+  const invocationId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  console.log(`[WEBHOOK] [${orderId}] Invocation ${invocationId} — checking dedup marker`);
   try {
     const { blobs } = await list({ prefix: `processed/order_${orderId}` });
     if (blobs.length > 0) {
-      console.log("[WEBHOOK] Already processed order", orderId, "- skipping");
+      console.log(`[WEBHOOK] [${orderId}] Marker already exists — skipping (invocation ${invocationId})`);
       return NextResponse.json({ success: true, skipped: true });
     }
+    console.log(`[WEBHOOK] [${orderId}] No marker found — claiming order (invocation ${invocationId})`);
   } catch (e) {
-    console.error("[WEBHOOK] Dedup check error (continuing):", e);
+    console.error(`[WEBHOOK] [${orderId}] Dedup check error (continuing):`, e);
+  }
+
+  // Write the marker NOW — before any slow processing — so concurrent invocations
+  // (Shopify retries) see it and skip. Worst case if this function crashes: one
+  // missed email. Much better than guaranteed duplicates.
+  try {
+    await put(dedupBlobPath, `${invocationId} ${new Date().toISOString()}`, {
+      access: "public",
+      addRandomSuffix: false,
+    });
+    console.log(`[WEBHOOK] [${orderId}] Marker written by invocation ${invocationId}`);
+  } catch (e) {
+    console.error(`[WEBHOOK] [${orderId}] Failed to write dedup marker — proceeding anyway:`, e);
   }
 
   try {
@@ -607,7 +620,7 @@ export async function POST(req: NextRequest) {
         const totalSizeKB = Math.round(
           attachments.reduce((s, a) => s + a.content.length * 0.75, 0) / 1024
         );
-        console.log(`[WEBHOOK] Sending email for order ${orderNumber} | attachments=${attachments.length} | ~${totalSizeKB}KB`);
+        console.log(`[WEBHOOK] [${orderId}] inv=${invocationId} Sending email for order ${orderNumber} | item="${item.title}" | attachments=${attachments.length} | ~${totalSizeKB}KB`);
         const emailRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
@@ -624,23 +637,12 @@ export async function POST(req: NextRequest) {
         if (!emailRes.ok) {
           console.error(`[WEBHOOK] Resend API error HTTP ${emailRes.status} for order ${orderNumber}:`, JSON.stringify(emailData));
         } else {
-          console.log(`[WEBHOOK] Email sent OK id=${emailData?.id} order=${orderNumber}`);
+          console.log(`[WEBHOOK] [${orderId}] inv=${invocationId} Email sent OK id=${emailData?.id} order=${orderNumber}`);
         }
       }
     }
 
-    // Mark order as fully processed — written after emails are sent so the
-    // first invocation is never blocked before it has a chance to run.
-    try {
-      await put(dedupBlobPath, new Date().toISOString(), {
-        access: "public",
-        addRandomSuffix: false,
-      });
-      console.log("[WEBHOOK] Done marker written for order", orderId);
-    } catch (e) {
-      console.error("[WEBHOOK] Failed to write done marker:", e);
-    }
-
+    console.log(`[WEBHOOK] [${orderId}] All done (invocation ${invocationId})`);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[WEBHOOK] Error:", error);
