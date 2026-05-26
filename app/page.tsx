@@ -143,6 +143,9 @@ const T: Record<Lang, Record<string, string>> = {
     orderMultipleSizeNA: "Drīzumā",
     addAnotherDesign: "Pievienot vēl dizainu šai pusei",
     maxDesignsPerSide: "Maksimālais dizainu skaits šai pusei sasniegts",
+    maxDesignsTitle: "Maksimums sasniegts",
+    maxDesignsBody: "Vienā pusē iespējami maksimāli 3 dizaini + teksts.",
+    maxDesignsOk: "Labi",
     additionalDesign: "Papildu dizains",
   },
   en: {
@@ -276,6 +279,9 @@ const T: Record<Lang, Record<string, string>> = {
     orderMultipleSizeNA: "Coming soon",
     addAnotherDesign: "Add another design to this side",
     maxDesignsPerSide: "Maximum designs reached for this side",
+    maxDesignsTitle: "Limit reached",
+    maxDesignsBody: "Maximum 3 designs + text possible on 1 side.",
+    maxDesignsOk: "OK",
     additionalDesign: "Additional design",
   },
 };
@@ -539,6 +545,7 @@ export default function TinyThreadStudio() {
   const [isAddingMultiple, setIsAddingMultiple] = useState(false);
   const [showMultipleTooltip, setShowMultipleTooltip] = useState(false);
   const [showCarPlatePopup, setShowCarPlatePopup] = useState(false);
+  const [showMaxDesignsPopup, setShowMaxDesignsPopup] = useState(false);
   const [carPlatePending, setCarPlatePending] = useState<{ designId: string; base64: string; sleevePlacement: boolean } | null>(null);
   const [carPlateStep, setCarPlateStep] = useState<"ask" | "input">("ask");
   const [carPlateInput, setCarPlateInput] = useState("");
@@ -833,31 +840,13 @@ export default function TinyThreadStudio() {
         licensePlate: saved.licensePlate,
       };
 
-      console.log("[APPLY] designs before:", designs.map(d => ({ id: d.id, view: d.view, style: d.style })));
-      console.log("[APPLY] selectedDesignId:", selectedDesignId, "targetView:", targetView);
+      const photosOnView = designs.filter(d => d.view === targetView && !d.textContent).length;
+      if (photosOnView >= MAX_DESIGNS_PER_SIDE) {
+        setShowMaxDesignsPopup(true);
+        return;
+      }
 
-      setDesigns(prev => {
-        console.log("[APPLY] setDesigns prev:", prev.map(d => ({ id: d.id, view: d.view })));
-
-        // Always add as a new slot when under the limit — never replace an existing design.
-        const photosOnView = prev.filter(d => d.view === targetView && !d.textContent);
-        console.log("[APPLY] photosOnView:", photosOnView.length, "MAX:", MAX_DESIGNS_PER_SIDE);
-        if (photosOnView.length < MAX_DESIGNS_PER_SIDE) {
-          const result = [...prev, newDesign];
-          console.log("[APPLY] designs after (add):", result.map(d => ({ id: d.id, view: d.view })));
-          return result;
-        }
-
-        // Already at the limit — replace the selected slot, or the primary if nothing is selected.
-        const replaceIdx = selectedDesignId ? prev.findIndex(d => d.id === selectedDesignId) : -1;
-        const targetIdx = replaceIdx >= 0 ? replaceIdx : prev.findIndex(d => d.view === targetView && !d.textContent);
-        console.log("[APPLY] at limit, replacing idx:", targetIdx);
-        const result = targetIdx >= 0
-          ? prev.map((d, i) => i === targetIdx ? newDesign : d)
-          : [...prev, newDesign];
-        console.log("[APPLY] designs after (replace at limit):", result.map(d => ({ id: d.id, view: d.view })));
-        return result;
-      });
+      setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(newDesign.id);
       if (["outline", "standard", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
       if (!isSleeveView(targetView) && saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
@@ -1060,7 +1049,7 @@ export default function TinyThreadStudio() {
     // Limit: max 3 photos per side
     const photosOnThisView = designs.filter(d => d.view === view && !d.textContent).length;
     if (photosOnThisView >= MAX_DESIGNS_PER_SIDE) {
-      toast({ title: t.maxDesignsPerSide });
+      setShowMaxDesignsPopup(true);
       return;
     }
     // 2nd and 3rd designs are capped at M (not L)
@@ -3333,6 +3322,23 @@ export default function TinyThreadStudio() {
               className="text-white/40 text-sm hover:text-white/60 transition-colors"
             >
               {t.skipGuide}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Max Designs Popup */}
+      {showMaxDesignsPopup && (
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
+          <div className={cn("rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl", theme === "dark" ? "bg-[#1e1b18] border border-white/10" : "bg-white border border-gray-200")}>
+            <div className="text-4xl mb-4">🧵</div>
+            <h2 className={cn("text-lg font-bold mb-3", theme === "dark" ? "text-white" : "text-gray-900")}>{t.maxDesignsTitle}</h2>
+            <p className={cn("text-sm mb-6", theme === "dark" ? "text-white/60" : "text-gray-500")}>{t.maxDesignsBody}</p>
+            <button
+              onClick={() => setShowMaxDesignsPopup(false)}
+              className="px-8 py-3 bg-[#3e92cc] text-white font-bold rounded-lg hover:bg-[#2f7bb0] transition-colors"
+            >
+              {t.maxDesignsOk}
             </button>
           </div>
         </div>
