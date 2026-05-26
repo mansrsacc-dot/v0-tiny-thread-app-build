@@ -292,6 +292,10 @@ export async function POST(req: NextRequest) {
       const designCount = getProp("Design Count") || "1";
       const orderRef = getProp("_order_ref");
 
+      // Garment clothing size (S/M/L/XL) from the Shopify variant title.
+      // variant_title may be "L / Black" — take the first segment.
+      const garmentSize = (item.variant_title as string | undefined)?.split(" / ")[0]?.trim() || null;
+
       const frontDesignUrl = getProp("_design_image");
       const frontGarmentRef = getProp("_garment");
       const frontGarmentUrl = frontGarmentRef ? GARMENT_URLS[frontGarmentRef] : null;
@@ -598,11 +602,11 @@ export async function POST(req: NextRequest) {
           <h3>Specifications:</h3>
           <table style="border-collapse: collapse; width: 100%;">
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Product</td><td style="padding: 8px; border: 1px solid #ddd;">${item.title}</td></tr>
+            ${(frontGarmentRef || getProp("_garment_back") || "").includes("hoodie") && garmentSize ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Garment Size</td><td style="padding: 8px; border: 1px solid #ddd;">${garmentSize}</td></tr>` : ""}
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Style</td><td style="padding: 8px; border: 1px solid #ddd;">${style}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Size</td><td style="padding: 8px; border: 1px solid #ddd;">${size}</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Embroidery Size</td><td style="padding: 8px; border: 1px solid #ddd;">${size}</td></tr>
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Placement</td><td style="padding: 8px; border: 1px solid #ddd;">${placement}</td></tr>
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Designs</td><td style="padding: 8px; border: 1px solid #ddd;">${designCount}</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Price</td><td style="padding: 8px; border: 1px solid #ddd;">${item.price}</td></tr>
             ${licensePlate !== null ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Numura zīme</td><td style="padding: 8px; border: 1px solid #ddd;">${licensePlate}</td></tr>` : ""}
           </table>
           ${positionInfo ? `<p style="margin-top: 12px; font-size: 13px;"><strong>Embroidery Details:</strong><br>${positionInfo}</p>` : ""}
