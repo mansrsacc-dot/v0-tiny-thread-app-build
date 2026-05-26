@@ -31,8 +31,8 @@ export type Style = "outline" | "standard" | "pet-head" | "car";
 // Garment size (incl. XL) is selected on the Shopify product page before app load.
 export const SIZE_CONSTRAINTS = {
   S: { min: 60,  max: 130, label: "45-100mm"  },
-  M: { min: 130, max: 190, label: "100-150mm" },
-  L: { min: 190, max: 260, label: "150-250mm" },
+  M: { min: 130, max: 195, label: "100-150mm" },
+  L: { min: 195, max: 325, label: "150-250mm" },
 } as const;
 
 export const STYLES = [
