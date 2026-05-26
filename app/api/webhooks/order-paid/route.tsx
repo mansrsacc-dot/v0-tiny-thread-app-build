@@ -265,6 +265,14 @@ export async function POST(req: NextRequest) {
       const properties = item.properties || [];
       const getProp = (name: string) => properties.find((p: { name: string; value: string }) => p.name === name)?.value || null;
 
+      // Skip add-on line items (text fee, sleeve fee, additional design fee).
+      // These have _for_order_ref linking them to the main item but carry no design data.
+      // The main item already contains all design data and triggers the email.
+      if (getProp("_for_order_ref")) {
+        console.log("[WEBHOOK] Skipping add-on item:", item.title);
+        continue;
+      }
+
       const style = getProp("Embroidery Style") || "Unknown";
       const size = getProp("Embroidery Size") || "Unknown";
       const placement = getProp("Placement") || "front";

@@ -1389,20 +1389,21 @@ export default function TinyThreadStudio() {
     generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, selectedDesign.style, true, selectedDesign.licensePlate);
   }, [cooldown, isGenerating, selectedDesign, generateEmbroidery]);
 
-  const navigateHistory = useCallback(async (direction: "prev" | "next") => {
-    if (!selectedDesign) return;
-    
-    const styleType = selectedDesign.style;
-    const history = selectedDesign.generationHistory[styleType] || [];
-    const currentIndex = selectedDesign.currentHistoryIndex[styleType] ?? 0;
-    
+  const navigateHistory = useCallback(async (direction: "prev" | "next", targetDesignId?: string) => {
+    const targetDesign = designs.find(d => d.id === targetDesignId) || selectedDesign;
+    if (!targetDesign) return;
+
+    const styleType = targetDesign.style;
+    const history = targetDesign.generationHistory[styleType] || [];
+    const currentIndex = targetDesign.currentHistoryIndex[styleType] ?? 0;
+
     let newIndex: number;
     if (direction === "prev") {
       newIndex = Math.max(0, currentIndex - 1);
     } else {
       newIndex = Math.min(history.length - 1, currentIndex + 1);
     }
-    
+
     if (newIndex !== currentIndex && history[newIndex]) {
       const newImageUrl = history[newIndex];
       let processed: string;
@@ -1431,7 +1432,7 @@ export default function TinyThreadStudio() {
       }
 
       setDesigns(prev => prev.map(d => {
-        if (d.id === selectedDesign.id) {
+        if (d.id === targetDesign.id) {
           return {
             ...d,
             generatedImages: { ...d.generatedImages, [styleType]: newImageUrl },
@@ -1442,7 +1443,7 @@ export default function TinyThreadStudio() {
         return d;
       }));
     }
-  }, [selectedDesign, removeImageBackground, color]);
+  }, [designs, selectedDesign, removeImageBackground, color]);
 
   // Show confirmation popup before adding to cart
   const handleAddToCartClick = useCallback(() => {
@@ -2488,7 +2489,7 @@ export default function TinyThreadStudio() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigateHistory("prev");
+                                    navigateHistory("prev", design.id);
                                   }}
                                   disabled={currentIndex === 0}
                                   className={cn(
@@ -2508,7 +2509,7 @@ export default function TinyThreadStudio() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigateHistory("next");
+                                    navigateHistory("next", design.id);
                                   }}
                                   disabled={currentIndex === history.length - 1}
                                   className={cn(
