@@ -821,13 +821,25 @@ export default function TinyThreadStudio() {
       // not the view it was originally saved from.
       const targetView = view;
       const fullUrl = saved.generatedImageUrl || saved.thumbnailUrl || saved.originalImageUrl || "";
+
+      // Cap size to M for 2nd/3rd designs (L is not available for additional slots)
+      const photosOnView = designs.filter(d => d.view === targetView && !d.textContent).length;
+      const willBeAdditional = !isSleeveView(targetView) && photosOnView >= 1;
+      const rawSize: Size = (saved.size as Size) || size;
+      const effectiveSize: Size = willBeAdditional && rawSize === "L" ? "M" : rawSize;
+      const rawSizePx = saved.sizePx || 150;
+      const { min: eMin, max: eMax } = SIZE_CONSTRAINTS[effectiveSize];
+      const effectiveSizePx = isSleeveView(targetView)
+        ? SLEEVE_DESIGN_SIZE_PX
+        : Math.max(eMin, Math.min(eMax, rawSizePx));
+
       const newDesign: Design = {
         id: `saved_${Date.now()}`,
         style: savedStyle,
-        size: saved.size || size,
+        size: effectiveSize,
         view: targetView,
         position: saved.position || { x: 50, y: 40 },
-        currentSizePx: isSleeveView(targetView) ? SLEEVE_DESIGN_SIZE_PX : (saved.sizePx || 150),
+        currentSizePx: effectiveSizePx,
         generatedImages: fullUrl ? { [savedStyle]: fullUrl } : {},
         processedImages: fullUrl ? { [savedStyle]: fullUrl } : {},
         removeBackground: false,
@@ -840,7 +852,6 @@ export default function TinyThreadStudio() {
         licensePlate: saved.licensePlate,
       };
 
-      const photosOnView = designs.filter(d => d.view === targetView && !d.textContent).length;
       if (photosOnView >= MAX_DESIGNS_PER_SIDE) {
         setShowMaxDesignsPopup(true);
         return;
@@ -2815,15 +2826,24 @@ export default function TinyThreadStudio() {
                   <button
                     key={s}
                     onClick={() => {
-                      const constraints = SIZE_CONSTRAINTS[s];
-                      setDesigns(prev => prev.map(d => {
-                        if (d.id !== selectedDesignId || isSleeveView(d.view)) return d;
-                        return {
-                          ...d,
-                          size: s,
-                          currentSizePx: Math.max(constraints.min, Math.min(constraints.max, d.currentSizePx)),
-                        };
-                      }));
+                      const { min, max } = SIZE_CONSTRAINTS[s];
+                      const mid = Math.round(min + (max - min) / 2);
+                      setDesigns(prev => {
+                        // Build the set of primary design IDs (first photo per view) for the fallback case
+                        const primaryIds = new Set(
+                          ["front", "back", "left-sleeve", "right-sleeve"]
+                            .map(v => prev.find(d => d.view === v && !d.textContent)?.id)
+                            .filter(Boolean) as string[]
+                        );
+                        return prev.map(d => {
+                          if (isSleeveView(d.view) || d.textContent) return d;
+                          const targeted = selectedDesignId
+                            ? d.id === selectedDesignId
+                            : primaryIds.has(d.id);
+                          if (!targeted) return d;
+                          return { ...d, size: s, currentSizePx: mid };
+                        });
+                      });
                       if (!selectedIsAdditional) setSize(s);
                     }}
                     className={cn(
