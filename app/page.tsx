@@ -580,6 +580,9 @@ export default function TinyThreadStudio() {
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
+  // Is the selected design a 2nd/3rd photo on its side? (L size not available, size changes independent)
+  const selectedIsAdditional = !!selectedDesign && !selectedDesign.textContent &&
+    designs.filter(d => d.view === selectedDesign.view && !d.textContent).indexOf(selectedDesign) > 0;
   // Base price uses the primary photo design's style (front first, else back, else currently selected)
   const photoFrontDesign = designs.find(d => d.view === "front" && !d.textContent);
   const photoBackDesign = designs.find(d => d.view === "back" && !d.textContent);
@@ -1519,7 +1522,7 @@ export default function TinyThreadStudio() {
         quantity,
         properties: {
           ...sharedProps,
-          "Embroidery Size": designs.map((d, i) => `${size} (${designSizeMm[i]}mm)`).join(", "),
+          "Embroidery Size": designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", "),
         },
       }));
 
@@ -2795,32 +2798,32 @@ export default function TinyThreadStudio() {
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                 {t.size}
               </label>
-              <div className={cn("grid gap-2", product === "cap" ? "grid-cols-2" : "grid-cols-3")}>
-                {(product === "cap" ? ["S", "M"] as Size[] : ["S", "M", "L"] as Size[]).map(s => (
+              <div className={cn("grid gap-2", (product === "cap" || selectedIsAdditional) ? "grid-cols-2" : "grid-cols-3")}>
+                {(product === "cap" || selectedIsAdditional ? ["S", "M"] as Size[] : ["S", "M", "L"] as Size[]).map(s => (
                   <button
                     key={s}
                     onClick={() => {
-                      setSize(s);
                       const constraints = SIZE_CONSTRAINTS[s];
                       setDesigns(prev => prev.map(d => {
-                        if (isSleeveView(d.view)) return d;
+                        if (d.id !== selectedDesignId || isSleeveView(d.view)) return d;
                         return {
                           ...d,
                           size: s,
                           currentSizePx: Math.max(constraints.min, Math.min(constraints.max, d.currentSizePx)),
                         };
                       }));
+                      if (!selectedIsAdditional) setSize(s);
                     }}
                     className={cn(
                       "py-2 px-2 rounded-lg border text-center transition-all",
-                      size === s
+                      (selectedDesign?.size ?? size) === s
                         ? "border-[#3e92cc] bg-[#3e92cc]/10"
                         : theme === "dark"
                           ? "border-neutral-700 hover:border-neutral-600"
                           : "border-gray-200 hover:border-gray-300"
                     )}
                   >
-                    <div className={cn("text-lg font-semibold", size === s ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>{s}</div>
+                    <div className={cn("text-lg font-semibold", (selectedDesign?.size ?? size) === s ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>{s}</div>
                     <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
                   </button>
                 ))}
