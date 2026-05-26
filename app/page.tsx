@@ -1020,7 +1020,7 @@ export default function TinyThreadStudio() {
           const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
             ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
             : aiBgUrl;
-          processed = await removeImageBackground(sourceForCleanup, styleType, color);
+          processed = await removeImageBackground(sourceForCleanup, "standard", color);
         } else {
           processed = await removeImageBackground(data.imageUrl, styleType, color);
         }
@@ -1425,11 +1425,11 @@ export default function TinyThreadStudio() {
         const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
           ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
           : aiBgUrl;
-        processed = await removeImageBackground(sourceForCleanup, styleType, color);
+        processed = await removeImageBackground(sourceForCleanup, "standard", color);
       } else {
         processed = await removeImageBackground(newImageUrl, styleType, color);
       }
-      
+
       setDesigns(prev => prev.map(d => {
         if (d.id === selectedDesign.id) {
           return {

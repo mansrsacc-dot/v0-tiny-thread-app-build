@@ -92,4 +92,5 @@ make closest objects whichever are most significant to picture into an artistic 
   - Only exterior (edge-reachable) near-white pixels are made transparent
   - Interior white elements enclosed by colored logo pixels are **preserved** (not reachable from edges)
   - Transparent range: `minRGB > 245` → alpha=0; `220–245` → feathered
-- **`pet-head` / `car` styles**: unchanged — still use rembg API + canvas dark-pixel cleanup
+- **`pet-head` / `car` styles**: unchanged — still call rembg API, then call `removeImageBackground(source, "standard", color)` exactly as before. Because the rembg result has a transparent border, the flood fill is essentially a no-op and correctly preserves the rembg output.
+- **`outline` style**: unchanged — still uses simple pixel-color strip (no rembg, no flood fill)
