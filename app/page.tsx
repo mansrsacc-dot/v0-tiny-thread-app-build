@@ -450,6 +450,7 @@ interface Design {
   processedImages: Record<string, string>;
   removeBackground: boolean;
   generationHistory: Record<string, string[]>;
+  processedHistory: Record<string, string[]>;
   currentHistoryIndex: Record<string, number>;
   regenerationCount: number;
   rawImageUrl: string | null;
@@ -845,6 +846,7 @@ export default function TinyThreadStudio() {
         removeBackground: false,
         originalImage: saved.originalImageUrl || fullUrl,
         generationHistory: {},
+        processedHistory: {},
         currentHistoryIndex: {},
         regenerationCount: 0,
         rawImageUrl: null,
@@ -1030,12 +1032,15 @@ export default function TinyThreadStudio() {
             const currentHistory = d.generationHistory[styleType] || [];
             const newHistory = [...currentHistory, data.imageUrl];
             const newIndex = newHistory.length - 1;
+            const currentProcessedHistory = d.processedHistory?.[styleType] || [];
+            const newProcessedHistory = [...currentProcessedHistory, processed];
 
             return {
               ...d,
               generatedImages: { ...d.generatedImages, [styleType]: data.imageUrl },
               processedImages: { ...d.processedImages, [styleType]: processed },
               generationHistory: { ...d.generationHistory, [styleType]: newHistory },
+              processedHistory: { ...d.processedHistory, [styleType]: newProcessedHistory },
               currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
               rawImageUrl: rawReplicateUrl,
               ...(licensePlate !== undefined && { licensePlate }),
@@ -1116,6 +1121,7 @@ export default function TinyThreadStudio() {
         processedImages: {},
         removeBackground: removeBackground,
         generationHistory: {},
+        processedHistory: {},
         currentHistoryIndex: {},
         regenerationCount: 0,
         rawImageUrl: null,
@@ -1187,6 +1193,7 @@ export default function TinyThreadStudio() {
       processedImages: {},
       removeBackground: false,
       generationHistory: {},
+      processedHistory: {},
       currentHistoryIndex: {},
       regenerationCount: 0,
       rawImageUrl: null,
@@ -1389,7 +1396,7 @@ export default function TinyThreadStudio() {
     generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, selectedDesign.style, true, selectedDesign.licensePlate);
   }, [cooldown, isGenerating, selectedDesign, generateEmbroidery]);
 
-  const navigateHistory = useCallback(async (direction: "prev" | "next", targetDesignId?: string) => {
+  const navigateHistory = useCallback((direction: "prev" | "next", targetDesignId?: string) => {
     const targetDesign = designs.find(d => d.id === targetDesignId) || selectedDesign;
     if (!targetDesign) return;
 
@@ -1404,46 +1411,24 @@ export default function TinyThreadStudio() {
       newIndex = Math.min(history.length - 1, currentIndex + 1);
     }
 
-    if (newIndex !== currentIndex && history[newIndex]) {
-      const newImageUrl = history[newIndex];
-      let processed: string;
-      if (styleType === "standard") {
-        const sourceUrl = newImageUrl.includes("replicate.delivery")
-          ? `/api/proxy-image?url=${encodeURIComponent(newImageUrl)}`
-          : newImageUrl;
-        processed = await removeImageBackground(sourceUrl, "standard", color);
-      } else if (styleType === "pet-head" || styleType === "car") {
-        let aiBgUrl = newImageUrl;
-        try {
-          const bgRes = await fetch("/api/remove-bg", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl: newImageUrl }),
-          });
-          const bgData = await bgRes.json();
-          if (bgData.imageUrl) aiBgUrl = bgData.imageUrl;
-        } catch {}
-        const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
-          ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
-          : aiBgUrl;
-        processed = await removeImageBackground(sourceForCleanup, "standard", color);
-      } else {
-        processed = await removeImageBackground(newImageUrl, styleType, color);
-      }
+    if (newIndex === currentIndex || !history[newIndex]) return;
 
-      setDesigns(prev => prev.map(d => {
-        if (d.id === targetDesign.id) {
-          return {
-            ...d,
-            generatedImages: { ...d.generatedImages, [styleType]: newImageUrl },
-            processedImages: { ...d.processedImages, [styleType]: processed },
-            currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
-          };
-        }
-        return d;
-      }));
-    }
-  }, [designs, selectedDesign, removeImageBackground, color]);
+    const newImageUrl = history[newIndex];
+    const cachedProcessed = targetDesign.processedHistory?.[styleType]?.[newIndex];
+    const processed = cachedProcessed || targetDesign.processedImages?.[styleType] || newImageUrl;
+
+    setDesigns(prev => prev.map(d => {
+      if (d.id === targetDesign.id) {
+        return {
+          ...d,
+          generatedImages: { ...d.generatedImages, [styleType]: newImageUrl },
+          processedImages: { ...d.processedImages, [styleType]: processed },
+          currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
+        };
+      }
+      return d;
+    }));
+  }, [designs, selectedDesign]);
 
   // Show confirmation popup before adding to cart
   const handleAddToCartClick = useCallback(() => {
