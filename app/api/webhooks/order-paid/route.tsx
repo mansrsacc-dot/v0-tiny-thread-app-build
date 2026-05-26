@@ -329,10 +329,22 @@ export async function POST(req: NextRequest) {
       }
       const garmentColorVal = (frontGarmentRef || backGarmentRef || "").includes("white") ? "white" : "black";
 
-      let positionsData: { view: string; x: number; y: number; size: number; rotation?: number; style?: string }[] = [];
+      let positionsData: { view: string; x: number; y: number; size: number; rotation?: number; style?: string; type?: string; blobUrl?: string }[] = [];
       try { positionsData = JSON.parse(getProp("_positions") || "[]"); } catch {}
-      const frontPos = positionsData.find(p => p.view === "front") || { x: 50, y: 40, size: 150 };
-      const backPos = positionsData.find(p => p.view === "back") || { x: 50, y: 40, size: 150 };
+      // Use first photo position for each view (type="photo", or first entry for legacy orders)
+      const frontPos = positionsData.find(p => p.view === "front" && p.type !== "text") || positionsData.find(p => p.view === "front") || { x: 50, y: 40, size: 150 };
+      const backPos  = positionsData.find(p => p.view === "back"  && p.type !== "text") || positionsData.find(p => p.view === "back")  || { x: 50, y: 40, size: 150 };
+      // Text position per view — used to correctly position text in server-side composite
+      const textPosByView: Record<string, { x: number; y: number; size: number }> = {};
+      for (let pi = 0; pi < positionsData.length; pi++) {
+        const p = positionsData[pi];
+        if (p.type === "text") { textPosByView[p.view] = p; continue; }
+        if (p.type === undefined && textsByView[p.view]) {
+          // Legacy heuristic: if text exists for this view, the last entry is the text position
+          const viewEntries = positionsData.filter(q => q.view === p.view);
+          if (viewEntries.indexOf(p) > 0) textPosByView[p.view] = p;
+        }
+      }
 
       // Pre-compute pixel-based fill analysis for each photo design (async)
       const designUrlByView: Record<string, string | null> = {
@@ -342,11 +354,12 @@ export async function POST(req: NextRequest) {
       const analysisMap: Record<string, { widthMm: number; heightMm: number; fillFraction: number } | null> = {};
       await Promise.all(
         positionsData
-          .filter(p => !textsByView[p.view] && !sleeveTextsByView[p.view])
+          .filter(p => p.type === "photo" || (p.type === undefined && !textsByView[p.view] && !sleeveTextsByView[p.view]))
           .map(async p => {
-            const url = designUrlByView[p.view];
+            const url = p.blobUrl || designUrlByView[p.view];
             if (url) {
-              analysisMap[p.view] = await analyzeDesignImage(url, p.size);
+              analysisMap[`${p.view}:${p.blobUrl || "legacy"}`] = await analyzeDesignImage(url, p.size);
+              if (!analysisMap[p.view]) analysisMap[p.view] = analysisMap[`${p.view}:${p.blobUrl || "legacy"}`];
             }
           })
       );
@@ -429,10 +442,12 @@ export async function POST(req: NextRequest) {
               combinedItems.push({ kind: "image", url: designUrl, size, left: Math.round(W * pos.x / 100 - size / 2), top: Math.round(H * pos.y / 100 - size / 2) });
             }
             if (effectiveTextInfo) {
+              // Use the text design's own position, not the photo design's position
+              const tPos = textPosByView[side] || pos;
               const sizePx = Math.round((effectiveTextInfo.sizeMm / 700) * 780);
               const size = Math.round((sizePx / 780) * W);
               const textHex = colorLabelToHex(effectiveTextInfo.colorLabel, garmentColorVal);
-              combinedItems.push({ kind: "text", content: effectiveTextInfo.content, fontFamily: FONT_CSS_MAP[effectiveTextInfo.fontId] || FONT_CSS_MAP.sans, color: textHex, size, left: Math.round(W * pos.x / 100 - size / 2), top: Math.round(H * pos.y / 100 - size / 2) });
+              combinedItems.push({ kind: "text", content: effectiveTextInfo.content, fontFamily: FONT_CSS_MAP[effectiveTextInfo.fontId] || FONT_CSS_MAP.sans, color: textHex, size, left: Math.round(W * tPos.x / 100 - size / 2), top: Math.round(H * tPos.y / 100 - size / 2) });
               attachmentHtml += `<li><strong>TEXT:</strong> "${effectiveTextInfo.content}" — Font: ${effectiveTextInfo.fontName}, Size: ${effectiveTextInfo.sizeMm}mm, Thread color: ${effectiveTextInfo.colorLabel} (${textHex})</li>`;
             }
             const placementBase64 = await generateCombinedComposite(garmentUrl, combinedItems);
@@ -448,18 +463,39 @@ export async function POST(req: NextRequest) {
 
         if (!designUrl) { attachmentHtml += "</ul>"; continue; }
 
-        // 2. Generated embroidery design — clean, no background
+        // 2. Generated embroidery design — clean, no background (first/only design)
         const generatedBase64 = await fetchImageAsBase64(designUrl);
         if (generatedBase64) {
           attachments.push({ filename: `generated-${side}.png`, content: generatedBase64, content_type: "image/png" });
           attachmentHtml += `<li>generated-${side}.png - Embroidery design (clean, no background)</li>`;
         }
 
-        // 3. SVG vector
+        // 3. SVG vector (first/only design)
         const svgBase64 = await vectorizeDesign(designUrl);
         if (svgBase64) {
           attachments.push({ filename: `vector-${side}.svg`, content: svgBase64, content_type: "image/svg+xml" });
           attachmentHtml += `<li>vector-${side}.svg - Vector file (16 colors)</li>`;
+        }
+
+        // 4. Additional photo designs (2nd, 3rd) — only present in new orders with blobUrl in _positions
+        if (!isSleeve) {
+          const extraPhotoPositions = positionsData.filter(p =>
+            p.view === side && p.type === "photo" && p.blobUrl && p.blobUrl !== designUrl
+          );
+          for (let ai = 0; ai < extraPhotoPositions.length; ai++) {
+            const ap = extraPhotoPositions[ai];
+            const suffix = `-${ai + 2}`;
+            const extraBase64 = await fetchImageAsBase64(ap.blobUrl!);
+            if (extraBase64) {
+              attachments.push({ filename: `generated-${side}${suffix}.png`, content: extraBase64, content_type: "image/png" });
+              attachmentHtml += `<li>generated-${side}${suffix}.png - Additional design ${ai + 2} (clean, no background)</li>`;
+            }
+            const extraSvg = await vectorizeDesign(ap.blobUrl!);
+            if (extraSvg) {
+              attachments.push({ filename: `vector-${side}${suffix}.svg`, content: extraSvg, content_type: "image/svg+xml" });
+              attachmentHtml += `<li>vector-${side}${suffix}.svg - Additional design ${ai + 2} vector (16 colors)</li>`;
+            }
+          }
         }
 
         attachmentHtml += "</ul>";
@@ -476,10 +512,19 @@ export async function POST(req: NextRequest) {
         const textInfo = textsByView[p.view];
         const sleeveText = sleeveTextsByView[p.view];
 
+        // Determine if this position entry represents a text design:
+        // - New orders: use explicit type field
+        // - Legacy orders: if text exists for this view and this is a non-first entry, it's text
+        const viewEntries = positionsData.filter(q => q.view === p.view);
+        const isTextEntry = p.type === "text" ||
+          (p.type === undefined && !!textInfo && viewEntries.indexOf(p) > 0);
+
         let desc: string;
-        if (textInfo) {
+        if (isTextEntry && textInfo) {
           const colorHex = colorLabelToHex(textInfo.colorLabel, garmentColorVal);
           desc = `Text "${textInfo.content}" — ${textInfo.fontName}, ${sizeMm}mm width, color: ${textInfo.colorLabel} (${colorHex})`;
+        } else if (isTextEntry && !textInfo) {
+          return ""; // text entry but no matching textsByView — skip
         } else if (sleeveText) {
           const colorHex = colorLabelToHex(sleeveText.colorLabel, garmentColorVal);
           desc = `Text "${sleeveText.content}" — ${sleeveText.fontName}, ${sizeMm}mm width, color: ${sleeveText.colorLabel} (${colorHex})`;
@@ -510,7 +555,7 @@ export async function POST(req: NextRequest) {
                 const viewIdx = p.view === "front" ? 0 : 1;
                 return styleList[viewIdx] || styleList[0] || "Design";
               })();
-          const analysis = analysisMap[p.view];
+          const analysis = analysisMap[`${p.view}:${p.blobUrl || "legacy"}`] || analysisMap[p.view];
           if (analysis) {
             const areaCm2 = Math.round((analysis.widthMm * analysis.heightMm * analysis.fillFraction) / 10) / 10;
             desc = `${styleName} — ${analysis.widthMm}mm × ${analysis.heightMm}mm, faktiskā platība: ~${areaCm2} cm²`;
@@ -521,7 +566,7 @@ export async function POST(req: NextRequest) {
 
         const rotStr = p.rotation ? ` (${Math.round(p.rotation)}° rotation)` : "";
         return `<strong>${label}:</strong> ${desc}, position x=${Math.round(p.x)}% y=${Math.round(p.y)}%${rotStr}`;
-      }).join("<br>");
+      }).filter(s => s !== "").join("<br>");
 
       const emailHtml = `
         <div style="font-family: system-ui, sans-serif; max-width: 600px;">

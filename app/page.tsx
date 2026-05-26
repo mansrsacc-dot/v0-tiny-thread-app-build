@@ -1496,12 +1496,10 @@ export default function TinyThreadStudio() {
         } catch { return null; }
       };
 
-      const [frontBlobUrl, backBlobUrl, leftSleeveBlobUrl, rightSleeveBlobUrl] = await Promise.all([
-        uploadDesignToBlob(designs.find(d => d.view === "front"        && !d.textContent), "front"),
-        uploadDesignToBlob(designs.find(d => d.view === "back"         && !d.textContent), "back"),
-        uploadDesignToBlob(designs.find(d => d.view === "left-sleeve"  && !d.textContent), "left-sleeve"),
-        uploadDesignToBlob(designs.find(d => d.view === "right-sleeve" && !d.textContent), "right-sleeve"),
-      ]);
+      // Upload ALL photo designs to blob (each design on each side gets its own stable URL)
+      const designBlobUrls = await Promise.all(
+        designs.map((d, idx) => d.textContent ? Promise.resolve(null) : uploadDesignToBlob(d, `${d.view}_${idx}`))
+      );
 
       const photoStyleNames = designs
         .filter(d => !d.textContent)
@@ -1513,18 +1511,25 @@ export default function TinyThreadStudio() {
         "Design Count": String(designs.length),
         "Placement": designs.map(d => d.view).join(", "),
         "Order Type": "Multiple",
-        "_positions": JSON.stringify(designs.map(d => ({
+        "_positions": JSON.stringify(designs.map((d, idx) => ({
           view: d.view, x: d.position.x, y: d.position.y,
           size: d.currentSizePx || 150, rotation: d.rotation || 0,
+          type: d.textContent ? "text" : "photo",
+          ...(d.textContent ? {} : { blobUrl: designBlobUrls[idx] || undefined }),
         }))),
       };
       if (photoStyleNames.length > 0) sharedProps["Embroidery Style"] = photoStyleNames.join(", ");
       if (frontD) sharedProps["_garment"] = `${product}-${color}-front`;
       if (backD)  sharedProps["_garment_back"] = `${product}-${color}-back`;
-      if (frontBlobUrl)      sharedProps["_design_image"]               = frontBlobUrl;
-      if (backBlobUrl)       sharedProps["_design_image_back"]          = backBlobUrl;
-      if (leftSleeveBlobUrl)  sharedProps["_design_image_left_sleeve"]  = leftSleeveBlobUrl;
-      if (rightSleeveBlobUrl) sharedProps["_design_image_right_sleeve"] = rightSleeveBlobUrl;
+      // Legacy single-design-per-view properties (backward compat)
+      const idx0F = designs.findIndex(d => d.view === "front"         && !d.textContent);
+      const idx0B = designs.findIndex(d => d.view === "back"          && !d.textContent);
+      const idx0L = designs.findIndex(d => d.view === "left-sleeve"   && !d.textContent);
+      const idx0R = designs.findIndex(d => d.view === "right-sleeve"  && !d.textContent);
+      if (idx0F >= 0 && designBlobUrls[idx0F]) sharedProps["_design_image"]               = designBlobUrls[idx0F]!;
+      if (idx0B >= 0 && designBlobUrls[idx0B]) sharedProps["_design_image_back"]          = designBlobUrls[idx0B]!;
+      if (idx0L >= 0 && designBlobUrls[idx0L]) sharedProps["_design_image_left_sleeve"]   = designBlobUrls[idx0L]!;
+      if (idx0R >= 0 && designBlobUrls[idx0R]) sharedProps["_design_image_right_sleeve"]  = designBlobUrls[idx0R]!;
       const carPhotoDesignMulti = designs.find(d => !d.textContent && d.style === "car");
       if (carPhotoDesignMulti && carPhotoDesignMulti.licensePlate !== undefined) {
         sharedProps["License Plate"] = carPhotoDesignMulti.licensePlate || "Nav nepieciešama";
@@ -1666,16 +1671,7 @@ export default function TinyThreadStudio() {
         }
       } catch {}
       
-      // Pass design position info for the designer
-      const positionInfo = designs.map(d => ({
-        view: d.view,
-        x: d.position.x,
-        y: d.position.y,
-        size: d.currentSizePx || 150,
-        rotation: d.rotation || 0,
-        style: d.style,
-      }));
-      params.set("properties[_positions]", JSON.stringify(positionInfo));
+      // _positions is set after blob uploads below (needs blobUrl per design)
       
       // --- Store original photos for the webhook to use later ---
       try {
@@ -1937,20 +1933,27 @@ export default function TinyThreadStudio() {
           return data.url || null;
         } catch { return null; }
       };
-      const frontPhotoDesign = designs.find(d => d.view === "front" && !d.textContent);
-      const backPhotoDesign  = designs.find(d => d.view === "back"  && !d.textContent);
-      const leftSleevePhotoDesign  = designs.find(d => d.view === "left-sleeve"  && !d.textContent);
-      const rightSleevePhotoDesign = designs.find(d => d.view === "right-sleeve" && !d.textContent);
-      const [frontDesignBlobUrl, backDesignBlobUrl, leftSleeveBlobUrl, rightSleeveBlobUrl] = await Promise.all([
-        uploadDesignToBlob(frontPhotoDesign, "front"),
-        uploadDesignToBlob(backPhotoDesign,  "back"),
-        uploadDesignToBlob(leftSleevePhotoDesign,  "left-sleeve"),
-        uploadDesignToBlob(rightSleevePhotoDesign, "right-sleeve"),
-      ]);
-      if (frontDesignBlobUrl)  params.set("properties[_design_image]",            frontDesignBlobUrl);
-      if (backDesignBlobUrl)   params.set("properties[_design_image_back]",       backDesignBlobUrl);
-      if (leftSleeveBlobUrl)   params.set("properties[_design_image_left_sleeve]",  leftSleeveBlobUrl);
-      if (rightSleeveBlobUrl)  params.set("properties[_design_image_right_sleeve]", rightSleeveBlobUrl);
+      // Upload ALL photo designs to blob (each design on each side gets its own stable URL)
+      const singleBlobUrls = await Promise.all(
+        designs.map((d, idx) => d.textContent ? Promise.resolve(null) : uploadDesignToBlob(d, `${d.view}_${idx}`))
+      );
+      // Set _positions with type and blobUrl so webhook can attach each design separately
+      params.set("properties[_positions]", JSON.stringify(designs.map((d, idx) => ({
+        view: d.view, x: d.position.x, y: d.position.y,
+        size: d.currentSizePx || 150, rotation: d.rotation || 0,
+        style: d.style,
+        type: d.textContent ? "text" : "photo",
+        ...(d.textContent ? {} : { blobUrl: singleBlobUrls[idx] || undefined }),
+      }))));
+      // Legacy single-design-per-view properties (backward compat)
+      const s0F = designs.findIndex(d => d.view === "front"         && !d.textContent);
+      const s0B = designs.findIndex(d => d.view === "back"          && !d.textContent);
+      const s0L = designs.findIndex(d => d.view === "left-sleeve"   && !d.textContent);
+      const s0R = designs.findIndex(d => d.view === "right-sleeve"  && !d.textContent);
+      if (s0F >= 0 && singleBlobUrls[s0F]) params.set("properties[_design_image]",             singleBlobUrls[s0F]!);
+      if (s0B >= 0 && singleBlobUrls[s0B]) params.set("properties[_design_image_back]",        singleBlobUrls[s0B]!);
+      if (s0L >= 0 && singleBlobUrls[s0L]) params.set("properties[_design_image_left_sleeve]",  singleBlobUrls[s0L]!);
+      if (s0R >= 0 && singleBlobUrls[s0R]) params.set("properties[_design_image_right_sleeve]", singleBlobUrls[s0R]!);
 
       // Sleeve embroidery info property
       const sleeveDesigns = designs.filter(d => isSleeveView(d.view));
