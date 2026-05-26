@@ -839,31 +839,23 @@ export default function TinyThreadStudio() {
       setDesigns(prev => {
         console.log("[APPLY] setDesigns prev:", prev.map(d => ({ id: d.id, view: d.view })));
 
-        // 1. Active design selected — replace only that slot, all others untouched.
-        const activeIdx = selectedDesignId ? prev.findIndex(d => d.id === selectedDesignId) : -1;
-        if (activeIdx >= 0) {
-          console.log("[APPLY] replacing active index:", activeIdx);
-          const result = prev.map((d, i) => i === activeIdx ? newDesign : d);
-          console.log("[APPLY] designs after (active replace):", result.map(d => ({ id: d.id, view: d.view })));
-          return result;
-        }
-
-        // 2. No design selected — add as a new slot if under limit, preserving all existing designs.
+        // Always add as a new slot when under the limit — never replace an existing design.
         const photosOnView = prev.filter(d => d.view === targetView && !d.textContent);
-        console.log("[APPLY] no selection, photosOnView:", photosOnView.length, "MAX:", MAX_DESIGNS_PER_SIDE);
+        console.log("[APPLY] photosOnView:", photosOnView.length, "MAX:", MAX_DESIGNS_PER_SIDE);
         if (photosOnView.length < MAX_DESIGNS_PER_SIDE) {
           const result = [...prev, newDesign];
-          console.log("[APPLY] designs after (add new slot):", result.map(d => ({ id: d.id, view: d.view })));
+          console.log("[APPLY] designs after (add):", result.map(d => ({ id: d.id, view: d.view })));
           return result;
         }
 
-        // 3. At limit with no selection — replace the primary design on this view.
-        const primaryIdx = prev.findIndex(d => d.view === targetView && !d.textContent);
-        console.log("[APPLY] at limit, replacing primaryIdx:", primaryIdx);
-        const result = primaryIdx >= 0
-          ? prev.map((d, i) => i === primaryIdx ? newDesign : d)
+        // Already at the limit — replace the selected slot, or the primary if nothing is selected.
+        const replaceIdx = selectedDesignId ? prev.findIndex(d => d.id === selectedDesignId) : -1;
+        const targetIdx = replaceIdx >= 0 ? replaceIdx : prev.findIndex(d => d.view === targetView && !d.textContent);
+        console.log("[APPLY] at limit, replacing idx:", targetIdx);
+        const result = targetIdx >= 0
+          ? prev.map((d, i) => i === targetIdx ? newDesign : d)
           : [...prev, newDesign];
-        console.log("[APPLY] designs after (limit replace):", result.map(d => ({ id: d.id, view: d.view })));
+        console.log("[APPLY] designs after (replace at limit):", result.map(d => ({ id: d.id, view: d.view })));
         return result;
       });
       setSelectedDesignId(newDesign.id);
