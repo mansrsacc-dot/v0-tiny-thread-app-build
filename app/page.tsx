@@ -886,51 +886,72 @@ export default function TinyThreadStudio() {
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(imageUrl);
-          return;
-        }
-        
+        if (!ctx) { resolve(imageUrl); return; }
+
         ctx.drawImage(img, 0, 0);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
-        
-        const threshold = 40;
-        
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          
-          if (styleType === "outline") {
-            if (garmentColor === "black") {
-              if (r < threshold && g < threshold && b < threshold) {
-                data[i + 3] = 0;
-              }
-            } else {
-              if (r > 255 - threshold && g > 255 - threshold && b > 255 - threshold) {
-                data[i + 3] = 0;
-              }
+
+        if (styleType === "standard") {
+          // Edge-connected flood fill: only remove white pixels reachable from the image border.
+          // Interior white elements (e.g. camera ring inside a logo) are enclosed by colored
+          // pixels and are NOT reachable from the edges, so they are preserved.
+          const W = canvas.width, H = canvas.height;
+          const n = W * H;
+          const visited = new Uint8Array(n);
+          const queue: number[] = [];
+
+          const tryEnqueue = (px: number) => {
+            if (visited[px]) return;
+            const i = px * 4;
+            if (data[i + 3] > 0 && Math.min(data[i], data[i + 1], data[i + 2]) > 220) {
+              visited[px] = 1;
+              queue.push(px);
             }
-          } else if (styleType === "standard") {
-            // Standard Logo: Replicate puts the logo on pure white. Strip pure-white pixels
-            // (with feathered alpha for near-white) to get a clean transparent cutout.
-            // This runs as a fallback/safety-net after the AI rembg call.
-            const minRGB = Math.min(r, g, b);
+          };
+
+          // Seed BFS from all 4 image edges
+          for (let x = 0; x < W; x++) { tryEnqueue(x); tryEnqueue((H - 1) * W + x); }
+          for (let y = 1; y < H - 1; y++) { tryEnqueue(y * W); tryEnqueue(y * W + W - 1); }
+
+          // Expand through adjacent near-white pixels
+          let qi = 0;
+          while (qi < queue.length) {
+            const cur = queue[qi++];
+            const cy = Math.floor(cur / W), cx = cur % W;
+            if (cx > 0)     tryEnqueue(cur - 1);
+            if (cx < W - 1) tryEnqueue(cur + 1);
+            if (cy > 0)     tryEnqueue(cur - W);
+            if (cy < H - 1) tryEnqueue(cur + W);
+          }
+
+          // Make only exterior (visited) near-white pixels transparent
+          for (let idx = 0; idx < n; idx++) {
+            if (!visited[idx]) continue;
+            const i = idx * 4;
+            const minRGB = Math.min(data[i], data[i + 1], data[i + 2]);
             if (minRGB > 245) {
-              // Pure white -> fully transparent
               data[i + 3] = 0;
-            } else if (minRGB > 230) {
-              // Near-white -> feather alpha for clean edges
-              data[i + 3] = Math.round(((255 - minRGB) / (255 - 230)) * 255);
+            } else if (minRGB > 220) {
+              data[i + 3] = Math.round(((255 - minRGB) / (255 - 220)) * 255);
             }
-          } else if (styleType === "pet-head" || styleType === "car") {
-            if (r < threshold && g < threshold && b < threshold) {
-              data[i + 3] = 0;
+          }
+        } else {
+          const threshold = 40;
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2];
+            if (styleType === "outline") {
+              if (garmentColor === "black") {
+                if (r < threshold && g < threshold && b < threshold) data[i + 3] = 0;
+              } else {
+                if (r > 255 - threshold && g > 255 - threshold && b > 255 - threshold) data[i + 3] = 0;
+              }
+            } else if (styleType === "pet-head" || styleType === "car") {
+              if (r < threshold && g < threshold && b < threshold) data[i + 3] = 0;
             }
           }
         }
-        
+
         ctx.putImageData(imageData, 0, 0);
         resolve(canvas.toDataURL("image/png"));
       };
@@ -976,8 +997,16 @@ export default function TinyThreadStudio() {
         // on a car when the bg was black, or dark fur on a pet head).
         // Outline still uses the simple pixel-color strip because it's a clean
         // 2-color line drawing on a known background.
-        if (styleType === "standard" || styleType === "pet-head" || styleType === "car") {
-          // 1) AI-based background removal (preserves all subject colors)
+        if (styleType === "standard") {
+          // Logo on pure white background: edge-connected flood fill (no rembg needed).
+          // rembg would remove interior white elements (e.g. camera ring in Instagram logo);
+          // flood fill only removes the outer background, not enclosed interior regions.
+          const sourceUrl = data.imageUrl.includes("replicate.delivery")
+            ? `/api/proxy-image?url=${encodeURIComponent(data.imageUrl)}`
+            : data.imageUrl;
+          processed = await removeImageBackground(sourceUrl, "standard", color);
+        } else if (styleType === "pet-head" || styleType === "car") {
+          // AI-based background removal for complex subjects with non-white backgrounds
           let aiBgUrl = data.imageUrl;
           try {
             const bgRes = await fetch("/api/remove-bg", {
@@ -988,14 +1017,10 @@ export default function TinyThreadStudio() {
             const bgData = await bgRes.json();
             if (bgData.imageUrl) aiBgUrl = bgData.imageUrl;
           } catch {}
-          // 2) Client-side white-pixel cleanup safety net.
-          // All three styles (standard/pet-head/car) now use prompts that produce
-          // a solid pure white background. Strip any remaining white pixels so the
-          // result is transparent regardless of whether AI bg removal succeeded.
           const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
             ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
             : aiBgUrl;
-          processed = await removeImageBackground(sourceForCleanup, "standard", color);
+          processed = await removeImageBackground(sourceForCleanup, styleType, color);
         } else {
           processed = await removeImageBackground(data.imageUrl, styleType, color);
         }
@@ -1381,8 +1406,12 @@ export default function TinyThreadStudio() {
     if (newIndex !== currentIndex && history[newIndex]) {
       const newImageUrl = history[newIndex];
       let processed: string;
-      if (styleType === "standard" || styleType === "pet-head" || styleType === "car") {
-        // AI-based bg removal preserves all subject colors
+      if (styleType === "standard") {
+        const sourceUrl = newImageUrl.includes("replicate.delivery")
+          ? `/api/proxy-image?url=${encodeURIComponent(newImageUrl)}`
+          : newImageUrl;
+        processed = await removeImageBackground(sourceUrl, "standard", color);
+      } else if (styleType === "pet-head" || styleType === "car") {
         let aiBgUrl = newImageUrl;
         try {
           const bgRes = await fetch("/api/remove-bg", {
@@ -1396,7 +1425,7 @@ export default function TinyThreadStudio() {
         const sourceForCleanup = aiBgUrl.includes("replicate.delivery")
           ? `/api/proxy-image?url=${encodeURIComponent(aiBgUrl)}`
           : aiBgUrl;
-        processed = await removeImageBackground(sourceForCleanup, "standard", color);
+        processed = await removeImageBackground(sourceForCleanup, styleType, color);
       } else {
         processed = await removeImageBackground(newImageUrl, styleType, color);
       }

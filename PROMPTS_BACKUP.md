@@ -72,3 +72,24 @@ take the car or vehicle from this photo. Keep the exact same shape, proportions,
 ```
 make closest objects whichever are most significant to picture into an artistic rendering. no background objects.
 ```
+
+---
+
+## Background Removal Settings (`app/api/remove-bg/route.ts`)
+
+### Settings as of 2026-05-20 (BEFORE bug fix)
+- **Model**: `cjwbw/rembg` version `fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003`
+- **Parameters**: `{ image: imageUrl }` (model defaults: u2net, no alpha matting)
+- **Canvas cleanup** (`removeImageBackground` in `page.tsx`):
+  - `standard`: global near-white strip — `minRGB > 245` → alpha=0, `minRGB > 230` → feathered alpha
+  - `pet-head` / `car`: after rembg, calls canvas cleanup with mode `"standard"` (same near-white strip)
+  - `outline`: strips dark/black pixels per garment color
+- **Bug**: rembg + global white-strip both remove interior white elements (e.g. white camera ring inside Instagram logo)
+
+### Settings as of 2026-05-26 (AFTER bug fix)
+- **`standard` style**: rembg API call **removed**. Replaced with **edge-connected flood fill** in canvas:
+  - BFS from all 4 image edges through pixels with `minRGB > 220`
+  - Only exterior (edge-reachable) near-white pixels are made transparent
+  - Interior white elements enclosed by colored logo pixels are **preserved** (not reachable from edges)
+  - Transparent range: `minRGB > 245` → alpha=0; `220–245` → feathered
+- **`pet-head` / `car` styles**: unchanged — still use rembg API + canvas dark-pixel cleanup
