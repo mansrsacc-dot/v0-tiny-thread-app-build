@@ -496,8 +496,8 @@ const SLEEVE_PRICE = 25; // photo design on sleeve
 const SLEEVE_TEXT_PRICE = 12; // text-only on sleeve (no photo)
 const SLEEVE_TEXT_MAX_CHARS = 10;
 const SLEEVE_DESIGN_SIZE_PX = 150; // fixed ~100mm visual size
-// Shopify variant ID for €25 sleeve add-on (create in Shopify, then fill in)
-const SLEEVE_PHOTO_ADDON_VARIANT_ID = "";
+// Shopify variant ID for €25 sleeve add-on
+const SLEEVE_PHOTO_ADDON_VARIANT_ID = "57447930986827";
 const MAX_DESIGNS_PER_SIDE = 3;
 const ADDITIONAL_DESIGN_PRICING: Record<Style, Record<"S" | "M", number>> = {
   outline:    { S: 17, M: 35 },
