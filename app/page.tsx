@@ -513,33 +513,6 @@ const ADDITIONAL_DESIGN_VARIANT_IDS: Record<Style, Record<"S" | "M", string>> = 
 };
 const isSleeveView = (v: string) => v === "left-sleeve" || v === "right-sleeve";
 
-// Submit all cart items to Shopify via a hidden form POST.
-// A form POST is a browser navigation — no CORS restrictions apply and the browser
-// automatically sends the user's tinythread.shop session cookies, so items land in
-// the correct cart. Shopify redirects to /cart after processing.
-function submitCartForm(items: Array<{ id: string; quantity: number; properties?: Record<string, string> }>) {
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = "https://tinythread.shop/cart/add";
-  form.style.display = "none";
-  const add = (name: string, value: string) => {
-    const el = document.createElement("input");
-    el.type = "hidden";
-    el.name = name;
-    el.value = value;
-    form.appendChild(el);
-  };
-  items.forEach((item, i) => {
-    add(`items[${i}][id]`, item.id);
-    add(`items[${i}][quantity]`, String(item.quantity));
-    for (const [k, v] of Object.entries(item.properties ?? {})) {
-      add(`items[${i}][properties][${k}]`, v);
-    }
-  });
-  add("return_to", "/cart");
-  document.body.appendChild(form);
-  form.submit();
-}
 
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -1597,7 +1570,17 @@ export default function TinyThreadStudio() {
         },
       }));
 
-      submitCartForm(items);
+      const cartResp = await fetch("/api/shopify/cart-add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      if (!cartResp.ok) {
+        const err = await cartResp.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Cart add failed");
+      }
+      const { checkoutUrl } = await cartResp.json();
+      window.location.href = checkoutUrl;
     } catch (e) {
       console.error("[MULTIPLE ORDER] Failed:", e);
       toast({ title: t.errorCart, description: t.errorGeneric });
@@ -2121,8 +2104,18 @@ export default function TinyThreadStudio() {
         }
       }
       console.log("[ADD TO CART] variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);
-      console.log("[ADD TO CART] form-submit payload:", JSON.stringify(cartItems.map(i => ({ id: i.id, qty: i.quantity })), null, 2));
-      submitCartForm(cartItems);
+      console.log("[ADD TO CART] cart-add payload:", JSON.stringify(cartItems.map(i => ({ id: i.id, qty: i.quantity })), null, 2));
+      const cartResp = await fetch("/api/shopify/cart-add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: cartItems }),
+      });
+      if (!cartResp.ok) {
+        const err = await cartResp.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Cart add failed");
+      }
+      const { checkoutUrl } = await cartResp.json();
+      window.location.href = checkoutUrl;
 
     } catch (error: unknown) {
       console.error("[ADD TO CART] Error:", error);
