@@ -513,6 +513,34 @@ const ADDITIONAL_DESIGN_VARIANT_IDS: Record<Style, Record<"S" | "M", string>> = 
 };
 const isSleeveView = (v: string) => v === "left-sleeve" || v === "right-sleeve";
 
+// Submit all cart items to Shopify via a hidden form POST.
+// A form POST is a browser navigation — no CORS restrictions apply and the browser
+// automatically sends the user's tinythread.shop session cookies, so items land in
+// the correct cart. Shopify redirects to /cart after processing.
+function submitCartForm(items: Array<{ id: string; quantity: number; properties?: Record<string, string> }>) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "https://tinythread.shop/cart/add";
+  form.style.display = "none";
+  const add = (name: string, value: string) => {
+    const el = document.createElement("input");
+    el.type = "hidden";
+    el.name = name;
+    el.value = value;
+    form.appendChild(el);
+  };
+  items.forEach((item, i) => {
+    add(`items[${i}][id]`, item.id);
+    add(`items[${i}][quantity]`, String(item.quantity));
+    for (const [k, v] of Object.entries(item.properties ?? {})) {
+      add(`items[${i}][properties][${k}]`, v);
+    }
+  });
+  add("return_to", "/cart");
+  document.body.appendChild(form);
+  form.submit();
+}
+
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [lang, setLang] = useState<Lang>("lv");
@@ -1569,18 +1597,7 @@ export default function TinyThreadStudio() {
         },
       }));
 
-      const addRes = await fetch("https://tinythread.shop/cart/add.js", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ items }),
-      });
-
-      if (addRes.ok) {
-        window.location.href = "https://tinythread.shop/cart";
-      } else {
-        throw new Error("cart/add.js returned " + addRes.status);
-      }
+      submitCartForm(items);
     } catch (e) {
       console.error("[MULTIPLE ORDER] Failed:", e);
       toast({ title: t.errorCart, description: t.errorGeneric });
@@ -2063,7 +2080,19 @@ export default function TinyThreadStudio() {
       }
       // --- End auto-save ---
 
-      // If there are text/sleeve/additional-design add-ons, use cart/add.js multi-item add
+      // Build full items array (main variant + all add-ons) and submit via form POST.
+      // Form POST is a browser navigation: no CORS, session cookies sent automatically.
+      const propsObj: Record<string, string> = {};
+      for (const [k, v] of params.entries()) {
+        if (k.startsWith("properties[") && k.endsWith("]")) {
+          propsObj[k.slice("properties[".length, -1)] = v;
+        }
+      }
+      const cartItems: { id: string; quantity: number; properties: Record<string, string> }[] = [
+        { id: variantId, quantity: 1, properties: propsObj },
+      ];
+      const orderRef = propsObj["_order_ref"] || "";
+
       const regularTextCount2 = designs.filter(d => !!d.textContent && !isSleeveView(d.view)).length;
       const sleeveTextOnly2Count = designs.filter(d => isSleeveView(d.view) && !!d.textContent && !designs.some(o => o.view === d.view && !o.textContent)).length;
       const billableTextCount = regularTextCount2 + sleeveTextOnly2Count;
@@ -2076,55 +2105,24 @@ export default function TinyThreadStudio() {
           additionalPhotoDesigns.push({ design: d, addSize: (d.size === "L" ? "M" : d.size) as "S" | "M" });
         }
       }
-      const needsMultiAdd = (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) || (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) || additionalPhotoDesigns.length > 0;
-      if (needsMultiAdd) {
-        // Build items array for multi-add
-        const propsObj: Record<string, string> = {};
-        for (const [k, v] of params.entries()) {
-          if (k.startsWith("properties[") && k.endsWith("]")) {
-            propsObj[k.slice("properties[".length, -1)] = v;
-          }
-        }
-        const items: { id: string; quantity: number; properties: Record<string, string> }[] = [
-          { id: variantId, quantity: 1, properties: propsObj },
-        ];
-        console.log("[ADD TO CART] variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);
-        if (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) {
-          items.push({ id: TEXT_ADDON_VARIANT_ID, quantity: billableTextCount, properties: { "_for_order_ref": propsObj["_order_ref"] || "" } });
-        }
-        if (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) {
-          items.push({ id: SLEEVE_PHOTO_ADDON_VARIANT_ID, quantity: sleevePhotoCount, properties: { "_for_order_ref": propsObj["_order_ref"] || "" } });
-        }
-        for (const { design: addDesign, addSize } of additionalPhotoDesigns) {
-          const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
-          if (addVariantId) {
-            const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
-            const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
-            items.push({ id: addVariantId, quantity: 1, properties: { "_for_order_ref": propsObj["_order_ref"] || "", "Style": styleName, "Size": `${addSize} (${sizeMm}mm)`, "Placement": addDesign.view } });
-          }
-        }
-        try {
-          console.log("[ADD TO CART] multi-add payload:", JSON.stringify(items.map(i => ({ id: i.id, qty: i.quantity })), null, 2));
-          const addRes = await fetch("https://tinythread.shop/cart/add.js", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ items }),
-          });
-          if (addRes.ok) {
-            window.location.href = "https://tinythread.shop/cart";
-            return;
-          }
-          // Fallback to single-item add if the multi-add fails (e.g. CORS)
-          console.warn("[ADD TO CART] Multi-add failed, falling back to single-item URL");
-        } catch (e) {
-          console.warn("[ADD TO CART] Multi-add error, falling back:", e);
+
+      if (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) {
+        cartItems.push({ id: TEXT_ADDON_VARIANT_ID, quantity: billableTextCount, properties: { "_for_order_ref": orderRef } });
+      }
+      if (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) {
+        cartItems.push({ id: SLEEVE_PHOTO_ADDON_VARIANT_ID, quantity: sleevePhotoCount, properties: { "_for_order_ref": orderRef } });
+      }
+      for (const { design: addDesign, addSize } of additionalPhotoDesigns) {
+        const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
+        if (addVariantId) {
+          const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
+          const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
+          cartItems.push({ id: addVariantId, quantity: 1, properties: { "_for_order_ref": orderRef, "Style": styleName, "Size": `${addSize} (${sizeMm}mm)`, "Placement": addDesign.view } });
         }
       }
-
-      // Redirect to Shopify cart/add — this adds to the REAL browser cart (single item)
-      console.log("[ADD TO CART] single-item variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);
-      window.location.href = "https://tinythread.shop/cart/add?" + params.toString();
+      console.log("[ADD TO CART] variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);
+      console.log("[ADD TO CART] form-submit payload:", JSON.stringify(cartItems.map(i => ({ id: i.id, qty: i.quantity })), null, 2));
+      submitCartForm(cartItems);
 
     } catch (error: unknown) {
       console.error("[ADD TO CART] Error:", error);
