@@ -506,10 +506,10 @@ const ADDITIONAL_DESIGN_PRICING: Record<Style, Record<"S" | "M", number>> = {
   car:        { S: 21, M: 41 },
 };
 const ADDITIONAL_DESIGN_VARIANT_IDS: Record<Style, Record<"S" | "M", string>> = {
-  outline:    { S: "", M: "" },
-  standard:   { S: "", M: "" },
-  "pet-head": { S: "", M: "" },
-  car:        { S: "", M: "" },
+  outline:    { S: "57443339469131", M: "57443339501899" },
+  standard:   { S: "57443339534667", M: "57443339567435" },
+  "pet-head": { S: "57443339600203", M: "57443339632971" },
+  car:        { S: "57443339665739", M: "57443339698507" },
 };
 const isSleeveView = (v: string) => v === "left-sleeve" || v === "right-sleeve";
 
