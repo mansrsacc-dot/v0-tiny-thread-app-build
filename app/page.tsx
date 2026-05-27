@@ -2088,6 +2088,7 @@ export default function TinyThreadStudio() {
         const items: { id: string; quantity: number; properties: Record<string, string> }[] = [
           { id: variantId, quantity: 1, properties: propsObj },
         ];
+        console.log("[ADD TO CART] variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);
         if (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) {
           items.push({ id: TEXT_ADDON_VARIANT_ID, quantity: billableTextCount, properties: { "_for_order_ref": propsObj["_order_ref"] || "" } });
         }
@@ -2103,6 +2104,7 @@ export default function TinyThreadStudio() {
           }
         }
         try {
+          console.log("[ADD TO CART] multi-add payload:", JSON.stringify(items.map(i => ({ id: i.id, qty: i.quantity })), null, 2));
           const addRes = await fetch("https://tinythread.shop/cart/add.js", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -2121,6 +2123,7 @@ export default function TinyThreadStudio() {
       }
 
       // Redirect to Shopify cart/add — this adds to the REAL browser cart (single item)
+      console.log("[ADD TO CART] single-item variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);
       window.location.href = "https://tinythread.shop/cart/add?" + params.toString();
 
     } catch (error: unknown) {
