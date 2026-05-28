@@ -286,10 +286,10 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      const style = getProp("Embroidery Style") || "Unknown";
-      const size = getProp("Embroidery Size") || "Unknown";
-      const placement = getProp("Placement") || "front";
-      const designCount = getProp("Design Count") || "1";
+      const style = getProp("_embroidery_style") || getProp("Embroidery Style") || "Unknown";
+      const size = getProp("_embroidery_size") || getProp("Embroidery Size") || "Unknown";
+      const placement = getProp("_placement") || getProp("Placement") || "front";
+      const designCount = getProp("_design_count") || getProp("Design Count") || "1";
       const orderRef = getProp("_order_ref");
 
       // Garment clothing size (S/M/L/XL) from the Shopify variant title.
@@ -307,7 +307,7 @@ export async function POST(req: NextRequest) {
       const leftSleeveDesignUrl  = getProp("_design_image_left_sleeve");
       const rightSleeveDesignUrl = getProp("_design_image_right_sleeve");
 
-      const licensePlate = getProp("License Plate");
+      const licensePlate = getProp("_license_plate") || getProp("License Plate");
       const screenshotFrontUrl      = getProp("_screenshot_front");
       const screenshotBackUrl       = getProp("_screenshot_back");
       const screenshotLeftSleeveUrl  = getProp("_screenshot_left_sleeve");
@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
 
       // Parse text embroidery info: 'TEXT (font: Sans, 100mm, color: Red, front) | TEXT2 (font: Serif, 80mm, color: Auto, back)'
       // Backwards-compatible: also accepts old format without color: 'TEXT (font: Sans, 100mm, front)'
-      const textEmbProp = getProp("Text Embroidery");
+      const textEmbProp = getProp("_text_detail") || getProp("Text Embroidery");
       const textsByView: Record<string, { content: string; fontName: string; sizeMm: number; fontId: string; colorLabel: string }> = {};
       if (textEmbProp) {
         const entries = textEmbProp.split(" | ");

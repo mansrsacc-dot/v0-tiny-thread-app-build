@@ -1547,22 +1547,32 @@ export default function TinyThreadStudio() {
         .map(d => STYLES.find(s => s.id === d.style)?.name || d.style);
       const textDesigns = designs.filter(d => !!d.textContent);
 
+      // Clean language-aware view label helper
+      const isLVm = lang === "lv";
+      const localViewM = (v: string) =>
+        v === "front" ? (isLVm ? "Priekša" : "Front") :
+        v === "back" ? (isLVm ? "Aizmugure" : "Back") :
+        v === "left-sleeve" ? (isLVm ? "Kreisā Piedurkne" : "Left Sleeve") :
+        v === "right-sleeve" ? (isLVm ? "Labā Piedurkne" : "Right Sleeve") : v;
+      const uniqueViewsM = [...new Set(designs.map(d => d.view))];
+
       const sharedProps: Record<string, string> = {
         "_order_ref": orderRef,
-        "Design Count": String(designs.length),
-        "Placement": designs.map(d => d.view).join(", "),
-        "Order Type": "Multiple",
+        "_design_count": String(designs.length),
+        "_placement": designs.map(d => d.view).join(", "),
+        "_order_type": "Multiple",
         "_positions": JSON.stringify(designs.map((d, idx) => ({
           view: d.view, x: d.position.x, y: d.position.y,
           size: d.currentSizePx || 150, rotation: d.rotation || 0,
           type: d.textContent ? "text" : "photo",
           ...(d.textContent ? {} : { blobUrl: designBlobUrls[idx] || undefined }),
         }))),
+        // Customer-facing
+        [isLVm ? "Izvietojums" : "Placement"]: uniqueViewsM.map(localViewM).join(" + "),
       };
-      if (photoStyleNames.length > 0) sharedProps["Embroidery Style"] = photoStyleNames.join(", ");
+      if (photoStyleNames.length > 0) sharedProps["_embroidery_style"] = photoStyleNames.join(", ");
       if (frontD) sharedProps["_garment"] = `${product}-${color}-front`;
       if (backD)  sharedProps["_garment_back"] = `${product}-${color}-back`;
-      // Legacy single-design-per-view properties (backward compat)
       const idx0F = designs.findIndex(d => d.view === "front"         && !d.textContent);
       const idx0B = designs.findIndex(d => d.view === "back"          && !d.textContent);
       const idx0L = designs.findIndex(d => d.view === "left-sleeve"   && !d.textContent);
@@ -1573,25 +1583,27 @@ export default function TinyThreadStudio() {
       if (idx0R >= 0 && designBlobUrls[idx0R]) sharedProps["_design_image_right_sleeve"]  = designBlobUrls[idx0R]!;
       const carPhotoDesignMulti = designs.find(d => !d.textContent && d.style === "car");
       if (carPhotoDesignMulti && carPhotoDesignMulti.licensePlate !== undefined) {
-        sharedProps["License Plate"] = carPhotoDesignMulti.licensePlate || "Nav nepieciešama";
+        sharedProps["_license_plate"] = carPhotoDesignMulti.licensePlate || "Nav nepieciešama";
       }
       if (textDesigns.length > 0) {
-        sharedProps["Text Embroidery"] = textDesigns.map(d => {
+        sharedProps["_text_detail"] = textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
           const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100;
           const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
           const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
           return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
         }).join(" | ");
+        sharedProps[isLVm ? "Teksts" : "Text"] = textDesigns.map(d => `"${d.textContent}"`).join(" | ");
       }
 
       const designSizeMm = designs.map(d => d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100);
-      const items = cartItems.map(({ id, quantity, size }) => ({
+      const items = cartItems.map(({ id, quantity, size: itemSize }) => ({
         id,
         quantity,
         properties: {
           ...sharedProps,
-          "Embroidery Size": designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", "),
+          "_embroidery_size": designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", "),
+          [isLVm ? "Izmērs" : "Size"]: itemSize,
         },
       }));
 
@@ -1602,7 +1614,7 @@ export default function TinyThreadStudio() {
     } finally {
       setIsAddingMultiple(false);
     }
-  }, [multipleQtys, designs, product, color, style, toast, t]);
+  }, [multipleQtys, designs, product, color, style, toast, t, lang]);
 
   // Handle Add to Cart - uses Shopify's cart/add URL to add to the REAL browser cart
   const handleAddToCart = useCallback(async () => {
@@ -1650,21 +1662,22 @@ export default function TinyThreadStudio() {
       const params = new URLSearchParams();
       params.set("id", variantId);
       params.set("quantity", "1");
-      // Use human-readable style names; text designs have no meaningful embroidery style
+
+      // Hidden designer-only properties (underscore prefix = hidden in Shopify customer view)
       const photoStyleNames = designs
         .filter(d => !d.textContent)
         .map(d => STYLES.find(s => s.id === d.style)?.name || d.style);
       if (photoStyleNames.length > 0) {
-        params.set("properties[Embroidery Style]", photoStyleNames.join(", "));
+        params.set("properties[_embroidery_style]", photoStyleNames.join(", "));
       }
-      params.set("properties[Embroidery Size]", designSpecs.map(d => `${d.size} (${d.sizeMm}mm)`).join(", "));
-      params.set("properties[Placement]", designSpecs.map(d => d.view).join(", "));
-      params.set("properties[Design Count]", String(designs.length));
-      
-      // Text designs - send content + font + size + view
+      params.set("properties[_embroidery_size]", designSpecs.map(d => `${d.size} (${d.sizeMm}mm)`).join(", "));
+      params.set("properties[_placement]", designSpecs.map(d => d.view).join(", "));
+      params.set("properties[_design_count]", String(designs.length));
+
+      // Text designs: full detail for designer (hidden), clean content for customer
       const textDesigns = designs.filter(d => !!d.textContent);
       if (textDesigns.length > 0) {
-        params.set("properties[Text Embroidery]", textDesigns.map(d => {
+        params.set("properties[_text_detail]", textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
           const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100;
           const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
@@ -1672,17 +1685,32 @@ export default function TinyThreadStudio() {
           return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
         }).join(" | "));
       }
-      
-      // Garment refs for each side (set immediately — no async needed)
+
+      // Garment refs for each side
       const frontDesign = designs.find(d => d.view === "front");
       const backDesign = designs.find(d => d.view === "back");
       if (frontDesign) params.set("properties[_garment]", `${product}-${color}-front`);
       if (backDesign)  params.set("properties[_garment_back]", `${product}-${color}-back`);
 
-      // License plate (car style only)
+      // License plate (car style, hidden from customer)
       const carPhotoDesign = designs.find(d => !d.textContent && d.style === "car");
       if (carPhotoDesign && carPhotoDesign.licensePlate !== undefined) {
-        params.set("properties[License Plate]", carPhotoDesign.licensePlate || "Nav nepieciešama");
+        params.set("properties[_license_plate]", carPhotoDesign.licensePlate || "Nav nepieciešama");
+      }
+
+      // Clean customer-facing properties (language-aware)
+      const isLV = lang === "lv";
+      const localView = (v: string) =>
+        v === "front" ? (isLV ? "Priekša" : "Front") :
+        v === "back" ? (isLV ? "Aizmugure" : "Back") :
+        v === "left-sleeve" ? (isLV ? "Kreisā Piedurkne" : "Left Sleeve") :
+        v === "right-sleeve" ? (isLV ? "Labā Piedurkne" : "Right Sleeve") : v;
+      const uniqueViews = [...new Set(designs.map(d => d.view))];
+      params.set(`properties[${isLV ? "Izvietojums" : "Placement"}]`, uniqueViews.map(localView).join(" + "));
+      const primarySize = photoFront?.size || photoBack?.size || size;
+      params.set(`properties[${isLV ? "Izmērs" : "Size"}]`, primarySize);
+      if (textDesigns.length > 0) {
+        params.set(`properties[${isLV ? "Teksts" : "Text"}]`, textDesigns.map(d => `"${d.textContent}"`).join(" | "));
       }
 
       // _design_image / _design_image_back are set later after Blob upload (see below)
@@ -2115,7 +2143,7 @@ export default function TinyThreadStudio() {
         if (addVariantId) {
           const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
           const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
-          cartItems.push({ id: addVariantId, quantity: 1, properties: { "_for_order_ref": orderRef, "Style": styleName, "Size": `${addSize} (${sizeMm}mm)`, "Placement": addDesign.view } });
+          cartItems.push({ id: addVariantId, quantity: 1, properties: { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view } });
         }
       }
       console.log("[ADD TO CART] variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);
@@ -2132,7 +2160,7 @@ export default function TinyThreadStudio() {
       });
       setIsAddingToCart(false);
     }
-  }, [designs, product, color, size, style, view, toast, customer]);
+  }, [designs, product, color, size, style, view, toast, customer, lang]);
 
   const designLabels = designs.map(design => {
     if (design.textContent) return `${t.textOnly}: "${design.textContent}"`;
