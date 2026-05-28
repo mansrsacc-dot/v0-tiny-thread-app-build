@@ -308,13 +308,17 @@ export async function POST(req: NextRequest) {
       const rightSleeveDesignUrl = getProp("_design_image_right_sleeve");
 
       const licensePlate = getProp("_license_plate") || getProp("License Plate");
+      const iconFront      = getProp("_icon_front");
+      const iconBack       = getProp("_icon_back");
+      const iconLeftSleeve = getProp("_icon_left-sleeve");
+      const iconRightSleeve = getProp("_icon_right-sleeve");
       const screenshotFrontUrl      = getProp("_screenshot_front");
       const screenshotBackUrl       = getProp("_screenshot_back");
       const screenshotLeftSleeveUrl  = getProp("_screenshot_left_sleeve");
       const screenshotRightSleeveUrl = getProp("_screenshot_right_sleeve");
 
-      // Parse Sleeve Embroidery property (same format as Text Embroidery but with "Left Sleeve"/"Right Sleeve")
-      const sleeveEmbProp = getProp("Sleeve Embroidery");
+      // Parse Sleeve Embroidery property — check both EN and LV names
+      const sleeveEmbProp = getProp("Sleeve Embroidery") || getProp("Piedurknes izšuvums");
       const sleeveTextsByView: Record<string, { content: string; fontName: string; fontId: string; colorLabel: string }> = {};
       if (sleeveEmbProp) {
         for (const entry of sleeveEmbProp.split(" | ")) {
@@ -608,6 +612,10 @@ export async function POST(req: NextRequest) {
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Placement</td><td style="padding: 8px; border: 1px solid #ddd;">${placement}</td></tr>
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Designs</td><td style="padding: 8px; border: 1px solid #ddd;">${designCount}</td></tr>
             ${licensePlate !== null ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Numura zīme</td><td style="padding: 8px; border: 1px solid #ddd;">${licensePlate}</td></tr>` : ""}
+            ${iconFront ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Icon (Front)</td><td style="padding: 8px; border: 1px solid #ddd;">${iconFront}</td></tr>` : ""}
+            ${iconBack ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Icon (Back)</td><td style="padding: 8px; border: 1px solid #ddd;">${iconBack}</td></tr>` : ""}
+            ${iconLeftSleeve ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Icon (Left Sleeve)</td><td style="padding: 8px; border: 1px solid #ddd;">${iconLeftSleeve}</td></tr>` : ""}
+            ${iconRightSleeve ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Icon (Right Sleeve)</td><td style="padding: 8px; border: 1px solid #ddd;">${iconRightSleeve}</td></tr>` : ""}
           </table>
           ${positionInfo ? `<p style="margin-top: 12px; font-size: 13px;"><strong>Embroidery Details:</strong><br>${positionInfo}</p>` : ""}
           <h3>Attachments (${attachments.length} files):</h3>

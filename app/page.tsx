@@ -116,7 +116,18 @@ const T: Record<Lang, Record<string, string>> = {
     textOnly: "Teksts",
     addTextCta: "Pievienot tekstu (+€12)",
     addTextFree: "Pievienot tekstu — BEZMAKSAS",
-    textTooLong: "Maksimums 20 simboli",
+    textTooLong: "Maksimums 30 simboli",
+    textMultiRow: "Vairākas rindas",
+    textSingleRow: "Viena rinda",
+    textSizeLabel: "Teksta izmērs",
+    textSizeS: "Mazs",
+    textSizeM: "Vidējs",
+    textSizeL: "Liels",
+    iconLibrary: "Ikonu bibliotēka",
+    iconNone: "Bez ikonas",
+    iconPosition: "Ikonas atrašanās",
+    iconLeft: "Pa kreisi",
+    iconRight: "Pa labi",
     cancel: "Atcelt",
     leftSleeve: "Kreisā Piedurkne",
     rightSleeve: "Labā Piedurkne",
@@ -252,7 +263,18 @@ const T: Record<Lang, Record<string, string>> = {
     textOnly: "Text",
     addTextCta: "Add Text (+€12)",
     addTextFree: "Add text — FREE",
-    textTooLong: "Maximum 20 characters",
+    textTooLong: "Maximum 30 characters",
+    textMultiRow: "Multiple rows",
+    textSingleRow: "Single line",
+    textSizeLabel: "Text size",
+    textSizeS: "Small",
+    textSizeM: "Medium",
+    textSizeL: "Large",
+    iconLibrary: "Icon Library",
+    iconNone: "No icon",
+    iconPosition: "Icon position",
+    iconLeft: "Left",
+    iconRight: "Right",
     cancel: "Cancel",
     leftSleeve: "Left Sleeve",
     rightSleeve: "Right Sleeve",
@@ -459,6 +481,9 @@ interface Design {
   textContent?: string;
   textFont?: string;
   textColor?: string; // hex - if not set, uses default (white on black, black on white)
+  textMultiRow?: boolean;
+  iconName?: string;
+  iconPosition?: "left" | "right";
   licensePlate?: string; // undefined = not asked, "" = no plate, string = plate text
 }
 
@@ -487,8 +512,22 @@ const TEXT_FONTS = [
   { id: "sacramento",   name: "Sacramento",   css: "'Sacramento', cursive",          fontVariant: "normal" },
   { id: "cinzel",       name: "Cinzel",       css: "'Cinzel', serif",                fontVariant: "normal" },
 ];
+const ICON_LIST = [
+  { id: "paw",       label: "Paw" },
+  { id: "heart",     label: "Heart" },
+  { id: "smiley",    label: "Smiley" },
+  { id: "star",      label: "Star" },
+  { id: "crown",     label: "Crown" },
+  { id: "lightning", label: "Lightning" },
+  { id: "leaf",      label: "Leaf" },
+  { id: "flame",     label: "Flame" },
+  { id: "moon",      label: "Moon" },
+  { id: "infinity",  label: "Infinity" },
+];
 const TEXT_PRICE = 12;
-const TEXT_MAX_CHARS = 20;
+const TEXT_MAX_CHARS = 30;
+const TEXT_MAX_CHARS_MULTIROW = 80;
+const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 95, M: 162, L: 260 };
 // Shopify variant ID for the €12 "Teksta izšuvums" add-on product
 const TEXT_ADDON_VARIANT_ID = "57137410703691";
 // Sleeve embroidery pricing
@@ -566,6 +605,10 @@ export default function TinyThreadStudio() {
   const [textInput, setTextInput] = useState("");
   const [textFontInput, setTextFontInput] = useState(TEXT_FONTS[0].id);
   const [textColorInput, setTextColorInput] = useState<string>(""); // "" = auto
+  const [textMultiRowInput, setTextMultiRowInput] = useState(false);
+  const [textSizeInput, setTextSizeInput] = useState<"S" | "M" | "L">("M");
+  const [textIconInput, setTextIconInput] = useState("");
+  const [textIconPositionInput, setTextIconPositionInput] = useState<"left" | "right">("left");
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [showMultipleModal, setShowMultipleModal] = useState(false);
   const [multipleQtys, setMultipleQtys] = useState<Record<string, number>>({ S: 0, M: 0, L: 0, XL: 0 });
@@ -1187,20 +1230,38 @@ export default function TinyThreadStudio() {
 
   const handleAddText = useCallback(() => {
     const trimmed = textInput.trim();
-    const maxChars = isSleeveView(view) ? SLEEVE_TEXT_MAX_CHARS : TEXT_MAX_CHARS;
+    const isSleeve = isSleeveView(view);
+    const maxChars = isSleeve ? SLEEVE_TEXT_MAX_CHARS : (textMultiRowInput ? TEXT_MAX_CHARS_MULTIROW : TEXT_MAX_CHARS);
     if (!trimmed || trimmed.length > maxChars) return;
+
+    const resetModal = () => {
+      setEditingTextId(null);
+      setTextInput("");
+      setTextColorInput("");
+      setTextMultiRowInput(false);
+      setTextSizeInput("M");
+      setTextIconInput("");
+      setTextIconPositionInput("left");
+      setShowTextModal(false);
+    };
 
     // If we are editing an existing text design, just update it
     if (editingTextId) {
       setDesigns(prev => prev.map(d =>
         d.id === editingTextId
-          ? { ...d, textContent: trimmed, textFont: textFontInput, textColor: textColorInput || undefined }
+          ? {
+              ...d,
+              textContent: trimmed,
+              textFont: textFontInput,
+              textColor: textColorInput || undefined,
+              textMultiRow: isSleeve ? false : textMultiRowInput,
+              currentSizePx: isSleeve ? SLEEVE_DESIGN_SIZE_PX : TEXT_SIZE_PX[textSizeInput],
+              iconName: isSleeve ? undefined : (textIconInput || undefined),
+              iconPosition: isSleeve ? undefined : (textIconInput ? textIconPositionInput : undefined),
+            }
           : d
       ));
-      setEditingTextId(null);
-      setTextInput("");
-      setTextColorInput("");
-      setShowTextModal(false);
+      resetModal();
       return;
     }
 
@@ -1217,7 +1278,7 @@ export default function TinyThreadStudio() {
       style: style,
       view: view,
       size: "M",
-      currentSizePx: isSleeveView(view) ? SLEEVE_DESIGN_SIZE_PX : 140,
+      currentSizePx: isSleeve ? SLEEVE_DESIGN_SIZE_PX : TEXT_SIZE_PX[textSizeInput],
       position: { x: 50, y: 40 },
       generatedImages: {},
       processedImages: {},
@@ -1231,14 +1292,15 @@ export default function TinyThreadStudio() {
       textContent: trimmed,
       textFont: textFontInput,
       textColor: textColorInput || undefined,
+      textMultiRow: isSleeve ? false : textMultiRowInput,
+      iconName: isSleeve ? undefined : (textIconInput || undefined),
+      iconPosition: isSleeve ? undefined : (textIconInput ? textIconPositionInput : undefined),
     };
 
     setDesigns(prev => [...prev, newDesign]);
     setSelectedDesignId(newDesign.id);
-    setTextInput("");
-    setTextColorInput("");
-    setShowTextModal(false);
-  }, [textInput, textFontInput, textColorInput, editingTextId, designs, view, style]);
+    resetModal();
+  }, [textInput, textFontInput, textColorInput, textMultiRowInput, textSizeInput, textIconInput, textIconPositionInput, editingTextId, designs, view, style]);
 
   const handleEditText = useCallback((design: Design) => {
     if (!design.textContent) return;
@@ -1246,6 +1308,11 @@ export default function TinyThreadStudio() {
     setTextInput(design.textContent);
     setTextFontInput(design.textFont || TEXT_FONTS[0].id);
     setTextColorInput(design.textColor || "");
+    setTextMultiRowInput(design.textMultiRow || false);
+    const px = design.currentSizePx || 162;
+    setTextSizeInput(px < 130 ? "S" : px < 220 ? "M" : "L");
+    setTextIconInput(design.iconName || "");
+    setTextIconPositionInput(design.iconPosition || "left");
     setShowTextModal(true);
   }, []);
 
@@ -1550,14 +1617,7 @@ export default function TinyThreadStudio() {
         .map(d => STYLES.find(s => s.id === d.style)?.name || d.style);
       const textDesigns = designs.filter(d => !!d.textContent);
 
-      // Clean language-aware view label helper
       const isLVm = lang === "lv";
-      const localViewM = (v: string) =>
-        v === "front" ? (isLVm ? "Priekša" : "Front") :
-        v === "back" ? (isLVm ? "Aizmugure" : "Back") :
-        v === "left-sleeve" ? (isLVm ? "Kreisā Piedurkne" : "Left Sleeve") :
-        v === "right-sleeve" ? (isLVm ? "Labā Piedurkne" : "Right Sleeve") : v;
-      const uniqueViewsM = [...new Set(designs.map(d => d.view))];
 
       const sharedProps: Record<string, string> = {
         "_order_ref": orderRef,
@@ -1570,8 +1630,6 @@ export default function TinyThreadStudio() {
           type: d.textContent ? "text" : "photo",
           ...(d.textContent ? {} : { blobUrl: designBlobUrls[idx] || undefined }),
         }))),
-        // Customer-facing
-        [isLVm ? "Izvietojums" : "Placement"]: uniqueViewsM.map(localViewM).join(" + "),
       };
       if (photoStyleNames.length > 0) sharedProps["_embroidery_style"] = photoStyleNames.join(", ");
       if (frontD) sharedProps["_garment"] = `${product}-${color}-front`;
@@ -1704,17 +1762,16 @@ export default function TinyThreadStudio() {
 
       // Clean customer-facing properties (language-aware)
       const isLV = lang === "lv";
-      const localView = (v: string) =>
-        v === "front" ? (isLV ? "Priekša" : "Front") :
-        v === "back" ? (isLV ? "Aizmugure" : "Back") :
-        v === "left-sleeve" ? (isLV ? "Kreisā Piedurkne" : "Left Sleeve") :
-        v === "right-sleeve" ? (isLV ? "Labā Piedurkne" : "Right Sleeve") : v;
-      const uniqueViews = [...new Set(designs.map(d => d.view))];
-      params.set(`properties[${isLV ? "Izvietojums" : "Placement"}]`, uniqueViews.map(localView).join(" + "));
       const primarySize = photoFront?.size || photoBack?.size || size;
       params.set(`properties[${isLV ? "Izmērs" : "Size"}]`, primarySize);
       if (textDesigns.length > 0) {
         params.set(`properties[${isLV ? "Teksts" : "Text"}]`, textDesigns.map(d => `"${d.textContent}"`).join(" | "));
+      }
+      // Icon info (hidden, for designer)
+      for (const d of textDesigns) {
+        if (d.iconName) {
+          params.set(`properties[_icon_${d.view}]`, `${d.iconName} (${d.iconPosition || "left"})`);
+        }
       }
 
       // _design_image / _design_image_back are set later after Blob upload (see below)
@@ -1846,11 +1903,34 @@ export default function TinyThreadStudio() {
               const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
               const textColor = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
               const fontSize = Math.max(20, sizePx / 6);
-              ctx.font = `700 ${fontSize}px ${fontDef.css}`;
               ctx.fillStyle = textColor;
-              ctx.textAlign = "center";
               ctx.textBaseline = "middle";
-              ctx.fillText(design.textContent, 0, 0, sizePx);
+              const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
+              const lineH = fontSize * 1.2;
+              const totalTextH = lines.length * lineH;
+              const iconSize = fontSize * 1.1;
+              const iconGap = fontSize * 0.3;
+              if (design.iconName) {
+                try {
+                  const iconImg = await loadImg(`/icons/${design.iconName}.svg`);
+                  ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+                  const maxTextW = Math.max(...lines.map(l => ctx.measureText(l).width));
+                  const totalW = iconSize + iconGap + maxTextW;
+                  const textStartX = design.iconPosition === "left" ? -totalW / 2 + iconSize + iconGap : -totalW / 2;
+                  const iconX = design.iconPosition === "left" ? -totalW / 2 : -totalW / 2 + maxTextW + iconGap;
+                  ctx.drawImage(iconImg, iconX, -iconSize / 2, iconSize, iconSize);
+                  ctx.textAlign = "left";
+                  lines.forEach((line, i) => ctx.fillText(line, textStartX, -totalTextH / 2 + lineH * i + lineH / 2));
+                } catch {
+                  ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+                  ctx.textAlign = "center";
+                  lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
+                }
+              } else {
+                ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+                ctx.textAlign = "center";
+                lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
+              }
             } else {
               // processedImages are base64 data: URLs (bg-removed) — no CORS needed
               const imgSrc = proxyIfNeeded(
@@ -1928,11 +2008,34 @@ export default function TinyThreadStudio() {
               const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
               const textColorVal = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
               const fontSize = Math.max(20, sizePx / 6);
-              ctx.font = `700 ${fontSize}px ${fontDef.css}`;
               ctx.fillStyle = textColorVal;
-              ctx.textAlign = "center";
               ctx.textBaseline = "middle";
-              ctx.fillText(design.textContent, 0, 0, sizePx);
+              const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
+              const lineH = fontSize * 1.2;
+              const totalTextH = lines.length * lineH;
+              const iconSize = fontSize * 1.1;
+              const iconGap = fontSize * 0.3;
+              if (design.iconName) {
+                try {
+                  const iconImg = await loadImg(`/icons/${design.iconName}.svg`);
+                  ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+                  const maxTextW = Math.max(...lines.map(l => ctx.measureText(l).width));
+                  const totalW = iconSize + iconGap + maxTextW;
+                  const textStartX = design.iconPosition === "left" ? -totalW / 2 + iconSize + iconGap : -totalW / 2;
+                  const iconX = design.iconPosition === "left" ? -totalW / 2 : -totalW / 2 + maxTextW + iconGap;
+                  ctx.drawImage(iconImg, iconX, -iconSize / 2, iconSize, iconSize);
+                  ctx.textAlign = "left";
+                  lines.forEach((line, i) => ctx.fillText(line, textStartX, -totalTextH / 2 + lineH * i + lineH / 2));
+                } catch {
+                  ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+                  ctx.textAlign = "center";
+                  lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
+                }
+              } else {
+                ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+                ctx.textAlign = "center";
+                lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
+              }
             } else {
               const imgSrc = proxyIfNeeded(design.processedImages?.[design.style] || design.rawImageUrl || design.generatedImages?.[design.style] || "");
               if (imgSrc) { try {
@@ -2020,7 +2123,7 @@ export default function TinyThreadStudio() {
       // Sleeve embroidery info property
       const sleeveDesigns = designs.filter(d => isSleeveView(d.view));
       if (sleeveDesigns.length > 0) {
-        params.set("properties[Sleeve Embroidery]", sleeveDesigns.map(d => {
+        params.set(`properties[${isLV ? "Piedurknes izšuvums" : "Sleeve Embroidery"}]`, sleeveDesigns.map(d => {
           if (d.textContent) {
             const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
             const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
@@ -2292,20 +2395,54 @@ export default function TinyThreadStudio() {
                   onDoubleClick={(e) => { if (isText) { e.stopPropagation(); handleEditText(design); } }}
                 >
                   {isText ? (
-                    <div
-                      className="w-full h-full flex items-center justify-center pointer-events-none px-1 text-center"
-                      style={{
-                        fontFamily: fontDef.css,
-                        fontVariant: fontDef.fontVariant,
-                        color: textColor,
-                        fontWeight: 700,
-                        fontSize: Math.max(14, (design.currentSizePx * sizeScale) / 6),
-                        lineHeight: 1.1,
-                        wordBreak: "break-word",
-                        textShadow: color === "black" ? "0 0 2px rgba(0,0,0,0.3)" : "0 0 2px rgba(255,255,255,0.3)",
-                      }}
-                    >
-                      {design.textContent}
+                    <div className="w-full h-full flex items-center justify-center pointer-events-none px-1">
+                      {design.iconName && design.iconPosition === "left" && (
+                        <img
+                          src={`/icons/${design.iconName}.svg`}
+                          alt=""
+                          style={{
+                            width: Math.max(12, (design.currentSizePx * sizeScale) / 5.5),
+                            height: Math.max(12, (design.currentSizePx * sizeScale) / 5.5),
+                            flexShrink: 0,
+                            marginRight: 4,
+                            filter: color === "black"
+                              ? (design.textColor && design.textColor !== "#000000" ? `drop-shadow(0 0 0 ${design.textColor})` : "invert(1)")
+                              : (design.textColor && design.textColor !== "#FFFFFF" ? `drop-shadow(0 0 0 ${design.textColor})` : "none"),
+                          }}
+                          draggable={false}
+                        />
+                      )}
+                      <span
+                        style={{
+                          fontFamily: fontDef.css,
+                          fontVariant: fontDef.fontVariant,
+                          color: textColor,
+                          fontWeight: 700,
+                          fontSize: Math.max(14, (design.currentSizePx * sizeScale) / 6),
+                          lineHeight: 1.2,
+                          whiteSpace: design.textMultiRow ? "pre-line" : "nowrap",
+                          textAlign: "center",
+                          textShadow: color === "black" ? "0 0 2px rgba(0,0,0,0.3)" : "0 0 2px rgba(255,255,255,0.3)",
+                        }}
+                      >
+                        {design.textContent}
+                      </span>
+                      {design.iconName && design.iconPosition === "right" && (
+                        <img
+                          src={`/icons/${design.iconName}.svg`}
+                          alt=""
+                          style={{
+                            width: Math.max(12, (design.currentSizePx * sizeScale) / 5.5),
+                            height: Math.max(12, (design.currentSizePx * sizeScale) / 5.5),
+                            flexShrink: 0,
+                            marginLeft: 4,
+                            filter: color === "black"
+                              ? (design.textColor && design.textColor !== "#000000" ? `drop-shadow(0 0 0 ${design.textColor})` : "invert(1)")
+                              : (design.textColor && design.textColor !== "#FFFFFF" ? `drop-shadow(0 0 0 ${design.textColor})` : "none"),
+                          }}
+                          draggable={false}
+                        />
+                      )}
                     </div>
                   ) : (
                     <img
@@ -3476,27 +3613,57 @@ export default function TinyThreadStudio() {
 
       {/* Text Input Modal */}
       {showTextModal && (() => {
-        const activeMaxChars = isSleeveView(view) ? SLEEVE_TEXT_MAX_CHARS : TEXT_MAX_CHARS;
+        const isSleeve = isSleeveView(view);
+        const activeMaxChars = isSleeve ? SLEEVE_TEXT_MAX_CHARS : (textMultiRowInput ? TEXT_MAX_CHARS_MULTIROW : TEXT_MAX_CHARS);
+        const closeModal = () => {
+          setShowTextModal(false);
+          setTextInput("");
+          setEditingTextId(null);
+          setTextColorInput("");
+          setTextMultiRowInput(false);
+          setTextSizeInput("M");
+          setTextIconInput("");
+          setTextIconPositionInput("left");
+        };
+        const previewFontDef = TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0];
+        const previewColor = textColorInput || (color === "black" ? "#FFFFFF" : "#000000");
         return (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-6 max-w-md w-full my-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">{t.addText}</h2>
-              <button
-                onClick={() => { setShowTextModal(false); setTextInput(""); setEditingTextId(null); setTextColorInput(""); }}
-                className="text-white/40 hover:text-white/70"
-              >
-                ✕
-              </button>
+              <button onClick={closeModal} className="text-white/40 hover:text-white/70">✕</button>
             </div>
 
             <div className="space-y-4">
+              {/* Multi-row toggle (hidden for sleeve) */}
+              {!isSleeve && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/50 uppercase tracking-wider">{textMultiRowInput ? t.textMultiRow : t.textSingleRow}</span>
+                  <button
+                    onClick={() => {
+                      setTextMultiRowInput(v => !v);
+                      setTextInput("");
+                    }}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                      textMultiRowInput ? "bg-[#3e92cc]" : "bg-white/20"
+                    )}
+                  >
+                    <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform", textMultiRowInput ? "translate-x-4" : "translate-x-0.5")} />
+                  </button>
+                </div>
+              )}
+
               <div>
                 <textarea
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value.slice(0, activeMaxChars))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !textMultiRowInput) e.preventDefault();
+                  }}
                   placeholder={t.textPlaceholder}
-                  rows={2}
+                  rows={textMultiRowInput ? 3 : 2}
                   maxLength={activeMaxChars}
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3e92cc]/60 resize-none"
                   autoFocus
@@ -3506,10 +3673,31 @@ export default function TinyThreadStudio() {
                 </p>
               </div>
 
+              {/* Text size S/M/L (hidden for sleeve) */}
+              {!isSleeve && (
+                <div>
+                  <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textSizeLabel}</label>
+                  <div className="flex gap-2">
+                    {(["S", "M", "L"] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => setTextSizeInput(s)}
+                        className={cn(
+                          "flex-1 py-2 rounded-lg border text-sm font-bold transition-colors",
+                          textSizeInput === s
+                            ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
+                            : "border-white/10 text-white/50 hover:border-white/30"
+                        )}
+                      >
+                        {s === "S" ? t.textSizeS : s === "M" ? t.textSizeM : t.textSizeL}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
-                  {t.textFont}
-                </label>
+                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textFont}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {TEXT_FONTS.map(f => (
                     <button
@@ -3531,9 +3719,7 @@ export default function TinyThreadStudio() {
 
               {/* Color picker */}
               <div>
-                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
-                  {t.textColor}
-                </label>
+                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textColor}</label>
                 <div className="flex flex-wrap gap-2">
                   {TEXT_COLOR_PALETTE.map(c => {
                     const isActive = (c.hex || "") === textColorInput;
@@ -3555,30 +3741,113 @@ export default function TinyThreadStudio() {
                 </div>
               </div>
 
+              {/* Icon library (hidden for sleeve) */}
+              {!isSleeve && (
+                <div>
+                  <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.iconLibrary}</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {/* No icon option */}
+                    <button
+                      onClick={() => setTextIconInput("")}
+                      className={cn(
+                        "aspect-square rounded-lg border flex items-center justify-center text-xs transition-colors",
+                        textIconInput === ""
+                          ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
+                          : "border-white/10 text-white/40 hover:border-white/30"
+                      )}
+                      title={t.iconNone}
+                    >
+                      ✕
+                    </button>
+                    {ICON_LIST.map(icon => (
+                      <button
+                        key={icon.id}
+                        onClick={() => setTextIconInput(icon.id)}
+                        className={cn(
+                          "aspect-square rounded-lg border flex items-center justify-center p-1.5 transition-colors",
+                          textIconInput === icon.id
+                            ? "border-[#3e92cc] bg-[#3e92cc]/10"
+                            : "border-white/10 hover:border-white/30"
+                        )}
+                        title={icon.label}
+                      >
+                        <img
+                          src={`/icons/${icon.id}.svg`}
+                          alt={icon.label}
+                          className="w-full h-full"
+                          style={{ filter: "invert(1)" }}
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Icon position (only when icon selected) */}
+                  {textIconInput && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-xs text-white/40">{t.iconPosition}:</span>
+                      <button
+                        onClick={() => setTextIconPositionInput("left")}
+                        className={cn(
+                          "px-3 py-1 rounded-lg border text-xs transition-colors",
+                          textIconPositionInput === "left"
+                            ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
+                            : "border-white/10 text-white/50 hover:border-white/30"
+                        )}
+                      >
+                        ← {t.iconLeft}
+                      </button>
+                      <button
+                        onClick={() => setTextIconPositionInput("right")}
+                        className={cn(
+                          "px-3 py-1 rounded-lg border text-xs transition-colors",
+                          textIconPositionInput === "right"
+                            ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
+                            : "border-white/10 text-white/50 hover:border-white/30"
+                        )}
+                      >
+                        {t.iconRight} →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Live preview */}
               {textInput.trim() && (
-                <div className="rounded-lg border border-white/10 p-4 text-center" style={{ background: color === "black" ? "#1a1a1a" : "#f5f5f5" }}>
+                <div className="rounded-lg border border-white/10 p-4 flex items-center justify-center gap-2" style={{ background: color === "black" ? "#1a1a1a" : "#f5f5f5" }}>
+                  {textIconInput && textIconPositionInput === "left" && (
+                    <img
+                      src={`/icons/${textIconInput}.svg`}
+                      alt=""
+                      style={{ width: 28, height: 28, filter: previewColor === "#FFFFFF" || previewColor === "#C0C0C0" ? "invert(1)" : "none" }}
+                    />
+                  )}
                   <p
                     style={{
-                      fontFamily: (TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0]).css,
-                      fontVariant: (TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0]).fontVariant,
-                      color: textColorInput || (color === "black" ? "#FFFFFF" : "#000000"),
+                      fontFamily: previewFontDef.css,
+                      fontVariant: previewFontDef.fontVariant,
+                      color: previewColor,
                       fontWeight: 700,
                       fontSize: 24,
-                      lineHeight: 1.1,
-                      wordBreak: "break-word",
+                      lineHeight: 1.2,
+                      whiteSpace: textMultiRowInput ? "pre-line" : "nowrap",
+                      textAlign: "center",
                     }}
                   >
                     {textInput.trim()}
                   </p>
+                  {textIconInput && textIconPositionInput === "right" && (
+                    <img
+                      src={`/icons/${textIconInput}.svg`}
+                      alt=""
+                      style={{ width: 28, height: 28, filter: previewColor === "#FFFFFF" || previewColor === "#C0C0C0" ? "invert(1)" : "none" }}
+                    />
+                  )}
                 </div>
               )}
 
               <div className="flex gap-2 pt-2">
-                <button
-                  onClick={() => { setShowTextModal(false); setTextInput(""); setEditingTextId(null); setTextColorInput(""); }}
-                  className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/15"
-                >
+                <button onClick={closeModal} className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/15">
                   {t.cancel}
                 </button>
                 <button
@@ -3586,7 +3855,7 @@ export default function TinyThreadStudio() {
                   disabled={!textInput.trim()}
                   className="flex-1 px-4 py-2.5 rounded-lg bg-[#d8315b] hover:bg-[#c02850] text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {editingTextId ? t.addText : (isSleeveView(view) && designs.some(d => d.view === view && !d.textContent)) ? t.addTextFree : t.addTextCta}
+                  {editingTextId ? t.addText : (isSleeve && designs.some(d => d.view === view && !d.textContent)) ? t.addTextFree : t.addTextCta}
                 </button>
               </div>
             </div>
