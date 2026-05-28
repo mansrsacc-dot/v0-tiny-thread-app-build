@@ -621,7 +621,10 @@ export default function TinyThreadStudio() {
   const photoFrontDesign = designs.find(d => d.view === "front" && !d.textContent);
   const photoBackDesign = designs.find(d => d.view === "back" && !d.textContent);
   const primaryPhotoStyle: Style = (photoFrontDesign?.style || photoBackDesign?.style || style);
-  const basePrice = designs.length > 0 ? (PRICING[product]?.[primaryPhotoStyle]?.[size] || 0) : 0;
+  // Use the actual stored size of the primary design, not the global UI size state.
+  // Global `size` only serves as a default for the next design to be added.
+  const primaryDesignSize = (photoFrontDesign?.size || photoBackDesign?.size || size) as Size;
+  const basePrice = designs.length > 0 ? (PRICING[product]?.[primaryPhotoStyle]?.[primaryDesignSize] || 0) : 0;
   // Back surcharge only applies when there are photo designs on BOTH front and back
   const hasBothSidesPhoto = !!photoFrontDesign && !!photoBackDesign;
   const backSurcharge = hasBothSidesPhoto ? (BACK_SURCHARGE[photoBackDesign!.style] || 0) : 0;
@@ -1641,9 +1644,10 @@ export default function TinyThreadStudio() {
       const variantStyleRaw = (photoFront?.style || photoBack?.style || style);
       // Map car style to pet-head variants until car variants are created
       const variantStyle = variantStyleRaw === "car" ? "pet-head" : variantStyleRaw;
+      const cartSize = photoFront?.size || photoBack?.size || size;
       const variantKey = hasFrontAndBack
-        ? `${product}-${color}-${size}-${variantStyle}-fb`
-        : `${product}-${color}-${size}-${variantStyle}`;
+        ? `${product}-${color}-${cartSize}-${variantStyle}-fb`
+        : `${product}-${color}-${cartSize}-${variantStyle}`;
       const variantId = VARIANT_IDS[variantKey];
       
       if (!variantId) {
@@ -2874,17 +2878,13 @@ export default function TinyThreadStudio() {
                       const { min, max } = SIZE_CONSTRAINTS[s];
                       const mid = Math.round(min + (max - min) / 2);
                       setDesigns(prev => {
-                        // Build the set of primary design IDs (first photo per view) for the fallback case
-                        const primaryIds = new Set(
-                          ["front", "back", "left-sleeve", "right-sleeve"]
-                            .map(v => prev.find(d => d.view === v && !d.textContent)?.id)
-                            .filter(Boolean) as string[]
-                        );
                         return prev.map(d => {
                           if (isSleeveView(d.view) || d.textContent) return d;
+                          // Only update designs on the currently active view (or explicitly selected design).
+                          // Changing size on an empty back view must never update the front design.
                           const targeted = selectedDesignId
                             ? d.id === selectedDesignId
-                            : primaryIds.has(d.id);
+                            : d.view === view && !d.textContent;
                           if (!targeted) return d;
                           return { ...d, size: s, currentSizePx: mid };
                         });
@@ -2893,14 +2893,14 @@ export default function TinyThreadStudio() {
                     }}
                     className={cn(
                       "py-2 px-2 rounded-lg border text-center transition-all",
-                      (selectedDesign?.size ?? size) === s
+                      (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s
                         ? "border-[#3e92cc] bg-[#3e92cc]/10"
                         : theme === "dark"
                           ? "border-neutral-700 hover:border-neutral-600"
                           : "border-gray-200 hover:border-gray-300"
                     )}
                   >
-                    <div className={cn("text-lg font-semibold", (selectedDesign?.size ?? size) === s ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>{s}</div>
+                    <div className={cn("text-lg font-semibold", (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>{s}</div>
                     <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
                   </button>
                 ))}
