@@ -540,6 +540,13 @@ const TEXT_PRICE = 12;
 const TEXT_MAX_CHARS = 30;
 const TEXT_MAX_CHARS_MULTIROW = 80;
 const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 95, M: 162, L: 260 };
+// Text size constraints in currentSizePx units (font height = sizePx/6 * 0.786mm/px)
+// S: 8-14mm, M: 15-25mm, L: 26-40mm
+const TEXT_SIZE_CONSTRAINTS = {
+  S: { min: 62,  max: 107, label: "8-14mm"  },
+  M: { min: 115, max: 191, label: "15-25mm" },
+  L: { min: 199, max: 305, label: "26-40mm" },
+} as const;
 // Shopify variant ID for the €12 "Teksta izšuvums" add-on product
 const TEXT_ADDON_VARIANT_ID = "57137410703691";
 // Sleeve embroidery pricing
@@ -1275,6 +1282,7 @@ export default function TinyThreadStudio() {
               textFont: textFontInput,
               textColor: textColorInput || undefined,
               textMultiRow: isSleeve ? false : textMultiRowInput,
+              size: isSleeve ? d.size : (textSizeInput as Size),
               currentSizePx: isSleeve ? SLEEVE_DESIGN_SIZE_PX : TEXT_SIZE_PX[textSizeInput],
               iconName: isSleeve ? undefined : (textIconInput || undefined),
               iconPosition: isSleeve ? undefined : (textIconInput ? textIconPositionInput : undefined),
@@ -1297,7 +1305,7 @@ export default function TinyThreadStudio() {
       originalImage: "",
       style: style,
       view: view,
-      size: "M",
+      size: isSleeve ? "M" : (textSizeInput as Size),
       currentSizePx: isSleeve ? SLEEVE_DESIGN_SIZE_PX : TEXT_SIZE_PX[textSizeInput],
       position: { x: 50, y: 40 },
       generatedImages: {},
@@ -1329,8 +1337,13 @@ export default function TinyThreadStudio() {
     setTextFontInput(design.textFont || TEXT_FONTS[0].id);
     setTextColorInput(design.textColor || "");
     setTextMultiRowInput(design.textMultiRow || false);
-    const px = design.currentSizePx || 162;
-    setTextSizeInput(px < 130 ? "S" : px < 220 ? "M" : "L");
+    const px = design.currentSizePx || TEXT_SIZE_PX.M;
+    const inferredSize: "S" | "M" | "L" = px < TEXT_SIZE_CONSTRAINTS.M.min ? "S" : px < TEXT_SIZE_CONSTRAINTS.L.min ? "M" : "L";
+    setTextSizeInput(inferredSize);
+    // Self-heal old designs where size was hardcoded "M"
+    if (!isSleeveView(design.view) && design.size !== inferredSize) {
+      setDesigns(prev => prev.map(d => d.id === design.id ? { ...d, size: inferredSize } : d));
+    }
     setTextIconInput(design.iconName || "");
     setTextIconPositionInput(design.iconPosition || "left");
     setShowTextModal(true);
@@ -1444,7 +1457,9 @@ export default function TinyThreadStudio() {
           // Divide delta by sizeScale so the resize handle tracks the cursor 1:1 on screen
           // (the design is rendered at currentSizePx * sizeScale).
           const delta = (pos.x - resizeState.startX) / (sizeScale || 1);
-          const constraints = SIZE_CONSTRAINTS[design.size];
+          const constraints = design.textContent
+            ? TEXT_SIZE_CONSTRAINTS[design.size as "S" | "M" | "L"]
+            : SIZE_CONSTRAINTS[design.size];
           const newSize = Math.max(constraints.min, Math.min(constraints.max, resizeState.startSize + delta));
           
           setDesigns(prev => prev.map(d => {
@@ -1478,7 +1493,11 @@ export default function TinyThreadStudio() {
     }
   }, [dragState, resizeState, selectedDesignId, designs, sizeScale]);
 
-  const getSizeInMm = (sizePx: number, sizeCategory: Size) => {
+  const getSizeInMm = (sizePx: number, sizeCategory: Size, isText = false) => {
+    if (isText) {
+      // Text height in real mm: font is rendered at sizePx/6 in coordinate space; 1px ≈ 0.786mm
+      return Math.round((sizePx / 6) * (55 / 70));
+    }
     const constraints = SIZE_CONSTRAINTS[sizeCategory];
     const ratio = (sizePx - constraints.min) / (constraints.max - constraints.min);
     const mmRange = sizeCategory === "S" ? [45, 100] : sizeCategory === "M" ? [100, 150] : [150, 250];
@@ -1668,7 +1687,7 @@ export default function TinyThreadStudio() {
       if (textDesigns.length > 0) {
         sharedProps["_text_detail"] = textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
-          const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100;
+          const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 6) * (55 / 70)) : 20;
           const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
           const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
           return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
@@ -1760,7 +1779,7 @@ export default function TinyThreadStudio() {
       if (textDesigns.length > 0) {
         params.set("properties[_text_detail]", textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
-          const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100;
+          const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 6) * (55 / 70)) : 20;
           const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
           const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
           return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
@@ -2609,7 +2628,7 @@ export default function TinyThreadStudio() {
                         "absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap",
                         theme === "dark" ? "bg-neutral-800 text-neutral-300" : "bg-white text-gray-700 shadow-sm"
                       )}>
-                        {isSleeveView(design.view) ? t.sleeveSizeFixed : `~${getSizeInMm(design.currentSizePx, design.size)}mm`}
+                        {isSleeveView(design.view) ? t.sleeveSizeFixed : `~${getSizeInMm(design.currentSizePx, design.size, !!design.textContent)}mm`}
                       </div>
                       
                       {/* Regenerate & History Controls - Below Design */}
@@ -3800,7 +3819,15 @@ export default function TinyThreadStudio() {
                     {(["S", "M", "L"] as const).map(s => (
                       <button
                         key={s}
-                        onClick={() => setTextSizeInput(s)}
+                        onClick={() => {
+                          setTextSizeInput(s);
+                          // Immediately resize design on canvas when editing existing text
+                          if (editingTextId) {
+                            setDesigns(prev => prev.map(d =>
+                              d.id === editingTextId ? { ...d, size: s as Size, currentSizePx: TEXT_SIZE_PX[s] } : d
+                            ));
+                          }
+                        }}
                         className={cn(
                           "flex-1 py-2 rounded-lg border text-sm font-bold transition-colors",
                           textSizeInput === s
