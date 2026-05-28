@@ -614,6 +614,7 @@ export default function TinyThreadStudio() {
   const [multipleQtys, setMultipleQtys] = useState<Record<string, number>>({ S: 0, M: 0, L: 0, XL: 0 });
   const [isAddingMultiple, setIsAddingMultiple] = useState(false);
   const [showMultipleTooltip, setShowMultipleTooltip] = useState(false);
+  const [addingDesignContext, setAddingDesignContext] = useState<null | "additional" | "back">(null);
   const [showCarPlatePopup, setShowCarPlatePopup] = useState(false);
   const [showMaxDesignsPopup, setShowMaxDesignsPopup] = useState(false);
   const [carPlatePending, setCarPlatePending] = useState<{ designId: string; base64: string; sleevePlacement: boolean } | null>(null);
@@ -1160,6 +1161,7 @@ export default function TinyThreadStudio() {
   };
 
   const handleFileUpload = useCallback((file: File) => {
+    setAddingDesignContext(null);
     // Limit: max 3 photos per side
     const photosOnThisView = designs.filter(d => d.view === view && !d.textContent).length;
     if (photosOnThisView >= MAX_DESIGNS_PER_SIDE) {
@@ -3007,7 +3009,10 @@ export default function TinyThreadStudio() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className={cn(
+              "space-y-2 rounded-xl transition-all",
+              addingDesignContext ? "ring-2 ring-[#3e92cc]/60 shadow-[0_0_12px_rgba(62,146,204,0.25)] p-2" : ""
+            )}>
               <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
                 {t.size}
               </label>
@@ -3076,12 +3081,21 @@ export default function TinyThreadStudio() {
           )}
 
           {/* Style Selection */}
-          <div className="space-y-2">
+          <div className={cn(
+            "space-y-2 rounded-xl transition-all",
+            addingDesignContext ? "ring-2 ring-[#3e92cc]/60 shadow-[0_0_12px_rgba(62,146,204,0.25)] p-2" : ""
+          )}>
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
               {t.style}
             </label>
             <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
-              {STYLES.map(s => (
+              {STYLES.map(s => {
+                const addCtxPrice = addingDesignContext === "additional"
+                  ? { S: ADDITIONAL_DESIGN_PRICING[s.id as Style]?.S, M: ADDITIONAL_DESIGN_PRICING[s.id as Style]?.M, L: null }
+                  : addingDesignContext === "back"
+                    ? { S: BACK_SURCHARGE[s.id]?.S, M: BACK_SURCHARGE[s.id]?.M, L: BACK_SURCHARGE[s.id]?.L }
+                    : null;
+                return (
                 <button
                   key={s.id}
                   onClick={() => handleStyleChange(s.id)}
@@ -3103,8 +3117,14 @@ export default function TinyThreadStudio() {
                   <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
                     {t.bestFor}: {s.id === "outline" ? t.outlineBest : s.id === "standard" ? t.standardBest : s.id === "pet-head" ? t.petHeadBest : t.carBest}
                   </div>
+                  {addCtxPrice && (
+                    <div className="text-xs mt-1.5 text-[#3e92cc]/80 font-medium">
+                      S: +€{addCtxPrice.S} / M: +€{addCtxPrice.M}{addCtxPrice.L !== null ? ` / L: +€${addCtxPrice.L}` : " / L: n/a"}
+                    </div>
+                  )}
                 </button>
-              ))}
+                );
+              })}
             </div>
             {style === "pet-head" && (
               <div className="p-2 rounded-lg bg-[#3e92cc]/10 border border-[#3e92cc]/20">
@@ -3282,6 +3302,7 @@ export default function TinyThreadStudio() {
                     <button
                       onClick={() => {
                         setView(otherView as "front" | "back");
+                        if (otherView === "back") setAddingDesignContext("back");
                         setTimeout(() => fileInputRef.current?.click(), 100);
                       }}
                       className={cn(
@@ -3308,7 +3329,10 @@ export default function TinyThreadStudio() {
                 return (
                   <div>
                     <button
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => {
+                        setAddingDesignContext("additional");
+                        fileInputRef.current?.click();
+                      }}
                       className={cn(
                         "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
                         theme === "dark"
