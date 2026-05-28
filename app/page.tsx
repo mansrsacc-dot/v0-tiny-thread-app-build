@@ -1282,8 +1282,8 @@ export default function TinyThreadStudio() {
               textFont: textFontInput,
               textColor: textColorInput || undefined,
               textMultiRow: isSleeve ? false : textMultiRowInput,
-              size: isSleeve ? d.size : (textSizeInput as Size),
-              currentSizePx: isSleeve ? SLEEVE_DESIGN_SIZE_PX : TEXT_SIZE_PX[textSizeInput],
+              size: textSizeInput as Size,
+              currentSizePx: TEXT_SIZE_PX[textSizeInput],
               iconName: isSleeve ? undefined : (textIconInput || undefined),
               iconPosition: isSleeve ? undefined : (textIconInput ? textIconPositionInput : undefined),
             }
@@ -1305,8 +1305,8 @@ export default function TinyThreadStudio() {
       originalImage: "",
       style: style,
       view: view,
-      size: isSleeve ? "M" : (textSizeInput as Size),
-      currentSizePx: isSleeve ? SLEEVE_DESIGN_SIZE_PX : TEXT_SIZE_PX[textSizeInput],
+      size: textSizeInput as Size,
+      currentSizePx: TEXT_SIZE_PX[textSizeInput],
       position: { x: 50, y: 40 },
       generatedImages: {},
       processedImages: {},
@@ -1340,8 +1340,8 @@ export default function TinyThreadStudio() {
     const px = design.currentSizePx || TEXT_SIZE_PX.M;
     const inferredSize: "S" | "M" | "L" = px < TEXT_SIZE_CONSTRAINTS.M.min ? "S" : px < TEXT_SIZE_CONSTRAINTS.L.min ? "M" : "L";
     setTextSizeInput(inferredSize);
-    // Self-heal old designs where size was hardcoded "M"
-    if (!isSleeveView(design.view) && design.size !== inferredSize) {
+    // Self-heal old designs where size was hardcoded "M" or SLEEVE_DESIGN_SIZE_PX
+    if (design.size !== inferredSize) {
       setDesigns(prev => prev.map(d => d.id === design.id ? { ...d, size: inferredSize } : d));
     }
     setTextIconInput(design.iconName || "");
@@ -3811,36 +3811,33 @@ export default function TinyThreadStudio() {
                 </p>
               </div>
 
-              {/* Text size S/M/L (hidden for sleeve) */}
-              {!isSleeve && (
-                <div>
-                  <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textSizeLabel}</label>
-                  <div className="flex gap-2">
-                    {(["S", "M", "L"] as const).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => {
-                          setTextSizeInput(s);
-                          // Immediately resize design on canvas when editing existing text
-                          if (editingTextId) {
-                            setDesigns(prev => prev.map(d =>
-                              d.id === editingTextId ? { ...d, size: s as Size, currentSizePx: TEXT_SIZE_PX[s] } : d
-                            ));
-                          }
-                        }}
-                        className={cn(
-                          "flex-1 py-2 rounded-lg border text-sm font-bold transition-colors",
-                          textSizeInput === s
-                            ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
-                            : "border-white/10 text-white/50 hover:border-white/30"
-                        )}
-                      >
-                        {s === "S" ? t.textSizeS : s === "M" ? t.textSizeM : t.textSizeL}
-                      </button>
-                    ))}
-                  </div>
+              {/* Text size S/M/L */}
+              <div>
+                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textSizeLabel}</label>
+                <div className="flex gap-2">
+                  {(["S", "M", "L"] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        setTextSizeInput(s);
+                        if (editingTextId) {
+                          setDesigns(prev => prev.map(d =>
+                            d.id === editingTextId ? { ...d, size: s as Size, currentSizePx: TEXT_SIZE_PX[s] } : d
+                          ));
+                        }
+                      }}
+                      className={cn(
+                        "flex-1 py-2 rounded-lg border text-sm font-bold transition-colors",
+                        textSizeInput === s
+                          ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
+                          : "border-white/10 text-white/50 hover:border-white/30"
+                      )}
+                    >
+                      {s === "S" ? t.textSizeS : s === "M" ? t.textSizeM : t.textSizeL}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
 
               <div>
                 <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textFont}</label>
