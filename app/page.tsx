@@ -3310,7 +3310,7 @@ export default function TinyThreadStudio() {
                         : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
                     )}
                   >
-                    + {t.addAnotherDesign} {addPrice > 0 ? `(+€${addPrice})` : ""}
+                    + {t.addAnotherDesign}
                   </button>
                 );
               })()}
