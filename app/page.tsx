@@ -376,12 +376,12 @@ const PRICING: Record<string, Record<string, Record<string, number>>> = {
   }
 };
 
-// Back embroidery surcharge by style
-const BACK_SURCHARGE: Record<string, number> = {
-  outline: 20,
-  standard: 25,
-  "pet-head": 35,
-  car: 35,
+// Back embroidery surcharge by style and embroidery size
+const BACK_SURCHARGE: Record<string, Record<string, number>> = {
+  outline:    { S: 17, M: 28, L: 40 },
+  standard:   { S: 19, M: 35, L: 50 },
+  "pet-head": { S: 22, M: 41, L: 50 },
+  car:        { S: 22, M: 41, L: 50 },
 };
 
 // Guide content (LV and EN) — 4 steps
@@ -627,7 +627,8 @@ export default function TinyThreadStudio() {
   const basePrice = designs.length > 0 ? (PRICING[product]?.[primaryPhotoStyle]?.[primaryDesignSize] || 0) : 0;
   // Back surcharge only applies when there are photo designs on BOTH front and back
   const hasBothSidesPhoto = !!photoFrontDesign && !!photoBackDesign;
-  const backSurcharge = hasBothSidesPhoto ? (BACK_SURCHARGE[photoBackDesign!.style] || 0) : 0;
+  const backDesignSize = photoBackDesign?.size || primaryDesignSize;
+  const backSurcharge = hasBothSidesPhoto ? (BACK_SURCHARGE[photoBackDesign!.style]?.[backDesignSize] || 0) : 0;
   // Sleeve pricing: photo design +€25/sleeve; text-only sleeve +€12; text on sleeve WITH photo = FREE
   const sleevePhotoDesigns = designs.filter(d => isSleeveView(d.view) && !d.textContent);
   const sleeveSurcharge = sleevePhotoDesigns.length * SLEEVE_PRICE;
@@ -2567,7 +2568,7 @@ export default function TinyThreadStudio() {
                     </svg>
                   </div>
                   <div className="text-center">
-                    {designs.filter(d => !d.textContent).length === 0 ? (
+                    {view === "front" && designs.filter(d => !d.textContent).length === 0 ? (
                       <>
                         <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">{t.clickToUpload}</p>
                         <p className="text-white/40 text-xs mt-1">{t.maxFileSize}</p>
@@ -2575,7 +2576,11 @@ export default function TinyThreadStudio() {
                     ) : (
                       <>
                         <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">
-                          {view === "back" ? t.addToBack : view === "left-sleeve" ? t.addToLeftSleeve : view === "right-sleeve" ? t.addToRightSleeve : t.addToFront} {isSleeveView(view) ? `(+€${SLEEVE_PRICE})` : `(+€${BACK_SURCHARGE[style] || 20})`}
+                          {view === "back"
+                            ? `${t.addToBack} (+€${BACK_SURCHARGE[style]?.[size] || 0})`
+                            : isSleeveView(view)
+                              ? `${view === "left-sleeve" ? t.addToLeftSleeve : t.addToRightSleeve} (+€${SLEEVE_PRICE})`
+                              : t.addToFront}
                         </p>
                         <p className="text-white/40 text-xs mt-1">{t.maxFileSize}</p>
                       </>
@@ -2970,24 +2975,6 @@ export default function TinyThreadStudio() {
                 <p className="text-xs text-[#3e92cc]">{t.petHeadHint}</p>
               </div>
             )}
-            <div className="text-center text-sm mt-2">
-              <span className={theme === "dark" ? "text-white/40" : "text-gray-500"}>{t.price}: </span>
-              <span className="text-[#3e92cc] font-bold text-xl">
-                {currentPrice > 0 ? `€${currentPrice}` : "—"}
-              </span>
-              {backSurcharge > 0 && (
-                <span className="text-[#3e92cc]/60 text-xs ml-1">({t.inclBack} +€{backSurcharge})</span>
-              )}
-              {sleeveSurcharge > 0 && (
-                <span className="text-[#3e92cc]/60 text-xs ml-1">({t.inclSleeve} +€{sleeveSurcharge})</span>
-              )}
-              {textSurcharge > 0 && (
-                <span className="text-[#3e92cc]/60 text-xs ml-1">({t.textPrice} +€{textSurcharge})</span>
-              )}
-              {additionalDesignSurcharge > 0 && (
-                <span className="text-[#3e92cc]/60 text-xs ml-1">({t.additionalDesign} +€{additionalDesignSurcharge})</span>
-              )}
-            </div>
           </div>
 
           {/* Remove Background Toggle */}
@@ -3153,7 +3140,7 @@ export default function TinyThreadStudio() {
                 const otherView = existingView === "front" ? "back" : "front";
                 const hasPhotoOnOtherSide = photoDesigns.some(d => d.view === otherView);
                 if (hasPhotoOnOtherSide) return null;
-                const surcharge = BACK_SURCHARGE[style] || 20;
+                const surcharge = BACK_SURCHARGE[style]?.[size] || 0;
                 return (
                   <button
                     onClick={() => {
@@ -3187,7 +3174,7 @@ export default function TinyThreadStudio() {
                         : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
                     )}
                   >
-                    + {t.addAnotherDesign}
+                    + {t.addAnotherDesign} {addPrice > 0 ? `(+€${addPrice})` : ""}
                   </button>
                 );
               })()}
