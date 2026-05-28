@@ -73,7 +73,7 @@ async function generateTextComposite(garmentUrl: string, textContent: string, fo
     const left = Math.round(W * posX / 100 - designSize / 2);
     const top = Math.round(H * posY / 100 - designSize / 2);
     const textColor = textColorHex || (garmentColor === "white" ? "#000000" : "#FFFFFF");
-    const fontSize = Math.max(20, designSize / 6);
+    const fontSize = Math.max(14, designSize / 2);
     const fontFamily = FONT_CSS_MAP[fontId] || FONT_CSS_MAP.sans;
 
     const img = new ImageResponse(
@@ -122,7 +122,7 @@ async function generateCombinedComposite(garmentUrl: string, items: CompositeIte
                 width: item.size, height: item.size,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 textAlign: "center", fontFamily: item.fontFamily, fontWeight: 700,
-                fontSize: Math.max(20, item.size / 6), color: item.color, lineHeight: 1.1, padding: 4,
+                fontSize: Math.max(14, item.size / 2), color: item.color, lineHeight: 1.1, padding: 4,
               }}>{item.content}</div>
         )}
       </div>),

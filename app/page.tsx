@@ -1940,7 +1940,7 @@ export default function TinyThreadStudio() {
             if (design.textContent) {
               const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
               const textColor = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
-              const fontSize = Math.max(20, sizePx / 6);
+              const fontSize = Math.max(14, sizePx / 2);
               ctx.fillStyle = textColor;
               ctx.textBaseline = "middle";
               const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
@@ -2045,7 +2045,7 @@ export default function TinyThreadStudio() {
             if (design.textContent) {
               const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
               const textColorVal = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
-              const fontSize = Math.max(20, sizePx / 6);
+              const fontSize = Math.max(14, sizePx / 2);
               ctx.fillStyle = textColorVal;
               ctx.textBaseline = "middle";
               const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
@@ -2439,8 +2439,8 @@ export default function TinyThreadStudio() {
                           src={`/icons/${design.iconName}.svg`}
                           alt=""
                           style={{
-                            width: Math.max(12, (design.currentSizePx * sizeScale) / 5.5),
-                            height: Math.max(12, (design.currentSizePx * sizeScale) / 5.5),
+                            width: Math.max(10, (design.currentSizePx * sizeScale) / 2),
+                            height: Math.max(10, (design.currentSizePx * sizeScale) / 2),
                             flexShrink: 0,
                             marginRight: 4,
                             filter: color === "black"
@@ -2456,7 +2456,7 @@ export default function TinyThreadStudio() {
                           fontVariant: fontDef.fontVariant,
                           color: textColor,
                           fontWeight: 700,
-                          fontSize: Math.max(14, (design.currentSizePx * sizeScale) / 6),
+                          fontSize: Math.max(10, (design.currentSizePx * sizeScale) / 2),
                           lineHeight: 1.2,
                           whiteSpace: design.textMultiRow ? "pre-line" : "nowrap",
                           textAlign: "center",
@@ -2470,8 +2470,8 @@ export default function TinyThreadStudio() {
                           src={`/icons/${design.iconName}.svg`}
                           alt=""
                           style={{
-                            width: Math.max(12, (design.currentSizePx * sizeScale) / 5.5),
-                            height: Math.max(12, (design.currentSizePx * sizeScale) / 5.5),
+                            width: Math.max(10, (design.currentSizePx * sizeScale) / 2),
+                            height: Math.max(10, (design.currentSizePx * sizeScale) / 2),
                             flexShrink: 0,
                             marginLeft: 4,
                             filter: color === "black"
