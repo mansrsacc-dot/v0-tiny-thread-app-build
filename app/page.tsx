@@ -3040,10 +3040,14 @@ export default function TinyThreadStudio() {
                   <button
                     key={s}
                     onClick={() => {
-                      if (addingMode?.step === "size") {
-                        // In adding mode: store pending size, advance to style step — do NOT touch existing designs
+                      if (addingMode) {
+                        // In adding mode: store pending size — do NOT touch existing designs
                         setViewSizes(prev => ({ ...prev, [view]: s }));
-                        setAddingMode(prev => prev ? { ...prev, step: "style", size: s } : null);
+                        if (addingMode.step === "size") {
+                          setAddingMode(prev => prev ? { ...prev, step: "style", size: s } : null);
+                        } else {
+                          setAddingMode(prev => prev ? { ...prev, size: s } : null);
+                        }
                       } else {
                         // Normal edit: update existing design sizes
                         const { min, max } = SIZE_CONSTRAINTS[s];
@@ -3061,9 +3065,9 @@ export default function TinyThreadStudio() {
                     }}
                     className={cn(
                       "py-2 px-2 rounded-lg border text-center transition-all",
-                      (addingMode?.step === "size"
+                      (addingMode
                         ? addingMode.size === s
-                        : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size)) === s
+                        : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s)
                         ? "border-[#3e92cc] bg-[#3e92cc]/10"
                         : theme === "dark"
                           ? "border-neutral-700 hover:border-neutral-600"
@@ -3071,9 +3075,9 @@ export default function TinyThreadStudio() {
                     )}
                   >
                     <div className={cn("text-lg font-semibold",
-                      (addingMode?.step === "size"
+                      (addingMode
                         ? addingMode.size === s
-                        : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size)) === s
+                        : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s)
                         ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900"
                     )}>{s}</div>
                     <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
@@ -3232,7 +3236,7 @@ export default function TinyThreadStudio() {
           </div>
 
           {/* Upload Photo — visible when view has no photo design, OR in adding mode upload step */}
-          {(!currentDesignsForView.some(d => !d.textContent) || addingMode?.step === "upload") && (
+          {((!addingMode && !currentDesignsForView.some(d => !d.textContent)) || addingMode?.step === "upload") && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide",
                 addingMode?.step === "upload" ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-500" : "text-gray-500"
