@@ -1204,9 +1204,9 @@ export default function TinyThreadStudio() {
       setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(newDesign.id);
 
-      // On mobile, scroll the garment preview into view so the customer sees generation happening
-      if (window.innerWidth < 1024 && previewRef.current) {
-        previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      // On mobile, scroll to top so the garment preview (order-1) is visible during generation
+      if (window.innerWidth < 1024) {
+        setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
       }
 
       if (style === "car") {
@@ -2713,9 +2713,9 @@ export default function TinyThreadStudio() {
                       <>
                         <p className="text-white font-semibold text-sm group-hover:text-[#3e92cc] transition-colors">
                           {view === "back"
-                            ? `${t.addToBack} (+€${BACK_SURCHARGE[style]?.[size] || 0})`
+                            ? t.addToBack
                             : isSleeveView(view)
-                              ? `${view === "left-sleeve" ? t.addToLeftSleeve : t.addToRightSleeve} (+€${SLEEVE_PRICE})`
+                              ? (view === "left-sleeve" ? t.addToLeftSleeve : t.addToRightSleeve)
                               : t.addToFront}
                         </p>
                         <p className="text-white/40 text-xs mt-1">{t.maxFileSize}</p>
@@ -3276,22 +3276,27 @@ export default function TinyThreadStudio() {
                 const otherView = existingView === "front" ? "back" : "front";
                 const hasPhotoOnOtherSide = photoDesigns.some(d => d.view === otherView);
                 if (hasPhotoOnOtherSide) return null;
-                const surcharge = BACK_SURCHARGE[style]?.[size] || 0;
+                const surcharge = otherView === "back" ? (BACK_SURCHARGE[style]?.[size] || 0) : 0;
                 return (
-                  <button
-                    onClick={() => {
-                      setView(otherView as "front" | "back");
-                      setTimeout(() => fileInputRef.current?.click(), 100);
-                    }}
-                    className={cn(
-                      "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
-                      theme === "dark"
-                        ? "border-[#3e92cc]/50 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/20"
-                        : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
+                  <div>
+                    <button
+                      onClick={() => {
+                        setView(otherView as "front" | "back");
+                        setTimeout(() => fileInputRef.current?.click(), 100);
+                      }}
+                      className={cn(
+                        "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
+                        theme === "dark"
+                          ? "border-[#3e92cc]/50 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/20"
+                          : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
+                      )}
+                    >
+                      + {otherView === "back" ? t.addToBack : t.addToFront}
+                    </button>
+                    {surcharge > 0 && (
+                      <p className="text-center text-xs text-white/40 mt-1">+€{surcharge}</p>
                     )}
-                  >
-                    + {otherView === "back" ? t.addToBack : t.addToFront}
-                  </button>
+                  </div>
                 );
               })()}
               {/* Add another design to current side (2nd or 3rd photo on front/back) */}
@@ -3301,17 +3306,22 @@ export default function TinyThreadStudio() {
                 const eff = (size === "L" ? "M" : size) as "S" | "M";
                 const addPrice = ADDITIONAL_DESIGN_PRICING[style]?.[eff] || 0;
                 return (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className={cn(
-                      "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
-                      theme === "dark"
-                        ? "border-[#3e92cc]/50 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/20"
-                        : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
+                  <div>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className={cn(
+                        "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
+                        theme === "dark"
+                          ? "border-[#3e92cc]/50 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/20"
+                          : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
+                      )}
+                    >
+                      + {t.addAnotherDesign}
+                    </button>
+                    {addPrice > 0 && (
+                      <p className="text-center text-xs text-white/40 mt-1">+€{addPrice}</p>
                     )}
-                  >
-                    + {t.addAnotherDesign}
-                  </button>
+                  </div>
                 );
               })()}
             </div>
