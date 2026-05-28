@@ -153,6 +153,8 @@ const T: Record<Lang, Record<string, string>> = {
     orderMultipleAdding: "Pievieno...",
     orderMultipleSizeNA: "Drīzumā",
     addAnotherDesign: "Pievienot vēl dizainu šai pusei",
+    addToBackPrice: "no €17",
+    additionalDesignPrice: "no €17",
     maxDesignsPerSide: "Maksimālais dizainu skaits šai pusei sasniegts",
     maxDesignsTitle: "Maksimums sasniegts",
     maxDesignsBody: "Vienā pusē iespējami maksimāli 3 dizaini + teksts.",
@@ -300,6 +302,8 @@ const T: Record<Lang, Record<string, string>> = {
     orderMultipleAdding: "Adding...",
     orderMultipleSizeNA: "Coming soon",
     addAnotherDesign: "Add another design to this side",
+    addToBackPrice: "from €17",
+    additionalDesignPrice: "from €17",
     maxDesignsPerSide: "Maximum designs reached for this side",
     maxDesignsTitle: "Limit reached",
     maxDesignsBody: "Maximum 3 designs + text possible on 1 side.",
@@ -585,7 +589,10 @@ export default function TinyThreadStudio() {
   const [product, setProduct] = useState<Product>("hoodie");
   const [color, setColor] = useState<Color>("black");
   const [view, setView] = useState<View>("front");
-  const [size, setSize] = useState<Size>("S");
+  const [viewSizes, setViewSizes] = useState<Record<string, Size>>({
+    front: "S", back: "M", "left-sleeve": "M", "right-sleeve": "M",
+  });
+  const size: Size = viewSizes[view] ?? "M";
   const [style, setStyle] = useState<Style>("outline");
   const [removeBackground, setRemoveBackground] = useState(true);
   const [designs, setDesigns] = useState<Design[]>([]);
@@ -936,7 +943,9 @@ export default function TinyThreadStudio() {
       setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(newDesign.id);
       if (["outline", "standard", "pet-head", "car"].includes(savedStyle)) setStyle(savedStyle as Style);
-      if (!isSleeveView(targetView) && saved.size && ["S", "M", "L"].includes(saved.size)) setSize(saved.size as Size);
+      if (!isSleeveView(targetView) && saved.size && ["S", "M", "L"].includes(saved.size)) {
+        setViewSizes(prev => ({ ...prev, [targetView]: saved.size as Size }));
+      }
       setShowStitched(true);
       setShowSavedDesigns(false);
       toast({ title: t.designApplied });
@@ -1228,7 +1237,7 @@ export default function TinyThreadStudio() {
       }
     };
     reader.readAsDataURL(file);
-  }, [designs.length, style, view, size, removeBackground, generateEmbroidery, toast, t]);
+  }, [designs.length, style, view, viewSizes, removeBackground, generateEmbroidery, toast, t]);
 
   const handleAddText = useCallback(() => {
     const trimmed = textInput.trim();
@@ -2269,7 +2278,7 @@ export default function TinyThreadStudio() {
       });
       setIsAddingToCart(false);
     }
-  }, [designs, product, color, size, style, view, toast, customer, lang]);
+  }, [designs, product, color, viewSizes, style, view, toast, customer, lang]);
 
   const designLabels = designs.map(design => {
     if (design.textContent) return `${t.textOnly}: "${design.textContent}"`;
@@ -3023,19 +3032,15 @@ export default function TinyThreadStudio() {
                     onClick={() => {
                       const { min, max } = SIZE_CONSTRAINTS[s];
                       const mid = Math.round(min + (max - min) / 2);
-                      setDesigns(prev => {
-                        return prev.map(d => {
-                          if (isSleeveView(d.view) || d.textContent) return d;
-                          // Only update designs on the currently active view (or explicitly selected design).
-                          // Changing size on an empty back view must never update the front design.
-                          const targeted = selectedDesignId
-                            ? d.id === selectedDesignId
-                            : d.view === view && !d.textContent;
-                          if (!targeted) return d;
-                          return { ...d, size: s, currentSizePx: mid };
-                        });
-                      });
-                      if (!selectedIsAdditional) setSize(s);
+                      setDesigns(prev => prev.map(d => {
+                        if (isSleeveView(d.view) || d.textContent) return d;
+                        const targeted = selectedDesignId
+                          ? d.id === selectedDesignId
+                          : d.view === view && !d.textContent;
+                        if (!targeted) return d;
+                        return { ...d, size: s, currentSizePx: mid };
+                      }));
+                      setViewSizes(prev => ({ ...prev, [view]: s }));
                     }}
                     className={cn(
                       "py-2 px-2 rounded-lg border text-center transition-all",
@@ -3296,7 +3301,6 @@ export default function TinyThreadStudio() {
                 const otherView = existingView === "front" ? "back" : "front";
                 const hasPhotoOnOtherSide = photoDesigns.some(d => d.view === otherView);
                 if (hasPhotoOnOtherSide) return null;
-                const surcharge = otherView === "back" ? (BACK_SURCHARGE[style]?.[size] || 0) : 0;
                 return (
                   <div>
                     <button
@@ -3314,8 +3318,8 @@ export default function TinyThreadStudio() {
                     >
                       + {otherView === "back" ? t.addToBack : t.addToFront}
                     </button>
-                    {surcharge > 0 && (
-                      <p className="text-center text-xs text-white/40 mt-1">+€{surcharge}</p>
+                    {otherView === "back" && (
+                      <p className="text-center text-xs text-white/40 mt-1">{t.addToBackPrice}</p>
                     )}
                   </div>
                 );
@@ -3324,8 +3328,6 @@ export default function TinyThreadStudio() {
               {!isSleeveView(view) && (() => {
                 const photosOnCurrentView = designs.filter(d => d.view === view && !d.textContent).length;
                 if (photosOnCurrentView < 1 || photosOnCurrentView >= MAX_DESIGNS_PER_SIDE) return null;
-                const eff = (size === "L" ? "M" : size) as "S" | "M";
-                const addPrice = ADDITIONAL_DESIGN_PRICING[style]?.[eff] || 0;
                 return (
                   <div>
                     <button
@@ -3342,9 +3344,7 @@ export default function TinyThreadStudio() {
                     >
                       + {t.addAnotherDesign}
                     </button>
-                    {addPrice > 0 && (
-                      <p className="text-center text-xs text-white/40 mt-1">+€{addPrice}</p>
-                    )}
+                    <p className="text-center text-xs text-white/40 mt-1">{t.additionalDesignPrice}</p>
                   </div>
                 );
               })()}
