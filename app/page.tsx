@@ -534,7 +534,7 @@ function submitCartForm(items: Array<{ id: string; quantity: number; properties?
       add("items[][properties][" + k + "]", v);
     }
   });
-  add("return_to", "/cart");
+  add("return_to", "/?added=true");
   document.body.appendChild(form);
   form.submit();
 }
@@ -621,7 +621,7 @@ export default function TinyThreadStudio() {
   const photoFrontDesign = designs.find(d => d.view === "front" && !d.textContent);
   const photoBackDesign = designs.find(d => d.view === "back" && !d.textContent);
   const primaryPhotoStyle: Style = (photoFrontDesign?.style || photoBackDesign?.style || style);
-  const basePrice = PRICING[product]?.[primaryPhotoStyle]?.[size] || 0;
+  const basePrice = designs.length > 0 ? (PRICING[product]?.[primaryPhotoStyle]?.[size] || 0) : 0;
   // Back surcharge only applies when there are photo designs on BOTH front and back
   const hasBothSidesPhoto = !!photoFrontDesign && !!photoBackDesign;
   const backSurcharge = hasBothSidesPhoto ? (BACK_SURCHARGE[photoBackDesign!.style] || 0) : 0;
@@ -3228,7 +3228,7 @@ export default function TinyThreadStudio() {
                   {t.addingToCart}
                 </>
               ) : (
-                <>{t.addToCart} — €{currentPrice}</>
+                <>{t.addToCart}{currentPrice > 0 ? ` — €${currentPrice}` : ""}</>
               )}
             </Button>
             {/* Order multiple identical */}
@@ -3294,7 +3294,7 @@ export default function TinyThreadStudio() {
               {t.addingToCart}
             </>
           ) : (
-            <>{t.addToCart} — €{currentPrice}</>
+            <>{t.addToCart}{currentPrice > 0 ? ` — €${currentPrice}` : ""}</>
           )}
         </Button>
         <div className="flex items-center gap-2 mt-1.5">
