@@ -537,15 +537,15 @@ const ICON_LIST = [
   { id: "infinity",  label: "Infinity" },
 ];
 const TEXT_PRICE = 12;
-const TEXT_MAX_CHARS = 30;
-const TEXT_MAX_CHARS_MULTIROW = 80;
-const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 95, M: 162, L: 260 };
+const TEXT_MAX_CHARS = 20;
+const TEXT_MAX_CHARS_MULTIROW = 20;
+const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 31, M: 50, L: 84 };
 // Text size constraints in currentSizePx units (font height = sizePx/6 * 0.786mm/px)
-// S: 8-14mm, M: 15-25mm, L: 26-40mm
+// S: 3-5mm, M: 5-8mm, L: 9-13mm
 const TEXT_SIZE_CONSTRAINTS = {
-  S: { min: 62,  max: 107, label: "8-14mm"  },
-  M: { min: 115, max: 191, label: "15-25mm" },
-  L: { min: 199, max: 305, label: "26-40mm" },
+  S: { min: 23, max: 38,  label: "3-5mm"  },
+  M: { min: 39, max: 61,  label: "5-8mm"  },
+  L: { min: 69, max: 99,  label: "9-13mm" },
 } as const;
 // Shopify variant ID for the €12 "Teksta izšuvums" add-on product
 const TEXT_ADDON_VARIANT_ID = "57137410703691";
@@ -3806,8 +3806,8 @@ export default function TinyThreadStudio() {
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3e92cc]/60 resize-none"
                   autoFocus
                 />
-                <p className="text-white/40 text-xs mt-1.5 text-right">
-                  {activeMaxChars - textInput.length} {t.textCharsLeft}
+                <p className={cn("text-xs mt-1.5 text-right font-mono", textInput.length >= activeMaxChars ? "text-red-400 font-semibold" : "text-white/40")}>
+                  {textInput.length}/{activeMaxChars}
                 </p>
               </div>
 
