@@ -155,6 +155,10 @@ const T: Record<Lang, Record<string, string>> = {
     addAnotherDesign: "Pievienot vēl dizainu šai pusei",
     addToBackPrice: "no €17",
     additionalDesignPrice: "no €17",
+    chooseSizeHint: "Izvēlies izmēru",
+    chooseStyleHint: "Izvēlies stilu",
+    uploadHint: "Augšupielādē foto",
+    cancelAdding: "Atcelt",
     maxDesignsPerSide: "Maksimālais dizainu skaits šai pusei sasniegts",
     maxDesignsTitle: "Maksimums sasniegts",
     maxDesignsBody: "Vienā pusē iespējami maksimāli 3 dizaini + teksts.",
@@ -304,6 +308,10 @@ const T: Record<Lang, Record<string, string>> = {
     addAnotherDesign: "Add another design to this side",
     addToBackPrice: "from €17",
     additionalDesignPrice: "from €17",
+    chooseSizeHint: "Choose size",
+    chooseStyleHint: "Choose style",
+    uploadHint: "Upload photo",
+    cancelAdding: "Cancel",
     maxDesignsPerSide: "Maximum designs reached for this side",
     maxDesignsTitle: "Limit reached",
     maxDesignsBody: "Maximum 3 designs + text possible on 1 side.",
@@ -621,7 +629,8 @@ export default function TinyThreadStudio() {
   const [multipleQtys, setMultipleQtys] = useState<Record<string, number>>({ S: 0, M: 0, L: 0, XL: 0 });
   const [isAddingMultiple, setIsAddingMultiple] = useState(false);
   const [showMultipleTooltip, setShowMultipleTooltip] = useState(false);
-  const [addingDesignContext, setAddingDesignContext] = useState<null | "additional" | "back">(null);
+  type AddingMode = { context: "additional" | "back"; step: "size" | "style" | "upload"; size?: "S" | "M" } | null;
+  const [addingMode, setAddingMode] = useState<AddingMode>(null);
   const [showCarPlatePopup, setShowCarPlatePopup] = useState(false);
   const [showMaxDesignsPopup, setShowMaxDesignsPopup] = useState(false);
   const [carPlatePending, setCarPlatePending] = useState<{ designId: string; base64: string; sleevePlacement: boolean } | null>(null);
@@ -1170,7 +1179,7 @@ export default function TinyThreadStudio() {
   };
 
   const handleFileUpload = useCallback((file: File) => {
-    setAddingDesignContext(null);
+    setAddingMode(null);
     // Limit: max 3 photos per side
     const photosOnThisView = designs.filter(d => d.view === view && !d.textContent).length;
     if (photosOnThisView >= MAX_DESIGNS_PER_SIDE) {
@@ -1345,9 +1354,8 @@ export default function TinyThreadStudio() {
 
   const handleDeleteDesign = useCallback((designId: string) => {
     setDesigns(prev => prev.filter(d => d.id !== designId));
-    if (selectedDesignId === designId) {
-      setSelectedDesignId(null);
-    }
+    if (selectedDesignId === designId) setSelectedDesignId(null);
+    setAddingMode(null);
   }, [selectedDesignId]);
 
   const getPointerPos = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
@@ -3020,17 +3028,63 @@ export default function TinyThreadStudio() {
           ) : (
             <div className={cn(
               "space-y-2 rounded-xl transition-all",
-              addingDesignContext ? "ring-2 ring-[#3e92cc]/60 shadow-[0_0_12px_rgba(62,146,204,0.25)] p-2" : ""
+              addingMode?.step === "size" ? "ring-2 ring-[#3e92cc]/70 shadow-[0_0_14px_rgba(62,146,204,0.3)] p-2" : ""
             )}>
-              <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                {t.size}
-              </label>
-              <div className={cn("grid gap-2", (product === "cap" || selectedIsAdditional) ? "grid-cols-2" : "grid-cols-3")}>
-                {(product === "cap" || selectedIsAdditional ? ["S", "M"] as Size[] : ["S", "M", "L"] as Size[]).map(s => (
+              <div className="flex items-center justify-between">
+                <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+                  {addingMode?.step === "size" ? <span className="text-[#3e92cc]">{t.chooseSizeHint}</span> : t.size}
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {(["S", "M"] as Size[]).map(s => (
                   <button
                     key={s}
                     onClick={() => {
-                      const { min, max } = SIZE_CONSTRAINTS[s];
+                      if (addingMode?.step === "size") {
+                        // In adding mode: store pending size, advance to style step — do NOT touch existing designs
+                        setViewSizes(prev => ({ ...prev, [view]: s }));
+                        setAddingMode(prev => prev ? { ...prev, step: "style", size: s } : null);
+                      } else {
+                        // Normal edit: update existing design sizes
+                        const { min, max } = SIZE_CONSTRAINTS[s];
+                        const mid = Math.round(min + (max - min) / 2);
+                        setDesigns(prev => prev.map(d => {
+                          if (isSleeveView(d.view) || d.textContent) return d;
+                          const targeted = selectedDesignId
+                            ? d.id === selectedDesignId
+                            : d.view === view && !d.textContent;
+                          if (!targeted) return d;
+                          return { ...d, size: s, currentSizePx: mid };
+                        }));
+                        setViewSizes(prev => ({ ...prev, [view]: s }));
+                      }
+                    }}
+                    className={cn(
+                      "py-2 px-2 rounded-lg border text-center transition-all",
+                      (addingMode?.step === "size"
+                        ? addingMode.size === s
+                        : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size)) === s
+                        ? "border-[#3e92cc] bg-[#3e92cc]/10"
+                        : theme === "dark"
+                          ? "border-neutral-700 hover:border-neutral-600"
+                          : "border-gray-200 hover:border-gray-300"
+                    )}
+                  >
+                    <div className={cn("text-lg font-semibold",
+                      (addingMode?.step === "size"
+                        ? addingMode.size === s
+                        : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size)) === s
+                        ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900"
+                    )}>{s}</div>
+                    <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
+                  </button>
+                ))}
+                {/* L button only shown when NOT in adding mode and product supports it */}
+                {!addingMode && product !== "cap" && !selectedIsAdditional && (
+                  <button
+                    key="L"
+                    onClick={() => {
+                      const { min, max } = SIZE_CONSTRAINTS["L"];
                       const mid = Math.round(min + (max - min) / 2);
                       setDesigns(prev => prev.map(d => {
                         if (isSleeveView(d.view) || d.textContent) return d;
@@ -3038,23 +3092,26 @@ export default function TinyThreadStudio() {
                           ? d.id === selectedDesignId
                           : d.view === view && !d.textContent;
                         if (!targeted) return d;
-                        return { ...d, size: s, currentSizePx: mid };
+                        return { ...d, size: "L", currentSizePx: mid };
                       }));
-                      setViewSizes(prev => ({ ...prev, [view]: s }));
+                      setViewSizes(prev => ({ ...prev, [view]: "L" }));
                     }}
                     className={cn(
                       "py-2 px-2 rounded-lg border text-center transition-all",
-                      (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s
+                      (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === "L"
                         ? "border-[#3e92cc] bg-[#3e92cc]/10"
                         : theme === "dark"
                           ? "border-neutral-700 hover:border-neutral-600"
                           : "border-gray-200 hover:border-gray-300"
                     )}
                   >
-                    <div className={cn("text-lg font-semibold", (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>{s}</div>
-                    <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
+                    <div className={cn("text-lg font-semibold",
+                      (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === "L"
+                        ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900"
+                    )}>L</div>
+                    <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS["L"].label}</div>
                   </button>
-                ))}
+                )}
               </div>
             </div>
           )}
@@ -3088,22 +3145,33 @@ export default function TinyThreadStudio() {
           {/* Style Selection */}
           <div className={cn(
             "space-y-2 rounded-xl transition-all",
-            addingDesignContext ? "ring-2 ring-[#3e92cc]/60 shadow-[0_0_12px_rgba(62,146,204,0.25)] p-2" : ""
+            addingMode?.step === "style" ? "ring-2 ring-[#3e92cc]/70 shadow-[0_0_14px_rgba(62,146,204,0.3)] p-2" : "",
+            addingMode?.step === "size" ? "opacity-40 pointer-events-none select-none" : ""
           )}>
             <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              {t.style}
+              {addingMode?.step === "style" ? <span className="text-[#3e92cc]">{t.chooseStyleHint}</span> : t.style}
             </label>
             <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
               {STYLES.map(s => {
-                const addCtxPrice = addingDesignContext === "additional"
-                  ? { S: ADDITIONAL_DESIGN_PRICING[s.id as Style]?.S, M: ADDITIONAL_DESIGN_PRICING[s.id as Style]?.M, L: null }
-                  : addingDesignContext === "back"
-                    ? { S: BACK_SURCHARGE[s.id]?.S, M: BACK_SURCHARGE[s.id]?.M, L: BACK_SURCHARGE[s.id]?.L }
-                    : null;
+                const chosenSize = addingMode?.size;
+                const priceLine = addingMode?.step === "style" && chosenSize
+                  ? (addingMode.context === "additional"
+                    ? `${chosenSize}: +€${ADDITIONAL_DESIGN_PRICING[s.id as Style]?.[chosenSize]}`
+                    : `${chosenSize}: +€${BACK_SURCHARGE[s.id]?.[chosenSize]}`)
+                  : null;
                 return (
                 <button
                   key={s.id}
-                  onClick={() => handleStyleChange(s.id)}
+                  onClick={() => {
+                    if (addingMode?.step === "style") {
+                      // In adding mode: just update style, advance to upload — do NOT trigger regeneration
+                      setStyle(s.id as Style);
+                      setSelectedDesignId(null);
+                      setAddingMode(prev => prev ? { ...prev, step: "upload" } : null);
+                    } else {
+                      handleStyleChange(s.id);
+                    }
+                  }}
                   className={cn(
                     "w-full p-3 rounded-lg border text-left transition-all",
                     style === s.id
@@ -3122,10 +3190,8 @@ export default function TinyThreadStudio() {
                   <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
                     {t.bestFor}: {s.id === "outline" ? t.outlineBest : s.id === "standard" ? t.standardBest : s.id === "pet-head" ? t.petHeadBest : t.carBest}
                   </div>
-                  {addCtxPrice && (
-                    <div className="text-xs mt-1.5 text-[#3e92cc]/80 font-medium">
-                      S: +€{addCtxPrice.S} / M: +€{addCtxPrice.M}{addCtxPrice.L !== null ? ` / L: +€${addCtxPrice.L}` : " / L: n/a"}
-                    </div>
+                  {priceLine && (
+                    <div className="text-xs mt-1.5 text-[#3e92cc] font-semibold">{priceLine}</div>
                   )}
                 </button>
                 );
@@ -3137,6 +3203,21 @@ export default function TinyThreadStudio() {
               </div>
             )}
           </div>
+
+          {/* Cancel adding mode button */}
+          {addingMode && (
+            <button
+              onClick={() => setAddingMode(null)}
+              className={cn(
+                "w-full py-2 text-sm rounded-lg border transition-all",
+                theme === "dark"
+                  ? "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
+                  : "border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              )}
+            >
+              ✕ {t.cancelAdding}
+            </button>
+          )}
 
           {/* Remove Background Toggle */}
           <div className="flex items-center justify-between">
@@ -3150,11 +3231,13 @@ export default function TinyThreadStudio() {
             />
           </div>
 
-          {/* Upload Photo — visible whenever the current view has no photo design */}
-          {!currentDesignsForView.some(d => !d.textContent) && (
+          {/* Upload Photo — visible when view has no photo design, OR in adding mode upload step */}
+          {(!currentDesignsForView.some(d => !d.textContent) || addingMode?.step === "upload") && (
             <div className="space-y-2">
-              <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                {t.uploadPhoto}
+              <label className={cn("text-sm font-semibold uppercase tracking-wide",
+                addingMode?.step === "upload" ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-500" : "text-gray-500"
+              )}>
+                {addingMode?.step === "upload" ? t.uploadHint : t.uploadPhoto}
               </label>
               <div
                 onClick={() => fileInputRef.current?.click()}
@@ -3166,15 +3249,17 @@ export default function TinyThreadStudio() {
                 }}
                 className={cn(
                   "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all",
-                  theme === "dark"
-                    ? "border-neutral-700 hover:border-neutral-600"
-                    : "border-gray-300 hover:border-gray-400"
+                  addingMode?.step === "upload"
+                    ? "border-[#3e92cc]/60 hover:border-[#3e92cc] hover:bg-[#3e92cc]/5"
+                    : theme === "dark"
+                      ? "border-neutral-700 hover:border-neutral-600"
+                      : "border-gray-300 hover:border-gray-400"
                 )}
               >
-                <svg className={cn("w-8 h-8 mx-auto mb-2", theme === "dark" ? "text-neutral-600" : "text-gray-400")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={cn("w-8 h-8 mx-auto mb-2", addingMode?.step === "upload" ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-600" : "text-gray-400")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
-                <p className={cn("text-sm", theme === "dark" ? "text-neutral-400" : "text-gray-600")}>
+                <p className={cn("text-sm", addingMode?.step === "upload" ? "text-[#3e92cc]" : theme === "dark" ? "text-neutral-400" : "text-gray-600")}>
                   {t.dropImageBrowse} <span className="text-[#3e92cc] hover:underline">{t.browse}</span>
                 </p>
                 <p className={cn("text-xs mt-1", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
@@ -3306,8 +3391,7 @@ export default function TinyThreadStudio() {
                     <button
                       onClick={() => {
                         setView(otherView as "front" | "back");
-                        if (otherView === "back") setAddingDesignContext("back");
-                        setTimeout(() => fileInputRef.current?.click(), 100);
+                        setAddingMode({ context: otherView === "back" ? "back" : "additional", step: "size" });
                       }}
                       className={cn(
                         "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
@@ -3331,10 +3415,7 @@ export default function TinyThreadStudio() {
                 return (
                   <div>
                     <button
-                      onClick={() => {
-                        setAddingDesignContext("additional");
-                        fileInputRef.current?.click();
-                      }}
+                      onClick={() => setAddingMode({ context: "additional", step: "size" })}
                       className={cn(
                         "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
                         theme === "dark"
