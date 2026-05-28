@@ -1251,20 +1251,19 @@ export default function TinyThreadStudio() {
 
   const handleStyleChange = useCallback((newStyle: Style) => {
     setStyle(newStyle);
-    
-    if (selectedDesign) {
-      setDesigns(prev => prev.map(d => {
-        if (d.id === selectedDesign.id) {
-          return { ...d, style: newStyle };
-        }
-        return d;
-      }));
 
-      if (!selectedDesign.generatedImages[newStyle]) {
+    // Only update + regenerate the selected design if it lives on the current view.
+    // If the current view is empty, changing style should never touch designs on other views.
+    if (selectedDesign && selectedDesign.view === view && !selectedDesign.textContent) {
+      setDesigns(prev => prev.map(d =>
+        d.id === selectedDesign.id ? { ...d, style: newStyle } : d
+      ));
+
+      if (selectedDesign.originalImage && !selectedDesign.generatedImages[newStyle]) {
         generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, newStyle);
       }
     }
-  }, [selectedDesign, generateEmbroidery]);
+  }, [selectedDesign, view, generateEmbroidery]);
 
   const handleDeleteDesign = useCallback((designId: string) => {
     setDesigns(prev => prev.filter(d => d.id !== designId));
