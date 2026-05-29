@@ -2420,8 +2420,13 @@ export default function TinyThreadStudio() {
                     left: `${design.position.x}%`,
                     top: `${design.position.y}%`,
                     transform: `translate(-50%, -50%) rotate(${design.rotation || 0}deg)`,
-                    width: design.currentSizePx * sizeScale,
-                    height: design.currentSizePx * sizeScale,
+                    // Text: no fixed dimensions — container auto-sizes to text content so the
+                    // selection ring wraps the actual rendered text, not an arbitrary square.
+                    // Images: fixed square sized to currentSizePx.
+                    ...(isText ? {} : {
+                      width: design.currentSizePx * sizeScale,
+                      height: design.currentSizePx * sizeScale,
+                    }),
                   }}
                   className={cn(
                     "cursor-move group",
@@ -2434,7 +2439,7 @@ export default function TinyThreadStudio() {
                   onDoubleClick={(e) => { if (isText) { e.stopPropagation(); handleEditText(design); } }}
                 >
                   {isText ? (
-                    <div className="w-full h-full flex items-center justify-center pointer-events-none px-1">
+                    <div className="flex items-center justify-center pointer-events-none px-1 py-0.5">
                       {design.iconName && design.iconPosition === "left" && (
                         <img
                           src={`/icons/${design.iconName}.svg`}
