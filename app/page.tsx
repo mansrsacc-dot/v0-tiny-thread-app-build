@@ -3817,11 +3817,11 @@ export default function TinyThreadStudio() {
                 </p>
               </div>
 
-              {/* Text size S/M/L */}
+              {/* Text size S/M only */}
               <div>
                 <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textSizeLabel}</label>
                 <div className="flex gap-2">
-                  {(["S", "M", "L"] as const).map(s => (
+                  {(["S", "M"] as const).map(s => (
                     <button
                       key={s}
                       onClick={() => {
@@ -3839,7 +3839,7 @@ export default function TinyThreadStudio() {
                           : "border-white/10 text-white/50 hover:border-white/30"
                       )}
                     >
-                      {s === "S" ? t.textSizeS : s === "M" ? t.textSizeM : t.textSizeL}
+                      {s === "S" ? t.textSizeS : t.textSizeM}
                     </button>
                   ))}
                 </div>
