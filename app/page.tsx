@@ -617,6 +617,7 @@ export default function TinyThreadStudio() {
   const [showStitched, setShowStitched] = useState(false);
   const [dragState, setDragState] = useState<{ isDragging: boolean; startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const [resizeState, setResizeState] = useState<{ isResizing: boolean; startX: number; startY: number; startSize: number } | null>(null);
+  const [pinchState, setPinchState] = useState<{ startDist: number; startSize: number; designId: string } | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -1232,9 +1233,11 @@ export default function TinyThreadStudio() {
       setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(newDesign.id);
 
-      // On mobile, scroll to top so the garment preview (order-1) is visible during generation
-      if (window.innerWidth < 1024) {
-        setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
+      // On mobile, scroll canvas into view after upload so garment preview is visible
+      if (window.innerWidth < 768) {
+        setTimeout(() => {
+          previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 150);
       }
 
       if (style === "car") {
@@ -1390,8 +1393,16 @@ export default function TinyThreadStudio() {
     e.stopPropagation();
     setSelectedDesignId(designId);
     const design = designs.find(d => d.id === designId);
-    // Sync style selector so the user sees which style this design uses
     if (design && !design.textContent) setStyle(design.style);
+    // Two-finger touch: start pinch-to-resize
+    if ('touches' in e && e.touches.length >= 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setPinchState({ startDist: dist, startSize: design?.currentSizePx ?? 130, designId });
+      return;
+    }
     const pos = getPointerPos(e);
     if (design) {
       setDragState({
@@ -1426,6 +1437,25 @@ export default function TinyThreadStudio() {
 
   useEffect(() => {
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+      // Two-finger pinch-to-resize
+      if (pinchState && 'touches' in e && e.touches.length >= 2) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const ratio = dist / pinchState.startDist;
+        setDesigns(prev => prev.map(d => {
+          if (d.id !== pinchState.designId) return d;
+          const constraints = d.textContent
+            ? TEXT_SIZE_CONSTRAINTS[d.size as "S" | "M" | "L"]
+            : SIZE_CONSTRAINTS[d.size];
+          const newSize = Math.max(constraints.min, Math.min(constraints.max, Math.round(pinchState.startSize * ratio)));
+          return { ...d, currentSizePx: newSize };
+        }));
+        return;
+      }
+
       const pos = 'touches' in e && e.touches.length > 0
         ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
         : 'clientX' in e ? { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY } : null;
@@ -1476,9 +1506,10 @@ export default function TinyThreadStudio() {
     const handlePointerUp = () => {
       setDragState(null);
       setResizeState(null);
+      setPinchState(null);
     };
 
-    if (dragState?.isDragging || resizeState?.isResizing) {
+    if (dragState?.isDragging || resizeState?.isResizing || pinchState) {
       window.addEventListener("mousemove", handlePointerMove);
       window.addEventListener("mouseup", handlePointerUp);
       window.addEventListener("touchmove", handlePointerMove, { passive: false });
@@ -1492,7 +1523,7 @@ export default function TinyThreadStudio() {
         window.removeEventListener("touchcancel", handlePointerUp);
       };
     }
-  }, [dragState, resizeState, selectedDesignId, designs, sizeScale]);
+  }, [dragState, resizeState, pinchState, selectedDesignId, designs, sizeScale]);
 
   const getSizeInMm = (sizePx: number, sizeCategory: Size, isText = false) => {
     if (isText) {
@@ -2326,7 +2357,7 @@ export default function TinyThreadStudio() {
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
       {/* Garment Preview - First on mobile, Second on desktop */}
       <div className={cn(
-        "w-full md:flex-1 h-[50vh] md:h-screen order-1 md:order-2 flex flex-col relative",
+        "w-full md:flex-1 md:h-screen order-1 md:order-2 flex flex-col relative",
         theme === "dark" ? "bg-[#1e1b18]" : "bg-gray-50"
       )}>
         {/* Top Controls - Original/Stitched toggle */}
@@ -2406,6 +2437,8 @@ export default function TinyThreadStudio() {
 
               const imageToShow = getDisplayUrl(rawImageToShow);
               const isText = !!design.textContent;
+              // Clamp legacy oversized text designs (e.g. old sleeve designs saved at 150px)
+              const safeTextSizePx = isText ? Math.min(design.currentSizePx, TEXT_SIZE_CONSTRAINTS.L.max) : design.currentSizePx;
               if (!isText && !imageToShow) return null;
 
               const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
@@ -2445,8 +2478,8 @@ export default function TinyThreadStudio() {
                           src={`/icons/${design.iconName}.svg`}
                           alt=""
                           style={{
-                            width: Math.max(8, design.currentSizePx * sizeScale),
-                            height: Math.max(8, design.currentSizePx * sizeScale),
+                            width: Math.max(8, safeTextSizePx * sizeScale),
+                            height: Math.max(8, safeTextSizePx * sizeScale),
                             flexShrink: 0,
                             marginRight: 4,
                             filter: color === "black"
@@ -2462,7 +2495,7 @@ export default function TinyThreadStudio() {
                           fontVariant: fontDef.fontVariant,
                           color: textColor,
                           fontWeight: 700,
-                          fontSize: Math.max(8, design.currentSizePx * sizeScale),
+                          fontSize: Math.max(8, safeTextSizePx * sizeScale),
                           lineHeight: 1.2,
                           whiteSpace: design.textMultiRow ? "pre-line" : "nowrap",
                           textAlign: "center",
@@ -2476,8 +2509,8 @@ export default function TinyThreadStudio() {
                           src={`/icons/${design.iconName}.svg`}
                           alt=""
                           style={{
-                            width: Math.max(8, design.currentSizePx * sizeScale),
-                            height: Math.max(8, design.currentSizePx * sizeScale),
+                            width: Math.max(8, safeTextSizePx * sizeScale),
+                            height: Math.max(8, safeTextSizePx * sizeScale),
                             flexShrink: 0,
                             marginLeft: 4,
                             filter: color === "black"
@@ -2997,7 +3030,7 @@ export default function TinyThreadStudio() {
                     key={c}
                     onClick={() => setColor(c)}
                     className={cn(
-                      "w-8 h-8 rounded-full border-2 transition-all",
+                      "w-11 h-11 rounded-full border-2 transition-all",
                       color === c ? "ring-2 ring-[#3e92cc] ring-offset-2" : "",
                       theme === "dark" ? "ring-offset-[#0d0d0d]" : "ring-offset-white",
                       c === "black" ? "bg-black border-neutral-600" : "border-gray-300"
@@ -3022,7 +3055,7 @@ export default function TinyThreadStudio() {
                     key={v}
                     onClick={() => setView(v)}
                     className={cn(
-                      "py-2 px-3 rounded-lg border text-sm font-medium transition-all",
+                      "py-3 px-3 rounded-lg border text-sm font-medium transition-all",
                       view === v
                         ? "border-[#3e92cc] bg-[#3e92cc]/10 text-[#3e92cc]"
                         : theme === "dark"
@@ -3089,7 +3122,7 @@ export default function TinyThreadStudio() {
                       }
                     }}
                     className={cn(
-                      "py-2 px-2 rounded-lg border text-center transition-all",
+                      "py-3 px-2 rounded-lg border text-center transition-all",
                       (addingMode
                         ? addingMode.size === s
                         : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s)
@@ -3126,7 +3159,7 @@ export default function TinyThreadStudio() {
                       setViewSizes(prev => ({ ...prev, [view]: "L" }));
                     }}
                     className={cn(
-                      "py-2 px-2 rounded-lg border text-center transition-all",
+                      "py-3 px-2 rounded-lg border text-center transition-all",
                       (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === "L"
                         ? "border-[#3e92cc] bg-[#3e92cc]/10"
                         : theme === "dark"
@@ -3327,7 +3360,7 @@ export default function TinyThreadStudio() {
                       if (!design.textContent) setStyle(design.style);
                     }}
                     className={cn(
-                      "flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-all",
+                      "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
                       selectedDesignId === design.id
                         ? "border-[#3e92cc] bg-[#3e92cc]/10"
                         : theme === "dark"
@@ -3772,8 +3805,8 @@ export default function TinyThreadStudio() {
         const previewFontDef = TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0];
         const previewColor = textColorInput || (color === "black" ? "#FFFFFF" : "#000000");
         return (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-6 max-w-md w-full my-4">
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-end md:items-center justify-center p-0 md:p-4 overflow-y-auto">
+          <div className="bg-[#1e1b18] border border-white/10 rounded-none md:rounded-2xl p-4 md:p-6 max-w-md w-full md:my-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">{t.addText}</h2>
               <button onClick={closeModal} className="text-white/40 hover:text-white/70">✕</button>
@@ -3833,7 +3866,7 @@ export default function TinyThreadStudio() {
                         }
                       }}
                       className={cn(
-                        "flex-1 py-2 rounded-lg border text-sm font-bold transition-colors",
+                        "flex-1 py-3 rounded-lg border text-sm font-bold transition-colors",
                         textSizeInput === s
                           ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
                           : "border-white/10 text-white/50 hover:border-white/30"
@@ -3853,7 +3886,7 @@ export default function TinyThreadStudio() {
                       key={f.id}
                       onClick={() => setTextFontInput(f.id)}
                       className={cn(
-                        "px-3 py-2 rounded-lg border text-sm transition-colors text-left",
+                        "px-3 py-3 rounded-lg border text-sm transition-colors text-left",
                         textFontInput === f.id
                           ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
                           : "border-white/10 text-white/60 hover:border-white/30"
@@ -3878,7 +3911,7 @@ export default function TinyThreadStudio() {
                         onClick={() => setTextColorInput(c.hex || "")}
                         title={c.label}
                         className={cn(
-                          "w-8 h-8 rounded-full border-2 transition-transform hover:scale-110",
+                          "w-10 h-10 rounded-full border-2 transition-transform hover:scale-110",
                           isActive ? "border-white ring-2 ring-[#3e92cc]" : "border-white/20"
                         )}
                         style={{
