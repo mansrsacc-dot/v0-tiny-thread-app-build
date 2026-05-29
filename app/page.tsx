@@ -539,14 +539,14 @@ const ICON_LIST = [
 const TEXT_PRICE = 12;
 const TEXT_MAX_CHARS = 20;
 const TEXT_MAX_CHARS_MULTIROW = 20;
-// Text size in currentSizePx units: fontSize = currentSizePx * sizeScale (no divisor).
-// At 400px reference preview (sizeScale=0.55): S→49px, M→71px, L→99px screen font.
-// Proportions: S ≈ 1/10, M ≈ 1/7, L ≈ 1/5 of hoodie display height.
-const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 90, M: 130, L: 180 };
+// Text size in currentSizePx units. Formula: currentSizePx = mm × (780/700).
+// Canvas maps via (currentSizePx/780)×800; garment=700mm, canvas=800px → 1mm=1.143px.
+// S=8-14mm, M=15-25mm, L=26-40mm. At M center (20mm): 20×1.114=22px → 23px on 800px canvas.
+const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 12, M: 22, L: 37 };
 const TEXT_SIZE_CONSTRAINTS = {
-  S: { min: 75,  max: 110, label: "S" },
-  M: { min: 110, max: 150, label: "M" },
-  L: { min: 150, max: 225, label: "L" },
+  S: { min: 9,  max: 16, label: "8-14mm"  },
+  M: { min: 17, max: 28, label: "15-25mm" },
+  L: { min: 29, max: 45, label: "26-40mm" },
 } as const;
 // Shopify variant ID for the €12 "Teksta izšuvums" add-on product
 const TEXT_ADDON_VARIANT_ID = "57137410703691";
@@ -1496,8 +1496,8 @@ export default function TinyThreadStudio() {
 
   const getSizeInMm = (sizePx: number, sizeCategory: Size, isText = false) => {
     if (isText) {
-      // Text height in real mm: currentSizePx IS the font height in coordinate space; 1px ≈ 0.786mm
-      return Math.round(sizePx * (55 / 70));
+      // currentSizePx maps to canvas via (px/780)*800; garment=700mm, canvas=800px → mm = px*(700/780)
+      return Math.round(sizePx * (700 / 780));
     }
     const constraints = SIZE_CONSTRAINTS[sizeCategory];
     const ratio = (sizePx - constraints.min) / (constraints.max - constraints.min);
@@ -1688,7 +1688,7 @@ export default function TinyThreadStudio() {
       if (textDesigns.length > 0) {
         sharedProps["_text_detail"] = textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
-          const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (55 / 70)) : 70;
+          const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (700 / 780)) : 20;
           const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
           const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
           return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
@@ -1780,7 +1780,7 @@ export default function TinyThreadStudio() {
       if (textDesigns.length > 0) {
         params.set("properties[_text_detail]", textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
-          const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (55 / 70)) : 70;
+          const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (700 / 780)) : 20;
           const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
           const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
           return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
@@ -2440,8 +2440,8 @@ export default function TinyThreadStudio() {
                           src={`/icons/${design.iconName}.svg`}
                           alt=""
                           style={{
-                            width: design.currentSizePx * sizeScale,
-                            height: design.currentSizePx * sizeScale,
+                            width: Math.max(8, design.currentSizePx * sizeScale),
+                            height: Math.max(8, design.currentSizePx * sizeScale),
                             flexShrink: 0,
                             marginRight: 4,
                             filter: color === "black"
@@ -2457,7 +2457,7 @@ export default function TinyThreadStudio() {
                           fontVariant: fontDef.fontVariant,
                           color: textColor,
                           fontWeight: 700,
-                          fontSize: design.currentSizePx * sizeScale,
+                          fontSize: Math.max(8, design.currentSizePx * sizeScale),
                           lineHeight: 1.2,
                           whiteSpace: design.textMultiRow ? "pre-line" : "nowrap",
                           textAlign: "center",
@@ -2471,8 +2471,8 @@ export default function TinyThreadStudio() {
                           src={`/icons/${design.iconName}.svg`}
                           alt=""
                           style={{
-                            width: design.currentSizePx * sizeScale,
-                            height: design.currentSizePx * sizeScale,
+                            width: Math.max(8, design.currentSizePx * sizeScale),
+                            height: Math.max(8, design.currentSizePx * sizeScale),
                             flexShrink: 0,
                             marginLeft: 4,
                             filter: color === "black"
