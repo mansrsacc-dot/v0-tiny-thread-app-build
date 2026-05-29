@@ -539,13 +539,14 @@ const ICON_LIST = [
 const TEXT_PRICE = 12;
 const TEXT_MAX_CHARS = 20;
 const TEXT_MAX_CHARS_MULTIROW = 20;
-const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 31, M: 50, L: 84 };
-// Text size constraints in currentSizePx units (font height = sizePx/6 * 0.786mm/px)
-// S: 3-5mm, M: 5-8mm, L: 9-13mm
+// Text size in currentSizePx units: fontSize = currentSizePx * sizeScale (no divisor).
+// At 400px reference preview (sizeScale=0.55): S→49px, M→71px, L→99px screen font.
+// Proportions: S ≈ 1/10, M ≈ 1/7, L ≈ 1/5 of hoodie display height.
+const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 90, M: 130, L: 180 };
 const TEXT_SIZE_CONSTRAINTS = {
-  S: { min: 23, max: 38,  label: "3-5mm"  },
-  M: { min: 39, max: 61,  label: "5-8mm"  },
-  L: { min: 69, max: 99,  label: "9-13mm" },
+  S: { min: 75,  max: 110, label: "S" },
+  M: { min: 110, max: 150, label: "M" },
+  L: { min: 150, max: 225, label: "L" },
 } as const;
 // Shopify variant ID for the €12 "Teksta izšuvums" add-on product
 const TEXT_ADDON_VARIANT_ID = "57137410703691";
@@ -1495,8 +1496,8 @@ export default function TinyThreadStudio() {
 
   const getSizeInMm = (sizePx: number, sizeCategory: Size, isText = false) => {
     if (isText) {
-      // Text height in real mm: font is rendered at sizePx/6 in coordinate space; 1px ≈ 0.786mm
-      return Math.round((sizePx / 6) * (55 / 70));
+      // Text height in real mm: currentSizePx IS the font height in coordinate space; 1px ≈ 0.786mm
+      return Math.round(sizePx * (55 / 70));
     }
     const constraints = SIZE_CONSTRAINTS[sizeCategory];
     const ratio = (sizePx - constraints.min) / (constraints.max - constraints.min);
@@ -1687,7 +1688,7 @@ export default function TinyThreadStudio() {
       if (textDesigns.length > 0) {
         sharedProps["_text_detail"] = textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
-          const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 6) * (55 / 70)) : 20;
+          const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (55 / 70)) : 70;
           const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
           const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
           return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
@@ -1779,7 +1780,7 @@ export default function TinyThreadStudio() {
       if (textDesigns.length > 0) {
         params.set("properties[_text_detail]", textDesigns.map(d => {
           const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
-          const sizeMm = d.currentSizePx ? Math.round((d.currentSizePx / 6) * (55 / 70)) : 20;
+          const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (55 / 70)) : 70;
           const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
           const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
           return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
@@ -1940,7 +1941,7 @@ export default function TinyThreadStudio() {
             if (design.textContent) {
               const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
               const textColor = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
-              const fontSize = Math.max(14, sizePx / 2);
+              const fontSize = sizePx;
               ctx.fillStyle = textColor;
               ctx.textBaseline = "middle";
               const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
@@ -2045,7 +2046,7 @@ export default function TinyThreadStudio() {
             if (design.textContent) {
               const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
               const textColorVal = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
-              const fontSize = Math.max(14, sizePx / 2);
+              const fontSize = sizePx;
               ctx.fillStyle = textColorVal;
               ctx.textBaseline = "middle";
               const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
@@ -2439,8 +2440,8 @@ export default function TinyThreadStudio() {
                           src={`/icons/${design.iconName}.svg`}
                           alt=""
                           style={{
-                            width: Math.max(10, (design.currentSizePx * sizeScale) / 2),
-                            height: Math.max(10, (design.currentSizePx * sizeScale) / 2),
+                            width: design.currentSizePx * sizeScale,
+                            height: design.currentSizePx * sizeScale,
                             flexShrink: 0,
                             marginRight: 4,
                             filter: color === "black"
@@ -2456,7 +2457,7 @@ export default function TinyThreadStudio() {
                           fontVariant: fontDef.fontVariant,
                           color: textColor,
                           fontWeight: 700,
-                          fontSize: Math.max(10, (design.currentSizePx * sizeScale) / 2),
+                          fontSize: design.currentSizePx * sizeScale,
                           lineHeight: 1.2,
                           whiteSpace: design.textMultiRow ? "pre-line" : "nowrap",
                           textAlign: "center",
@@ -2470,8 +2471,8 @@ export default function TinyThreadStudio() {
                           src={`/icons/${design.iconName}.svg`}
                           alt=""
                           style={{
-                            width: Math.max(10, (design.currentSizePx * sizeScale) / 2),
-                            height: Math.max(10, (design.currentSizePx * sizeScale) / 2),
+                            width: design.currentSizePx * sizeScale,
+                            height: design.currentSizePx * sizeScale,
                             flexShrink: 0,
                             marginLeft: 4,
                             filter: color === "black"
