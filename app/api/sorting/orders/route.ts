@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put, list } from "@vercel/blob";
+import { getShopifyAdminToken } from "@/lib/shopify-admin";
 
 const STATUSES_PATH = "sorting/order-statuses.json";
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
     const shopifyRes = await fetch(
       `https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/orders.json?status=open&limit=100`,
       {
-        headers: { "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN! },
+        headers: { "X-Shopify-Access-Token": await getShopifyAdminToken() },
         cache: "no-store",
       }
     );

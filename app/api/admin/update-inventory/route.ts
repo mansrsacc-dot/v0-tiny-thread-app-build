@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getShopifyAdminToken } from "@/lib/shopify-admin";
 
 // One-time (or re-runnable) admin endpoint.
 // Sets inventory_policy=continue and inventory_management=null on ALL product variants
@@ -6,7 +7,6 @@ import { NextRequest, NextResponse } from "next/server";
 // Protected with SORTING_PASSWORD header (same as /sorting page).
 
 const STORE = process.env.SHOPIFY_STORE!;
-const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 
 function verifyAuth(req: NextRequest): boolean {
   const auth = req.headers.get("x-sorting-auth");
@@ -14,8 +14,9 @@ function verifyAuth(req: NextRequest): boolean {
 }
 
 async function shopifyGet(path: string) {
+  const token = await getShopifyAdminToken();
   const r = await fetch(`https://${STORE}/admin/api/2024-01${path}`, {
-    headers: { "X-Shopify-Access-Token": TOKEN, "Content-Type": "application/json" },
+    headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
     cache: "no-store",
   });
   if (!r.ok) throw new Error(`Shopify GET ${path} → ${r.status}: ${await r.text()}`);
@@ -23,9 +24,10 @@ async function shopifyGet(path: string) {
 }
 
 async function shopifyPut(path: string, body: object) {
+  const token = await getShopifyAdminToken();
   const r = await fetch(`https://${STORE}/admin/api/2024-01${path}`, {
     method: "PUT",
-    headers: { "X-Shopify-Access-Token": TOKEN, "Content-Type": "application/json" },
+    headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`Shopify PUT ${path} → ${r.status}: ${await r.text()}`);
@@ -34,13 +36,19 @@ async function shopifyPut(path: string, body: object) {
 
 async function getAllProducts() {
   const products: any[] = [];
-  let page = 1;
-  while (true) {
-    const data = await shopifyGet(`/products.json?limit=250&page=${page}`);
-    const batch: any[] = data.products ?? [];
-    products.push(...batch);
-    if (batch.length < 250) break;
-    page++;
+  let url: string | null = `https://${STORE}/admin/api/2024-01/products.json?limit=250`;
+  while (url) {
+    const token = await getShopifyAdminToken();
+    const r = await fetch(url, {
+      headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    if (!r.ok) throw new Error(`Shopify GET products → ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    products.push(...(data.products ?? []));
+    const link = r.headers.get("link") || "";
+    const next = link.match(/<([^>]+)>;\s*rel="next"/);
+    url = next ? next[1] : null;
   }
   return products;
 }

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getShopifyAdminToken } from "@/lib/shopify-admin";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
 const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
-const SHOPIFY_ADMIN_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 // Simple secret for email signature verification (customer already authed on Shopify)
 const EMAIL_SECRET = process.env.EMAIL_SECRET!;
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       try {
         const adminRes = await fetch(
           `https://${SHOPIFY_STORE}/admin/api/2024-01/customers/search.json?query=email:${encodeURIComponent(email)}&limit=1`,
-          { headers: { "X-Shopify-Access-Token": SHOPIFY_ADMIN_TOKEN } }
+          { headers: { "X-Shopify-Access-Token": await getShopifyAdminToken() } }
         );
         const adminData = await adminRes.json();
         const shopifyCustomer = adminData.customers?.[0];

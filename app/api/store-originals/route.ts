@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getShopifyAdminToken } from "@/lib/shopify-admin";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
-const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 const SHOP_GID = process.env.SHOPIFY_SHOP_GID!;
 
 async function shopifyGQL(query: string, variables: Record<string, unknown> = {}) {
+  const token = await getShopifyAdminToken();
   const res = await fetch(`https://${SHOPIFY_STORE}/admin/api/2024-01/graphql.json`, {
     method: "POST",
-    headers: { "X-Shopify-Access-Token": SHOPIFY_TOKEN, "Content-Type": "application/json" },
+    headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }),
   });
   return res.json();
