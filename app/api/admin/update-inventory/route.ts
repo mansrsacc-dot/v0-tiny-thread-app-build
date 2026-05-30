@@ -39,15 +39,15 @@ async function getAllProducts() {
   let url: string | null = `https://${STORE}/admin/api/2024-01/products.json?limit=250`;
   while (url) {
     const token = await getShopifyAdminToken();
-    const r = await fetch(url, {
+    const r: Response = await fetch(url, {
       headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
       cache: "no-store",
     });
     if (!r.ok) throw new Error(`Shopify GET products → ${r.status}: ${await r.text()}`);
     const data = await r.json();
     products.push(...(data.products ?? []));
-    const link = r.headers.get("link") || "";
-    const next = link.match(/<([^>]+)>;\s*rel="next"/);
+    const link: string = r.headers.get("link") || "";
+    const next: RegExpMatchArray | null = link.match(/<([^>]+)>;\s*rel="next"/);
     url = next ? next[1] : null;
   }
   return products;

@@ -123,11 +123,6 @@ const T: Record<Lang, Record<string, string>> = {
     textSizeS: "Mazs",
     textSizeM: "Vidējs",
     textSizeL: "Liels",
-    iconLibrary: "Ikonu bibliotēka",
-    iconNone: "Bez ikonas",
-    iconPosition: "Ikonas atrašanās",
-    iconLeft: "Pa kreisi",
-    iconRight: "Pa labi",
     cancel: "Atcelt",
     leftSleeve: "Kreisā Piedurkne",
     rightSleeve: "Labā Piedurkne",
@@ -276,11 +271,6 @@ const T: Record<Lang, Record<string, string>> = {
     textSizeS: "Small",
     textSizeM: "Medium",
     textSizeL: "Large",
-    iconLibrary: "Icon Library",
-    iconNone: "No icon",
-    iconPosition: "Icon position",
-    iconLeft: "Left",
-    iconRight: "Right",
     cancel: "Cancel",
     leftSleeve: "Left Sleeve",
     rightSleeve: "Right Sleeve",
@@ -494,8 +484,6 @@ interface Design {
   textFont?: string;
   textColor?: string; // hex - if not set, uses default (white on black, black on white)
   textMultiRow?: boolean;
-  iconName?: string;
-  iconPosition?: "left" | "right";
   licensePlate?: string; // undefined = not asked, "" = no plate, string = plate text
 }
 
@@ -523,18 +511,6 @@ const TEXT_FONTS = [
   { id: "greatvibes",   name: "Great Vibes",  css: "'Great Vibes', cursive",         fontVariant: "normal" },
   { id: "sacramento",   name: "Sacramento",   css: "'Sacramento', cursive",          fontVariant: "normal" },
   { id: "cinzel",       name: "Cinzel",       css: "'Cinzel', serif",                fontVariant: "normal" },
-];
-const ICON_LIST = [
-  { id: "paw",       label: "Paw" },
-  { id: "heart",     label: "Heart" },
-  { id: "smiley",    label: "Smiley" },
-  { id: "star",      label: "Star" },
-  { id: "crown",     label: "Crown" },
-  { id: "lightning", label: "Lightning" },
-  { id: "leaf",      label: "Leaf" },
-  { id: "flame",     label: "Flame" },
-  { id: "moon",      label: "Moon" },
-  { id: "infinity",  label: "Infinity" },
 ];
 const TEXT_PRICE = 12;
 const TEXT_MAX_CHARS = 20;
@@ -598,6 +574,45 @@ function submitCartForm(items: Array<{ id: string; quantity: number; properties?
   form.submit();
 }
 
+// Crop a processed design image to its non-transparent bounding box so the
+// subject always fills the design container, regardless of Replicate output padding.
+async function cropTransparentPadding(dataUrl: string): Promise<string> {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(dataUrl); return; }
+      ctx.drawImage(img, 0, 0);
+      const { data } = ctx.getImageData(0, 0, img.width, img.height);
+      let minX = img.width, maxX = 0, minY = img.height, maxY = 0;
+      for (let y = 0; y < img.height; y++) {
+        for (let x = 0; x < img.width; x++) {
+          if (data[(y * img.width + x) * 4 + 3] > 10) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (minX >= maxX || minY >= maxY) { resolve(dataUrl); return; }
+      const pad = Math.ceil(Math.max(img.width, img.height) * 0.05);
+      const x0 = Math.max(0, minX - pad), y0 = Math.max(0, minY - pad);
+      const x1 = Math.min(img.width, maxX + pad + 1), y1 = Math.min(img.height, maxY + pad + 1);
+      const cw = x1 - x0, ch = y1 - y0;
+      const out = document.createElement("canvas");
+      out.width = cw; out.height = ch;
+      out.getContext("2d")!.drawImage(canvas, x0, y0, cw, ch, 0, 0, cw, ch);
+      resolve(out.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 export default function TinyThreadStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [lang, setLang] = useState<Lang>("lv");
@@ -631,8 +646,6 @@ export default function TinyThreadStudio() {
   const [textColorInput, setTextColorInput] = useState<string>(""); // "" = auto
   const [textMultiRowInput, setTextMultiRowInput] = useState(false);
   const [textSizeInput, setTextSizeInput] = useState<"S" | "M" | "L">("M");
-  const [textIconInput, setTextIconInput] = useState("");
-  const [textIconPositionInput, setTextIconPositionInput] = useState<"left" | "right">("left");
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [showMultipleModal, setShowMultipleModal] = useState(false);
   const [multipleQtys, setMultipleQtys] = useState<Record<string, number>>({ S: 0, M: 0, L: 0, XL: 0 });
@@ -1128,6 +1141,8 @@ export default function TinyThreadStudio() {
           processed = await removeImageBackground(data.imageUrl, styleType, color);
         }
 
+        processed = await cropTransparentPadding(processed);
+
         setDesigns(prev => prev.map(d => {
           if (d.id === designId) {
             const currentHistory = d.generationHistory[styleType] || [];
@@ -1271,8 +1286,6 @@ export default function TinyThreadStudio() {
       setTextColorInput("");
       setTextMultiRowInput(false);
       setTextSizeInput("M");
-      setTextIconInput("");
-      setTextIconPositionInput("left");
       setShowTextModal(false);
     };
 
@@ -1288,8 +1301,6 @@ export default function TinyThreadStudio() {
               textMultiRow: isSleeve ? false : textMultiRowInput,
               size: textSizeInput as Size,
               currentSizePx: TEXT_SIZE_PX[textSizeInput],
-              iconName: isSleeve ? undefined : (textIconInput || undefined),
-              iconPosition: isSleeve ? undefined : (textIconInput ? textIconPositionInput : undefined),
             }
           : d
       ));
@@ -1325,14 +1336,12 @@ export default function TinyThreadStudio() {
       textFont: textFontInput,
       textColor: textColorInput || undefined,
       textMultiRow: isSleeve ? false : textMultiRowInput,
-      iconName: isSleeve ? undefined : (textIconInput || undefined),
-      iconPosition: isSleeve ? undefined : (textIconInput ? textIconPositionInput : undefined),
     };
 
     setDesigns(prev => [...prev, newDesign]);
     setSelectedDesignId(newDesign.id);
     resetModal();
-  }, [textInput, textFontInput, textColorInput, textMultiRowInput, textSizeInput, textIconInput, textIconPositionInput, editingTextId, designs, view, style]);
+  }, [textInput, textFontInput, textColorInput, textMultiRowInput, textSizeInput, editingTextId, designs, view, style]);
 
   const handleEditText = useCallback((design: Design) => {
     if (!design.textContent) return;
@@ -1348,8 +1357,6 @@ export default function TinyThreadStudio() {
     if (design.size !== inferredSize) {
       setDesigns(prev => prev.map(d => d.id === design.id ? { ...d, size: inferredSize } : d));
     }
-    setTextIconInput(design.iconName || "");
-    setTextIconPositionInput(design.iconPosition || "left");
     setShowTextModal(true);
   }, []);
 
@@ -1837,12 +1844,6 @@ export default function TinyThreadStudio() {
       if (textDesigns.length > 0) {
         params.set(`properties[${isLV ? "Teksts" : "Text"}]`, textDesigns.map(d => `"${d.textContent}"`).join(" | "));
       }
-      // Icon info (hidden, for designer)
-      for (const d of textDesigns) {
-        if (d.iconName) {
-          params.set(`properties[_icon_${d.view}]`, `${d.iconName} (${d.iconPosition || "left"})`);
-        }
-      }
 
       // _design_image / _design_image_back are set later after Blob upload (see below)
 
@@ -1978,29 +1979,9 @@ export default function TinyThreadStudio() {
               const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
               const lineH = fontSize * 1.2;
               const totalTextH = lines.length * lineH;
-              const iconSize = fontSize * 1.1;
-              const iconGap = fontSize * 0.3;
-              if (design.iconName) {
-                try {
-                  const iconImg = await loadImg(`/icons/${design.iconName}.svg`);
-                  ctx.font = `700 ${fontSize}px ${fontDef.css}`;
-                  const maxTextW = Math.max(...lines.map(l => ctx.measureText(l).width));
-                  const totalW = iconSize + iconGap + maxTextW;
-                  const textStartX = design.iconPosition === "left" ? -totalW / 2 + iconSize + iconGap : -totalW / 2;
-                  const iconX = design.iconPosition === "left" ? -totalW / 2 : -totalW / 2 + maxTextW + iconGap;
-                  ctx.drawImage(iconImg, iconX, -iconSize / 2, iconSize, iconSize);
-                  ctx.textAlign = "left";
-                  lines.forEach((line, i) => ctx.fillText(line, textStartX, -totalTextH / 2 + lineH * i + lineH / 2));
-                } catch {
-                  ctx.font = `700 ${fontSize}px ${fontDef.css}`;
-                  ctx.textAlign = "center";
-                  lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
-                }
-              } else {
-                ctx.font = `700 ${fontSize}px ${fontDef.css}`;
-                ctx.textAlign = "center";
-                lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
-              }
+              ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+              ctx.textAlign = "center";
+              lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
             } else {
               // processedImages are base64 data: URLs (bg-removed) — no CORS needed
               const imgSrc = proxyIfNeeded(
@@ -2083,29 +2064,9 @@ export default function TinyThreadStudio() {
               const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
               const lineH = fontSize * 1.2;
               const totalTextH = lines.length * lineH;
-              const iconSize = fontSize * 1.1;
-              const iconGap = fontSize * 0.3;
-              if (design.iconName) {
-                try {
-                  const iconImg = await loadImg(`/icons/${design.iconName}.svg`);
-                  ctx.font = `700 ${fontSize}px ${fontDef.css}`;
-                  const maxTextW = Math.max(...lines.map(l => ctx.measureText(l).width));
-                  const totalW = iconSize + iconGap + maxTextW;
-                  const textStartX = design.iconPosition === "left" ? -totalW / 2 + iconSize + iconGap : -totalW / 2;
-                  const iconX = design.iconPosition === "left" ? -totalW / 2 : -totalW / 2 + maxTextW + iconGap;
-                  ctx.drawImage(iconImg, iconX, -iconSize / 2, iconSize, iconSize);
-                  ctx.textAlign = "left";
-                  lines.forEach((line, i) => ctx.fillText(line, textStartX, -totalTextH / 2 + lineH * i + lineH / 2));
-                } catch {
-                  ctx.font = `700 ${fontSize}px ${fontDef.css}`;
-                  ctx.textAlign = "center";
-                  lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
-                }
-              } else {
-                ctx.font = `700 ${fontSize}px ${fontDef.css}`;
-                ctx.textAlign = "center";
-                lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
-              }
+              ctx.font = `700 ${fontSize}px ${fontDef.css}`;
+              ctx.textAlign = "center";
+              lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
             } else {
               const imgSrc = proxyIfNeeded(design.processedImages?.[design.style] || design.rawImageUrl || design.generatedImages?.[design.style] || "");
               if (imgSrc) { try {
@@ -2473,22 +2434,6 @@ export default function TinyThreadStudio() {
                 >
                   {isText ? (
                     <div className="flex items-center justify-center pointer-events-none px-1 py-0.5">
-                      {design.iconName && design.iconPosition === "left" && (
-                        <img
-                          src={`/icons/${design.iconName}.svg`}
-                          alt=""
-                          style={{
-                            width: Math.max(8, safeTextSizePx * sizeScale),
-                            height: Math.max(8, safeTextSizePx * sizeScale),
-                            flexShrink: 0,
-                            marginRight: 4,
-                            filter: color === "black"
-                              ? (design.textColor && design.textColor !== "#000000" ? `drop-shadow(0 0 0 ${design.textColor})` : "invert(1)")
-                              : (design.textColor && design.textColor !== "#FFFFFF" ? `drop-shadow(0 0 0 ${design.textColor})` : "none"),
-                          }}
-                          draggable={false}
-                        />
-                      )}
                       <span
                         style={{
                           fontFamily: fontDef.css,
@@ -2504,22 +2449,6 @@ export default function TinyThreadStudio() {
                       >
                         {design.textContent}
                       </span>
-                      {design.iconName && design.iconPosition === "right" && (
-                        <img
-                          src={`/icons/${design.iconName}.svg`}
-                          alt=""
-                          style={{
-                            width: Math.max(8, safeTextSizePx * sizeScale),
-                            height: Math.max(8, safeTextSizePx * sizeScale),
-                            flexShrink: 0,
-                            marginLeft: 4,
-                            filter: color === "black"
-                              ? (design.textColor && design.textColor !== "#000000" ? `drop-shadow(0 0 0 ${design.textColor})` : "invert(1)")
-                              : (design.textColor && design.textColor !== "#FFFFFF" ? `drop-shadow(0 0 0 ${design.textColor})` : "none"),
-                          }}
-                          draggable={false}
-                        />
-                      )}
                     </div>
                   ) : (
                     <img
@@ -3053,7 +2982,7 @@ export default function TinyThreadStudio() {
                 {(["front", "back", "left-sleeve", "right-sleeve"] as View[]).map(v => (
                   <button
                     key={v}
-                    onClick={() => setView(v)}
+                    onClick={() => { setView(v); setSelectedDesignId(null); }}
                     className={cn(
                       "py-3 px-3 rounded-lg border text-sm font-medium transition-all",
                       view === v
@@ -3094,7 +3023,7 @@ export default function TinyThreadStudio() {
                 </label>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {(["S", "M"] as Size[]).map(s => (
+                {(["S", "M"] as ("S" | "M")[]).map(s => (
                   <button
                     key={s}
                     onClick={() => {
@@ -3113,7 +3042,7 @@ export default function TinyThreadStudio() {
                         setDesigns(prev => prev.map(d => {
                           if (isSleeveView(d.view) || d.textContent) return d;
                           const targeted = selectedDesignId
-                            ? d.id === selectedDesignId
+                            ? d.id === selectedDesignId && d.view === view
                             : d.view === view && !d.textContent;
                           if (!targeted) return d;
                           return { ...d, size: s, currentSizePx: mid };
@@ -3151,7 +3080,7 @@ export default function TinyThreadStudio() {
                       setDesigns(prev => prev.map(d => {
                         if (isSleeveView(d.view) || d.textContent) return d;
                         const targeted = selectedDesignId
-                          ? d.id === selectedDesignId
+                          ? d.id === selectedDesignId && d.view === view
                           : d.view === view && !d.textContent;
                         if (!targeted) return d;
                         return { ...d, size: "L", currentSizePx: mid };
@@ -3453,6 +3382,7 @@ export default function TinyThreadStudio() {
                     <button
                       onClick={() => {
                         setView(otherView as "front" | "back");
+                        setSelectedDesignId(null);
                         setAddingMode({ context: otherView === "back" ? "back" : "additional", step: "size" });
                       }}
                       className={cn(
@@ -3799,14 +3729,12 @@ export default function TinyThreadStudio() {
           setTextColorInput("");
           setTextMultiRowInput(false);
           setTextSizeInput("M");
-          setTextIconInput("");
-          setTextIconPositionInput("left");
         };
         const previewFontDef = TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0];
         const previewColor = textColorInput || (color === "black" ? "#FFFFFF" : "#000000");
         return (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-end md:items-center justify-center p-0 md:p-4 overflow-y-auto">
-          <div className="bg-[#1e1b18] border border-white/10 rounded-none md:rounded-2xl p-4 md:p-6 max-w-md w-full md:my-4">
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="bg-[#1e1b18] border border-white/10 rounded-t-2xl md:rounded-2xl p-4 md:p-6 max-w-md w-full md:my-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">{t.addText}</h2>
               <button onClick={closeModal} className="text-white/40 hover:text-white/70">✕</button>
@@ -3923,87 +3851,10 @@ export default function TinyThreadStudio() {
                 </div>
               </div>
 
-              {/* Icon library (hidden for sleeve) */}
-              {!isSleeve && (
-                <div>
-                  <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.iconLibrary}</label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {/* No icon option */}
-                    <button
-                      onClick={() => setTextIconInput("")}
-                      className={cn(
-                        "aspect-square rounded-lg border flex items-center justify-center text-xs transition-colors",
-                        textIconInput === ""
-                          ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
-                          : "border-white/10 text-white/40 hover:border-white/30"
-                      )}
-                      title={t.iconNone}
-                    >
-                      ✕
-                    </button>
-                    {ICON_LIST.map(icon => (
-                      <button
-                        key={icon.id}
-                        onClick={() => setTextIconInput(icon.id)}
-                        className={cn(
-                          "aspect-square rounded-lg border flex items-center justify-center p-1.5 transition-colors",
-                          textIconInput === icon.id
-                            ? "border-[#3e92cc] bg-[#3e92cc]/10"
-                            : "border-white/10 hover:border-white/30"
-                        )}
-                        title={icon.label}
-                      >
-                        <img
-                          src={`/icons/${icon.id}.svg`}
-                          alt={icon.label}
-                          className="w-full h-full"
-                          style={{ filter: "invert(1)" }}
-                        />
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Icon position (only when icon selected) */}
-                  {textIconInput && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-xs text-white/40">{t.iconPosition}:</span>
-                      <button
-                        onClick={() => setTextIconPositionInput("left")}
-                        className={cn(
-                          "px-3 py-1 rounded-lg border text-xs transition-colors",
-                          textIconPositionInput === "left"
-                            ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
-                            : "border-white/10 text-white/50 hover:border-white/30"
-                        )}
-                      >
-                        ← {t.iconLeft}
-                      </button>
-                      <button
-                        onClick={() => setTextIconPositionInput("right")}
-                        className={cn(
-                          "px-3 py-1 rounded-lg border text-xs transition-colors",
-                          textIconPositionInput === "right"
-                            ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
-                            : "border-white/10 text-white/50 hover:border-white/30"
-                        )}
-                      >
-                        {t.iconRight} →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Live preview */}
               {textInput.trim() && (
                 <div className="rounded-lg border border-white/10 p-4 flex items-center justify-center gap-2" style={{ background: color === "black" ? "#1a1a1a" : "#f5f5f5" }}>
-                  {textIconInput && textIconPositionInput === "left" && (
-                    <img
-                      src={`/icons/${textIconInput}.svg`}
-                      alt=""
-                      style={{ width: 28, height: 28, filter: previewColor === "#FFFFFF" || previewColor === "#C0C0C0" ? "invert(1)" : "none" }}
-                    />
-                  )}
                   <p
                     style={{
                       fontFamily: previewFontDef.css,
@@ -4018,13 +3869,6 @@ export default function TinyThreadStudio() {
                   >
                     {textInput.trim()}
                   </p>
-                  {textIconInput && textIconPositionInput === "right" && (
-                    <img
-                      src={`/icons/${textIconInput}.svg`}
-                      alt=""
-                      style={{ width: 28, height: 28, filter: previewColor === "#FFFFFF" || previewColor === "#C0C0C0" ? "invert(1)" : "none" }}
-                    />
-                  )}
                 </div>
               )}
 
