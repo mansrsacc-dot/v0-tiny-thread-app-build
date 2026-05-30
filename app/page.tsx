@@ -530,7 +530,9 @@ const TEXT_ADDON_VARIANT_ID = "57137410703691";
 const SLEEVE_PRICE = 25; // photo design on sleeve
 const SLEEVE_TEXT_PRICE = 12; // text-only on sleeve (no photo)
 const SLEEVE_TEXT_MAX_CHARS = 10;
-const SLEEVE_DESIGN_SIZE_PX = 150; // fixed ~100mm visual size
+const SLEEVE_DESIGN_SIZE_PX = 85; // default sleeve size (~75mm); customers can resize smaller but not larger
+// Sleeve resize bounds: max = default, min = 1/4 of default
+const SLEEVE_SIZE_CONSTRAINTS = { min: Math.round(SLEEVE_DESIGN_SIZE_PX / 4), max: SLEEVE_DESIGN_SIZE_PX } as const;
 // Shopify variant ID for €25 sleeve add-on
 const SLEEVE_PHOTO_ADDON_VARIANT_ID = "57473281982795";
 const MAX_DESIGNS_PER_SIDE = 3;
@@ -1456,7 +1458,9 @@ export default function TinyThreadStudio() {
           if (d.id !== pinchState.designId) return d;
           const constraints = d.textContent
             ? TEXT_SIZE_CONSTRAINTS[d.size as "S" | "M" | "L"]
-            : SIZE_CONSTRAINTS[d.size];
+            : isSleeveView(d.view)
+              ? SLEEVE_SIZE_CONSTRAINTS
+              : SIZE_CONSTRAINTS[d.size];
           const newSize = Math.max(constraints.min, Math.min(constraints.max, Math.round(pinchState.startSize * ratio)));
           return { ...d, currentSizePx: newSize };
         }));
@@ -1497,7 +1501,9 @@ export default function TinyThreadStudio() {
           const delta = (pos.x - resizeState.startX) / (sizeScale || 1);
           const constraints = design.textContent
             ? TEXT_SIZE_CONSTRAINTS[design.size as "S" | "M" | "L"]
-            : SIZE_CONSTRAINTS[design.size];
+            : isSleeveView(design.view)
+              ? SLEEVE_SIZE_CONSTRAINTS
+              : SIZE_CONSTRAINTS[design.size];
           const newSize = Math.max(constraints.min, Math.min(constraints.max, resizeState.startSize + delta));
           
           setDesigns(prev => prev.map(d => {

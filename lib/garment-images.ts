@@ -28,11 +28,17 @@ export type Size = "S" | "M" | "L";
 export type Style = "outline" | "standard" | "pet-head" | "car";
 
 // NOTE: Embroidery design size pixel ranges keyed by S/M/L.
+// Coordinate system: canvas ~780px tall → 700mm hoodie → 1mm ≈ 1.11px.
+// RENDER_SCALE 0.55 is applied at render time (currentSizePx × sizeScale).
+// Targets at typical desktop preview (~560px wide, sizeScale ≈ 0.77):
+//   S ≈ 1/5 of hoodie chest  →  rendered ~10% of canvas
+//   M ≈ 1/3 of hoodie chest  →  rendered ~16% of canvas
+//   L ≈ 1/2 of hoodie chest  →  rendered ~25% of canvas
 // Garment size (incl. XL) is selected on the Shopify product page before app load.
 export const SIZE_CONSTRAINTS = {
-  S: { min: 60,  max: 130, label: "45-100mm"  },
-  M: { min: 130, max: 195, label: "100-150mm" },
-  L: { min: 195, max: 325, label: "150-250mm" },
+  S: { min: 45,  max: 90,  label: "40-80mm"   },
+  M: { min: 85,  max: 140, label: "75-125mm"  },
+  L: { min: 140, max: 210, label: "125-185mm" },
 } as const;
 
 export const STYLES = [
