@@ -397,7 +397,9 @@ const handleAddToCart = useCallback(async () => {
           if (design.textContent) {
             const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
             const textColor = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
-            const fontSize = sizePx;
+            // Font size is a vertical (height) measurement: use SHOT_H not SHOT_W.
+            // Formula: textMm * (SHOT_H / garmentMm) = (currentSizePx/780) * SHOT_H
+            const fontSize = Math.round((design.currentSizePx / 780) * SHOT_H);
             ctx.fillStyle = textColor;
             ctx.textBaseline = "middle";
             const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
@@ -482,7 +484,8 @@ const handleAddToCart = useCallback(async () => {
           if (design.textContent) {
             const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
             const textColorVal = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
-            const fontSize = sizePx;
+            // Font size is a vertical measurement: use SHOT_H not SHOT_W.
+            const fontSize = Math.round((design.currentSizePx / 780) * SHOT_H);
             ctx.fillStyle = textColorVal;
             ctx.textBaseline = "middle";
             const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];

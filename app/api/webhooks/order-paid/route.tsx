@@ -74,7 +74,8 @@ async function generateTextComposite(garmentUrl: string, textContent: string, fo
     const left = Math.round(W * posX / 100 - designSize / 2);
     const top = Math.round(H * posY / 100 - designSize / 2);
     const textColor = textColorHex || (garmentColor === "white" ? "#000000" : "#FFFFFF");
-    const fontSize = designSize;
+    // Font size is a vertical measurement: (sizePx/780)*H maps to garment height correctly.
+    const fontSize = Math.round((designSizePx / 780) * H);
     const fontFamily = FONT_CSS_MAP[fontId] || FONT_CSS_MAP.sans;
 
     const img = new ImageResponse(
@@ -106,7 +107,7 @@ async function generateTextComposite(garmentUrl: string, textContent: string, fo
 
 type CompositeItem =
   | { kind: "image"; url: string; left: number; top: number; size: number }
-  | { kind: "text"; content: string; fontFamily: string; color: string; left: number; top: number; size: number };
+  | { kind: "text"; content: string; fontFamily: string; color: string; left: number; top: number; size: number; fontSize: number };
 
 async function generateCombinedComposite(garmentUrl: string, items: CompositeItem[]): Promise<string | null> {
   try {
@@ -123,7 +124,7 @@ async function generateCombinedComposite(garmentUrl: string, items: CompositeIte
                 width: item.size, height: item.size,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 textAlign: "center", fontFamily: item.fontFamily, fontWeight: 700,
-                fontSize: item.size, color: item.color, lineHeight: 1.1, padding: 4,
+                fontSize: item.fontSize, color: item.color, lineHeight: 1.1, padding: 4,
               }}>{item.content}</div>
         )}
       </div>),
@@ -472,8 +473,10 @@ export async function POST(req: NextRequest) {
               const tPos = textPosByView[side] || pos;
               const sizePx = Math.round((effectiveTextInfo.sizeMm / 700) * 780);
               const size = Math.round((sizePx / 780) * W);
+              // Font size uses H (vertical): textMm * (H / garmentMm) = (sizePx/780) * H
+              const fontSize = Math.round((sizePx / 780) * H);
               const textHex = colorLabelToHex(effectiveTextInfo.colorLabel, garmentColorVal);
-              combinedItems.push({ kind: "text", content: effectiveTextInfo.content, fontFamily: FONT_CSS_MAP[effectiveTextInfo.fontId] || FONT_CSS_MAP.sans, color: textHex, size, left: Math.round(W * tPos.x / 100 - size / 2), top: Math.round(H * tPos.y / 100 - size / 2) });
+              combinedItems.push({ kind: "text", content: effectiveTextInfo.content, fontFamily: FONT_CSS_MAP[effectiveTextInfo.fontId] || FONT_CSS_MAP.sans, color: textHex, size, fontSize, left: Math.round(W * tPos.x / 100 - size / 2), top: Math.round(H * tPos.y / 100 - size / 2) });
               attachmentHtml += `<li><strong>TEXT:</strong> "${effectiveTextInfo.content}" — Font: ${effectiveTextInfo.fontName}, Size: ${effectiveTextInfo.sizeMm}mm, Thread color: ${effectiveTextInfo.colorLabel} (${textHex})</li>`;
             }
             const placementBase64 = await generateCombinedComposite(garmentUrl, combinedItems);

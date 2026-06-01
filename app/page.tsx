@@ -901,6 +901,7 @@ export default function TinyThreadStudio() {
         setZoom={setZoom}
         previewRef={previewRef}
         sizeScale={sizeScale}
+        previewWidth={previewWidth}
         isGenerating={isGenerating}
         cooldown={cooldown}
         t={t}

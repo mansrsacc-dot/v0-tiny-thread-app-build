@@ -25,6 +25,7 @@ interface GarmentCanvasProps {
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   previewRef: React.RefObject<HTMLDivElement | null>;
   sizeScale: number;
+  previewWidth: number;
   isGenerating: boolean;
   cooldown: number;
   t: Record<string, string>;
@@ -46,7 +47,7 @@ interface GarmentCanvasProps {
 export function GarmentCanvas({
   view, product, color, theme, designs, currentDesignsForView,
   selectedDesignId, selectedDesign, showStitched, setShowStitched,
-  zoom, setZoom, previewRef, sizeScale,
+  zoom, setZoom, previewRef, sizeScale, previewWidth,
   isGenerating, cooldown, t,
   setSelectedDesignId, setDesigns, setStyle, fileInputRef,
   getGarmentImage, getSizeInMm,
@@ -179,7 +180,9 @@ export function GarmentCanvas({
                     fontVariant: fontDef.fontVariant,
                     color: textColor,
                     fontWeight: 700,
-                    fontSize: Math.max(8, safeTextSizePx * sizeScale),
+                    // Text font size uses canvas HEIGHT (aspect 4:5 → height = width×1.25).
+                    // Formula: textMm × (previewHeight / garmentMm) = (sizePx/780) × previewHeight
+                    fontSize: Math.max(8, Math.round((safeTextSizePx / 780) * (previewWidth * 1.25))),
                     lineHeight: 1.2,
                     whiteSpace: design.textMultiRow ? "pre-line" : "nowrap",
                     textAlign: "center",
