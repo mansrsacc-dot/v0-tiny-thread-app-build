@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -9,452 +9,20 @@ import { Spinner } from "@/components/ui/spinner";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Translations (LV primary, EN fallback via toggle)
-export type Lang = "lv" | "en";
-const T: Record<Lang, Record<string, string>> = {
-  lv: {
-    product: "Produkts",
-    color: "Krāsa",
-    view: "Skats",
-    front: "Priekša",
-    back: "Aizmugure",
-    size: "Izmērs",
-    style: "Stils",
-    price: "Cena",
-    uploadPhoto: "Augšupielādē foto",
-    dropImageBrowse: "Ievelc attēlu vai izvēlies",
-    browse: "izvēlies",
-    maxFileSize: "JPG, PNG — maks. 10MB",
-    clickToUpload: "Nospied, lai augšupielādētu foto",
-    generating: "Ġenerē izšuvumu...",
-    regenerate: "Ġenerēt vēlreiz",
-    left: "atlicis",
-    addToCart: "Pievienot grozam",
-    addingToCart: "Pievieno grozam...",
-    addToBack: "Pievienot izšuvumu aizmugurē",
-    addToFront: "Pievienot izšuvumu priekšā",
-    designLayers: "Dizaina slāņi",
-    removeBackground: "Noņemt fonu",
-    original: "Oriģināls",
-    stitched: "Izšūts",
-    howItWorks: "Kā tas strādā",
-    bestFor: "Piemērots",
-    fromPhotoToStitch: "No foto līdz izšuvumam",
-    photoLabel: "Foto",
-    resultLabel: "Rezultāts",
-    petHeadHint: "Šis stils vislabāk strādā ar viena mājdzīvnieka sejas tuvplānu",
-    designFilesSent: "Tavi dizaina faili tiks nosūtīti mūsu izšuvumu māksliniekiem",
-    loading: "Ielādē...",
-    myDesigns: "Mani dizaini",
-    maxReached: "Sasniegts maks.",
-    regenLeft: "atlicis",
-    confirmTitle: "Vai esi pabeidzis?",
-    confirmDesc: "Pārliecinies, ka tavs dizains izskatās tieši tā, kā vēlies. Pēc pasūtīšanas izmaiņas nav iespējamas.",
-    confirmAddBack: "💡 Tu vēl vari pievienot izšuvumu aizmugurē pirms pasūtīšanas",
-    confirmYes: "Jā, pievienot grozam",
-    confirmNo: "Nē, vēlos vēl pielāgot",
-    inclBack: "iekļ. aizmugure",
-    welcome: "Laipni lūgti TinyThread Studijā",
-    welcomeDesc: "Izveido savu pielāgoto izšuvumu dažu minūšu laikā",
-    welcomePrompt: "Gribi uzzināt, kā studija strādā?",
-    showGuide: "Apskatīt ceļvedi",
-    skipGuide: "Izlaist",
-    next: "Tālāk",
-    back_btn: "Atpakaļ",
-    getStarted: "Sāksim!",
-    startCreating: "Sākt radīt",
-    close: "Aizvērt",
-    // Toasts
-    noDesign: "Nav dizaina",
-    noDesignDesc: "Lūdzu, vispirms augšupielādē un ģenerē dizainu.",
-    notReady: "Nav gatavs",
-    notReadyDesc: "Lūdzu, pagaidi, kamēr tiek izģenerēts izšuvuma priekšskatījums.",
-    errorCart: "Kļūda pievienojot grozam",
-    errorGeneric: "Kaut kas nogāja greizi. Lūdzu, mēģini vēlreiz.",
-    error: "Kļūda",
-    failedSave: "Neizdevās saglabāt dizainu",
-    designSaved: "Dizains saglabāts!",
-    designApplied: "Dizains pielietots!",
-    pleaseLogin: "Lūdzu, ielogojies",
-    pleaseLoginDesc: "Lai saglabātu dizainu, nepieciešams konts",
-    // Style descriptions
-    outlineDesc: "Minimālistiska līniju grafika",
-    outlineBest: "portreti, minimālistiski dizaini, paraksti",
-    standardDesc: "Tīrs, plakans dizains",
-    standardBest: "logo, teksts, emblēmas",
-    petHeadDesc: "Izšūts mājdzīvnieka portrets",
-    petHeadBest: "viena mājdzīvnieka tuvplāns",
-    carDesc: "Detalizēts auto portrets",
-    carBest: "auto, motocikli, transportlīdzekļi",
-    // Style names
-    styleOutline: "Kontūra",
-    styleStandard: "Standarta Logo",
-    stylePetHead: "Mīluļa Portrets",
-    styleCar: "Mašīnas izšuvums",
-    // Product names
-    hoodie: "Džemperis",
-    cap: "Cepure",
-    // Text feature
-    addText: "Pievienot tekstu",
-    textPlaceholder: "Ievadi tekstu...",
-    textFont: "Fonts",
-    textColor: "Krāsa",
-    textColorAuto: "Auto",
-    textColorWhite: "Balta",
-    textColorBlack: "Melna",
-    textColorRed: "Sarkana",
-    textColorBlue: "Zila",
-    textColorNavy: "Tumši zila",
-    textColorYellow: "Dzeltena",
-    textColorGreen: "Zaļa",
-    textColorOrange: "Oranža",
-    textColorPink: "Rozā",
-    textColorGold: "Zelta",
-    textColorSilver: "Sudraba",
-    textCharsLeft: "simboli atlikuši",
-    textPrice: "Tekstu pievienošana",
-    textOnly: "Teksts",
-    addTextCta: "Pievienot tekstu (+€12)",
-    addTextFree: "Pievienot tekstu — BEZMAKSAS",
-    textTooLong: "Maksimums 30 simboli",
-    textMultiRow: "Vairākas rindas",
-    textSingleRow: "Viena rinda",
-    textSizeLabel: "Teksta izmērs",
-    textSizeS: "Mazs",
-    textSizeM: "Vidējs",
-    textSizeL: "Liels",
-    cancel: "Atcelt",
-    leftSleeve: "Kreisā Piedurkne",
-    rightSleeve: "Labā Piedurkne",
-    sleeveSizeFixed: "Fiksēts",
-    addToLeftSleeve: "Pievienot dizainu kreisajai piedurknei",
-    addToRightSleeve: "Pievienot dizainu labajai piedurknei",
-    sleeveTextTooLong: "Maksimums 10 simboli uz piedurknes",
-    sleevePriceInfo: "Piedurkne ar dizainu",
-    sleevePriceText: "Teksts uz piedurknes",
-    inclSleeve: "iekļ. piedurkne",
-    sleeveTextReminder: "Pievienojiet tekstu līdz 10 simboliem bez maksas!",
-    carPlateQuestion: "Vai vēlaties lai tiktu iekļauta Jūsu numura zīme?",
-    carPlateYes: "Jā",
-    carPlateNo: "Nē",
-    carPlateInputLabel: "Ievadiet numura zīmi",
-    carPlateInputPlaceholder: "piem. NL725",
-    carPlateConfirm: "Apstiprināt",
-    orderMultiple: "Pasūtīt vairākus vienādus",
-    orderMultipleTooltip: "Pasūtīt vienādu dizainu dažādos izmēros vai daudzumā draugiem, ģimenei vai grupai",
-    orderMultipleTitle: "Pasūtīt vairākus vienādus",
-    orderMultipleTotal: "Kopā",
-    orderMultipleAddBtn: "Pievienot grozam",
-    orderMultipleAdding: "Pievieno...",
-    orderMultipleSizeNA: "Drīzumā",
-    addAnotherDesign: "Pievienot vēl dizainu šai pusei",
-    addToBackPrice: "no €17",
-    additionalDesignPrice: "no €17",
-    chooseSizeHint: "Izvēlies izmēru",
-    chooseStyleHint: "Izvēlies stilu",
-    uploadHint: "Augšupielādē foto",
-    cancelAdding: "Atcelt",
-    maxDesignsPerSide: "Maksimālais dizainu skaits šai pusei sasniegts",
-    maxDesignsTitle: "Maksimums sasniegts",
-    maxDesignsBody: "Vienā pusē iespējami maksimāli 3 dizaini + teksts.",
-    maxDesignsOk: "Labi",
-    additionalDesign: "Papildu dizains",
-  },
-  en: {
-    product: "Product",
-    color: "Color",
-    view: "View",
-    front: "Front",
-    back: "Back",
-    size: "Size",
-    style: "Style",
-    price: "Price",
-    uploadPhoto: "Upload Photo",
-    dropImageBrowse: "Drop image or",
-    browse: "browse",
-    maxFileSize: "JPG, PNG — max 10MB",
-    clickToUpload: "Click to upload your photo",
-    generating: "Generating embroidery...",
-    regenerate: "Regenerate",
-    left: "left",
-    addToCart: "Add to Cart",
-    addingToCart: "Adding to Cart...",
-    addToBack: "Add embroidery to the back",
-    addToFront: "Add embroidery to the front",
-    designLayers: "Design Layers",
-    removeBackground: "Remove Background",
-    original: "Original",
-    stitched: "Stitched",
-    howItWorks: "How It Works",
-    bestFor: "Best for",
-    fromPhotoToStitch: "From photo to stitch",
-    photoLabel: "Photo",
-    resultLabel: "Result",
-    petHeadHint: "This style works best with a single pet face in the photo",
-    designFilesSent: "Your design files will be sent to our embroidery artists",
-    loading: "Loading...",
-    myDesigns: "My designs",
-    maxReached: "Max reached",
-    regenLeft: "left",
-    confirmTitle: "Are you done?",
-    confirmDesc: "Make sure your design looks exactly how you want it. Changes are not possible after ordering.",
-    confirmAddBack: "💡 You can still add embroidery to the back before ordering",
-    confirmYes: "Yes, add to cart",
-    confirmNo: "No, I want to adjust more",
-    inclBack: "incl. back",
-    welcome: "Welcome to TinyThread Studio",
-    welcomeDesc: "Create your custom embroidered garment in minutes",
-    welcomePrompt: "Want to learn how the studio works?",
-    showGuide: "View Guide",
-    skipGuide: "Skip",
-    next: "Next",
-    back_btn: "Back",
-    getStarted: "Get Started!",
-    startCreating: "Start Creating",
-    close: "Close",
-    // Toasts
-    noDesign: "No design",
-    noDesignDesc: "Please upload and generate a design first.",
-    notReady: "Not ready",
-    notReadyDesc: "Please wait for the embroidery preview to generate.",
-    errorCart: "Error adding to cart",
-    errorGeneric: "Something went wrong. Please try again.",
-    error: "Error",
-    failedSave: "Failed to save design",
-    designSaved: "Design saved!",
-    designApplied: "Design applied!",
-    pleaseLogin: "Please log in",
-    pleaseLoginDesc: "You need an account to save designs",
-    // Style descriptions
-    outlineDesc: "Elegant line-art style",
-    outlineBest: "portraits, minimalist designs, signatures",
-    standardDesc: "Clean, sharp embroidery",
-    standardBest: "logos, text, badges",
-    petHeadDesc: "Embroidered pet face portrait",
-    petHeadBest: "single pet close-up",
-    carDesc: "Detailed car portrait",
-    carBest: "cars, motorcycles, vehicles",
-    // Style names
-    styleOutline: "Outline",
-    styleStandard: "Standard Logo",
-    stylePetHead: "Pet Head",
-    styleCar: "Car Embroidery",
-    // Product names
-    hoodie: "Hoodie",
-    cap: "Cap",
-    // Text feature
-    addText: "Add Text",
-    textPlaceholder: "Enter your text...",
-    textFont: "Font",
-    textColor: "Color",
-    textColorAuto: "Auto",
-    textColorWhite: "White",
-    textColorBlack: "Black",
-    textColorRed: "Red",
-    textColorBlue: "Blue",
-    textColorNavy: "Navy",
-    textColorYellow: "Yellow",
-    textColorGreen: "Green",
-    textColorOrange: "Orange",
-    textColorPink: "Pink",
-    textColorGold: "Gold",
-    textColorSilver: "Silver",
-    textCharsLeft: "chars left",
-    textPrice: "Text addition",
-    textOnly: "Text",
-    addTextCta: "Add Text (+€12)",
-    addTextFree: "Add text — FREE",
-    textTooLong: "Maximum 30 characters",
-    textMultiRow: "Multiple rows",
-    textSingleRow: "Single line",
-    textSizeLabel: "Text size",
-    textSizeS: "Small",
-    textSizeM: "Medium",
-    textSizeL: "Large",
-    cancel: "Cancel",
-    leftSleeve: "Left Sleeve",
-    rightSleeve: "Right Sleeve",
-    sleeveSizeFixed: "Fixed",
-    addToLeftSleeve: "Add design to left sleeve",
-    addToRightSleeve: "Add design to right sleeve",
-    sleeveTextTooLong: "Maximum 10 characters on sleeve",
-    sleevePriceInfo: "Sleeve with design",
-    sleevePriceText: "Text on sleeve",
-    inclSleeve: "incl. sleeve",
-    sleeveTextReminder: "Add up to 10 characters of text for free!",
-    carPlateQuestion: "Would you like your license plate to be included?",
-    carPlateYes: "Yes",
-    carPlateNo: "No",
-    carPlateInputLabel: "Enter your license plate",
-    carPlateInputPlaceholder: "e.g. NL725",
-    carPlateConfirm: "Confirm",
-    orderMultiple: "Order multiple identical",
-    orderMultipleTooltip: "Order the same design in multiple sizes or quantities for friends, family or groups",
-    orderMultipleTitle: "Order multiple identical",
-    orderMultipleTotal: "Total",
-    orderMultipleAddBtn: "Add to Cart",
-    orderMultipleAdding: "Adding...",
-    orderMultipleSizeNA: "Coming soon",
-    addAnotherDesign: "Add another design to this side",
-    addToBackPrice: "from €17",
-    additionalDesignPrice: "from €17",
-    chooseSizeHint: "Choose size",
-    chooseStyleHint: "Choose style",
-    uploadHint: "Upload photo",
-    cancelAdding: "Cancel",
-    maxDesignsPerSide: "Maximum designs reached for this side",
-    maxDesignsTitle: "Limit reached",
-    maxDesignsBody: "Maximum 3 designs + text possible on 1 side.",
-    maxDesignsOk: "OK",
-    additionalDesign: "Additional design",
-  },
-};
-
-// Product variant IDs - map from product+color+size+style to numeric variant ID
-const VARIANT_IDS: Record<string, string> = {
-  // Hoodie Black
-  "hoodie-black-S-outline": "56937201041739",
-  "hoodie-black-S-standard": "56937201074507",
-  "hoodie-black-S-photo-stitch": "56937201107275",
-  "hoodie-black-S-pet-head": "56937201140043",
-  "hoodie-black-M-outline": "56937201172811",
-  "hoodie-black-M-standard": "56937201205579",
-  "hoodie-black-M-photo-stitch": "56937201238347",
-  "hoodie-black-M-pet-head": "56937201271115",
-  "hoodie-black-L-outline": "56937201303883",
-  "hoodie-black-L-standard": "56937201336651",
-  "hoodie-black-L-photo-stitch": "56937201369419",
-  "hoodie-black-L-pet-head": "56937201402187",
-  // Hoodie White
-  "hoodie-white-S-outline": "56937179152715",
-  "hoodie-white-S-standard": "56937179185483",
-  "hoodie-white-S-photo-stitch": "56937179218251",
-  "hoodie-white-S-pet-head": "56937179251019",
-  "hoodie-white-M-outline": "56937179283787",
-  "hoodie-white-M-standard": "56937179316555",
-  "hoodie-white-M-photo-stitch": "56937179349323",
-  "hoodie-white-M-pet-head": "56937179382091",
-  "hoodie-white-L-outline": "56937193275723",
-  "hoodie-white-L-standard": "56937193308491",
-  "hoodie-white-L-photo-stitch": "56937193341259",
-  "hoodie-white-L-pet-head": "56937193374027",
-  // Cap Black
-  "cap-black-S-outline": "56937206317387",
-  "cap-black-S-standard": "56937206350155",
-  "cap-black-S-photo-stitch": "56937206382923",
-  "cap-black-S-pet-head": "56937206415691",
-  "cap-black-M-outline": "56937206448459",
-  "cap-black-M-standard": "56937206481227",
-  "cap-black-M-photo-stitch": "56937206513995",
-  "cap-black-M-pet-head": "56937206546763",
-  // Cap White
-  "cap-white-S-outline": "56937204482379",
-  "cap-white-S-standard": "56937204515147",
-  "cap-white-S-photo-stitch": "56937204547915",
-  "cap-white-S-pet-head": "56937204580683",
-  "cap-white-M-outline": "56937204613451",
-  "cap-white-M-standard": "56937204646219",
-  "cap-white-M-photo-stitch": "56937204678987",
-  "cap-white-M-pet-head": "56937204711755",
-  // Hoodie Black — Front + Back
-  "hoodie-black-S-outline-fb": "56975651111243",
-  "hoodie-black-S-standard-fb": "56975651144011",
-  "hoodie-black-S-photo-stitch-fb": "56975651176779",
-  "hoodie-black-S-pet-head-fb": "56975651209547",
-  "hoodie-black-M-outline-fb": "56975651242315",
-  "hoodie-black-M-standard-fb": "56975651275083",
-  "hoodie-black-M-photo-stitch-fb": "56975651307851",
-  "hoodie-black-M-pet-head-fb": "56975651340619",
-  "hoodie-black-L-outline-fb": "56975651373387",
-  "hoodie-black-L-standard-fb": "56975651406155",
-  "hoodie-black-L-photo-stitch-fb": "56975651438923",
-  "hoodie-black-L-pet-head-fb": "56975651471691",
-  // Hoodie White — Front + Back
-  "hoodie-white-S-outline-fb": "56975651504459",
-  "hoodie-white-S-standard-fb": "56975651537227",
-  "hoodie-white-S-photo-stitch-fb": "56975651569995",
-  "hoodie-white-S-pet-head-fb": "56975651602763",
-  "hoodie-white-M-outline-fb": "56975651635531",
-  "hoodie-white-M-standard-fb": "56975651668299",
-  "hoodie-white-M-photo-stitch-fb": "56975651701067",
-  "hoodie-white-M-pet-head-fb": "56975651733835",
-  "hoodie-white-L-outline-fb": "56975651766603",
-  "hoodie-white-L-standard-fb": "56975651799371",
-  "hoodie-white-L-photo-stitch-fb": "56975651832139",
-  "hoodie-white-L-pet-head-fb": "56975651864907",
-};
-
-// Pricing based on product, style, and size
-const PRICING: Record<string, Record<string, Record<string, number>>> = {
-  hoodie: {
-    outline:        { S: 59, M: 69, L: 99  },
-    standard:       { S: 69, M: 79, L: 109 },
-    "pet-head":     { S: 79, M: 89, L: 129 },
-    car:            { S: 79, M: 89, L: 129 },
-  },
-  cap: {
-    outline:        { S: 39, M: 49 },
-    standard:       { S: 45, M: 55 },
-    "pet-head":     { S: 55, M: 65 },
-    car:            { S: 55, M: 65 },
-  }
-};
-
-// Back embroidery surcharge by style and embroidery size
-const BACK_SURCHARGE: Record<string, Record<string, number>> = {
-  outline:    { S: 17, M: 28, L: 40 },
-  standard:   { S: 19, M: 35, L: 50 },
-  "pet-head": { S: 22, M: 41, L: 50 },
-  car:        { S: 22, M: 41, L: 50 },
-};
-
-// Guide content (LV and EN) — 4 steps
-const GUIDE_CONTENT: Record<Lang, Array<{title: string; text: string; icon: string}>> = {
-  en: [
-    {
-      title: "Choose Your Style",
-      text: "Pick a hoodie or cap, select your color and embroidery size. S for small and subtle, L for large and bold.",
-      icon: "👕",
-    },
-    {
-      title: "Upload & Generate",
-      text: "Upload any photo — your pet, car, portrait or any design. We transform it into an embroidery-ready design in seconds.",
-      icon: "📸",
-    },
-    {
-      title: "Preview & Perfect",
-      text: "Drag to reposition, resize, add text. Switch between front and back. Regenerate up to 4 times until it's exactly right.",
-      icon: "✨",
-    },
-    {
-      title: "We Craft It For You",
-      text: "Add to cart and order. Our embroidery artists in Riga handcraft your unique piece using professional equipment and premium thread. Delivery in 5–7 days.",
-      icon: "💎",
-    },
-  ],
-  lv: [
-    {
-      title: "Izvēlies savu stilu",
-      text: "Izvēlies džemperi vai cepuri, krāsu un izšuvuma izmēru. S maziem un smalkiem dizainiem, L lieliem un izteiksmīgiem.",
-      icon: "👕",
-    },
-    {
-      title: "Augšupielādē un ģenerē",
-      text: "Augšupielādē jebkuru foto — mīluli, automašīnu, portretu vai jebkuru dizainu. Mēs sekundēs pārveidojam to izšuvumam gatavā dizainā.",
-      icon: "📸",
-    },
-    {
-      title: "Izmanto savu iztēli",
-      text: "Velciet, lai pārvietotu, mainītu izmēru vai pievienotu tekstu. Pārslēdzieties starp priekšu vai aizmuguri. Atjaunojiet līdz pat 4 reizēm, līdz rezultāts ir tieši tāds, kāds vajadzīgs.",
-      icon: "✨",
-    },
-    {
-      title: "Mēs to izgatavosim",
-      text: "Ielieciet grozā un pasūtiet. Mūsu izšuvumu meistari Rīgā ar rokām izgatavos jūsu unikālo izstrādājumu, izmantojot profesionālu aprīkojumu un augstākās kvalitātes diegus. Piegāde 5–10 dienu laikā.",
-      icon: "💎",
-    },
-  ],
-};
+import { T, GUIDE_CONTENT, type Lang } from "@/lib/translations";
+import {
+  VARIANT_IDS, PRICING, BACK_SURCHARGE,
+  TEXT_COLOR_PALETTE, TEXT_FONTS, TEXT_SIZE_PX, TEXT_SIZE_CONSTRAINTS,
+  TEXT_PRICE, TEXT_MAX_CHARS, TEXT_MAX_CHARS_MULTIROW, TEXT_ADDON_VARIANT_ID,
+  SLEEVE_PRICE, SLEEVE_TEXT_PRICE, SLEEVE_TEXT_MAX_CHARS, SLEEVE_DESIGN_SIZE_PX,
+  SLEEVE_SIZE_CONSTRAINTS, SLEEVE_PHOTO_ADDON_VARIANT_ID,
+  MAX_DESIGNS_PER_SIDE, ADDITIONAL_DESIGN_PRICING, ADDITIONAL_DESIGN_VARIANT_IDS,
+} from "@/lib/constants";
+import type { Design, AddingMode, Customer } from "@/lib/types";
+import { calculatePrice } from "@/hooks/use-price-calculator";
+import { TextModal } from "@/components/tinythread/TextModal";
+import { DesignLayersPanel } from "@/components/tinythread/DesignLayersPanel";
+import { SizeStyleSelector } from "@/components/tinythread/SizeStyleSelector";
 
 declare global {
   interface Window {
@@ -462,96 +30,10 @@ declare global {
   }
 }
 
-interface Design {
-  id: string;
-  originalImage: string;
-  style: Style;
-  view: View;
-  size: Size;
-  currentSizePx: number;
-  position: { x: number; y: number };
-  generatedImages: Record<string, string>;
-  processedImages: Record<string, string>;
-  removeBackground: boolean;
-  generationHistory: Record<string, string[]>;
-  processedHistory: Record<string, string[]>;
-  currentHistoryIndex: Record<string, number>;
-  regenerationCount: number;
-  rawImageUrl: string | null;
-  rotation: number;
-  // Text-only design (when set, originalImage is empty/placeholder)
-  textContent?: string;
-  textFont?: string;
-  textColor?: string; // hex - if not set, uses default (white on black, black on white)
-  textMultiRow?: boolean;
-  licensePlate?: string; // undefined = not asked, "" = no plate, string = plate text
-}
-
-// Embroidery thread color palette - common thread colors available for text
-const TEXT_COLOR_PALETTE = [
-  { id: "auto", hex: "", label: "Default" }, // auto = white on black garment / black on white
-  { id: "white", hex: "#FFFFFF", label: "White" },
-  { id: "black", hex: "#000000", label: "Black" },
-  { id: "red", hex: "#D8315B", label: "Red" },
-  { id: "blue", hex: "#3E92CC", label: "Blue" },
-  { id: "navy", hex: "#0A2463", label: "Navy" },
-  { id: "yellow", hex: "#F5C518", label: "Yellow" },
-  { id: "green", hex: "#2E7D32", label: "Green" },
-  { id: "orange", hex: "#E55934", label: "Orange" },
-  { id: "pink", hex: "#E94B7B", label: "Pink" },
-  { id: "gold", hex: "#C9A227", label: "Gold" },
-  { id: "silver", hex: "#C0C0C0", label: "Silver" },
-];
-
-// Embroidery fonts. All free Google Fonts.
-const TEXT_FONTS = [
-  { id: "montserrat",   name: "Montserrat",   css: "'Montserrat', sans-serif",      fontVariant: "normal" },
-  { id: "anton",        name: "Anton",        css: "'Anton', sans-serif",            fontVariant: "normal" },
-  { id: "quicksand",    name: "Quicksand",    css: "'Quicksand', sans-serif",        fontVariant: "normal" },
-  { id: "greatvibes",   name: "Great Vibes",  css: "'Great Vibes', cursive",         fontVariant: "normal" },
-  { id: "sacramento",   name: "Sacramento",   css: "'Sacramento', cursive",          fontVariant: "normal" },
-  { id: "cinzel",       name: "Cinzel",       css: "'Cinzel', serif",                fontVariant: "normal" },
-];
-const TEXT_PRICE = 12;
-const TEXT_MAX_CHARS = 20;
-const TEXT_MAX_CHARS_MULTIROW = 20;
-// Text size in currentSizePx units. Formula: currentSizePx = mm × (780/700).
-// Canvas maps via (currentSizePx/780)×800; garment=700mm, canvas=800px → 1mm=1.143px.
-// S=8-14mm, M=15-25mm, L=26-40mm. At M center (20mm): 20×1.114=22px → 23px on 800px canvas.
-const TEXT_SIZE_PX: Record<"S" | "M" | "L", number> = { S: 12, M: 22, L: 37 };
-const TEXT_SIZE_CONSTRAINTS = {
-  S: { min: 9,  max: 16, label: "8-14mm"  },
-  M: { min: 17, max: 28, label: "15-25mm" },
-  L: { min: 29, max: 45, label: "26-40mm" },
-} as const;
-// Shopify variant ID for the €12 "Teksta izšuvums" add-on product
-const TEXT_ADDON_VARIANT_ID = "57137410703691";
-// Sleeve embroidery pricing
-const SLEEVE_PRICE = 25; // photo design on sleeve
-const SLEEVE_TEXT_PRICE = 12; // text-only on sleeve (no photo)
-const SLEEVE_TEXT_MAX_CHARS = 10;
-const SLEEVE_DESIGN_SIZE_PX = 85; // default sleeve size (~75mm); customers can resize smaller but not larger
-// Sleeve resize bounds: max = default, min = 1/4 of default
-const SLEEVE_SIZE_CONSTRAINTS = { min: Math.round(SLEEVE_DESIGN_SIZE_PX / 4), max: SLEEVE_DESIGN_SIZE_PX } as const;
-// Shopify variant ID for €25 sleeve add-on
-const SLEEVE_PHOTO_ADDON_VARIANT_ID = "57473281982795";
-const MAX_DESIGNS_PER_SIDE = 3;
-const ADDITIONAL_DESIGN_PRICING: Record<Style, Record<"S" | "M", number>> = {
-  outline:    { S: 17, M: 35 },
-  standard:   { S: 21, M: 41 },
-  "pet-head": { S: 21, M: 41 },
-  car:        { S: 21, M: 41 },
-};
-const ADDITIONAL_DESIGN_VARIANT_IDS: Record<Style, Record<"S" | "M", string>> = {
-  outline:    { S: "57443339469131", M: "57443339501899" },
-  standard:   { S: "57443339534667", M: "57443339567435" },
-  "pet-head": { S: "57443339600203", M: "57443339632971" },
-  car:        { S: "57443339665739", M: "57443339698507" },
-};
 const isSleeveView = (v: string) => v === "left-sleeve" || v === "right-sleeve";
 
 // Submit all cart items via a hidden form POST to Shopify.
-// Form POST is a browser navigation — no CORS restrictions, session cookies sent automatically.
+// Form POST is a browser navigation ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no CORS restrictions, session cookies sent automatically.
 function submitCartForm(items: Array<{ id: string; quantity: number; properties?: Record<string, string> }>) {
   const form = document.createElement("form");
   form.method = "POST";
@@ -653,7 +135,6 @@ export default function TinyThreadStudio() {
   const [multipleQtys, setMultipleQtys] = useState<Record<string, number>>({ S: 0, M: 0, L: 0, XL: 0 });
   const [isAddingMultiple, setIsAddingMultiple] = useState(false);
   const [showMultipleTooltip, setShowMultipleTooltip] = useState(false);
-  type AddingMode = { context: "additional" | "back"; step: "size" | "style" | "upload"; size?: "S" | "M" } | null;
   const [addingMode, setAddingMode] = useState<AddingMode>(null);
   const [showCarPlatePopup, setShowCarPlatePopup] = useState(false);
   const [showMaxDesignsPopup, setShowMaxDesignsPopup] = useState(false);
@@ -692,7 +173,7 @@ export default function TinyThreadStudio() {
 
   // Visual scale: reduce on-screen size so designs match real-life embroidery proportions
   // on the hoodie (max 250mm on a ~550mm chest = ~45% of body width). Stored sizePx and
-  // mm calculations stay unchanged — this only affects visual rendering.
+  // mm calculations stay unchanged ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â this only affects visual rendering.
   const RENDER_SCALE = 0.55;
   const sizeScale = (previewWidth / 400) * RENDER_SCALE;
 
@@ -708,33 +189,7 @@ export default function TinyThreadStudio() {
   // Use the actual stored size of the primary design, not the global UI size state.
   // Global `size` only serves as a default for the next design to be added.
   const primaryDesignSize = (photoFrontDesign?.size || photoBackDesign?.size || size) as Size;
-  const basePrice = designs.length > 0 ? (PRICING[product]?.[primaryPhotoStyle]?.[primaryDesignSize] || 0) : 0;
-  // Back surcharge only applies when there are photo designs on BOTH front and back
-  const hasBothSidesPhoto = !!photoFrontDesign && !!photoBackDesign;
-  const backDesignSize = photoBackDesign?.size || primaryDesignSize;
-  const backSurcharge = hasBothSidesPhoto ? (BACK_SURCHARGE[photoBackDesign!.style]?.[backDesignSize] || 0) : 0;
-  // Sleeve pricing: photo design +€25/sleeve; text-only sleeve +€12; text on sleeve WITH photo = FREE
-  const sleevePhotoDesigns = designs.filter(d => isSleeveView(d.view) && !d.textContent);
-  const sleeveSurcharge = sleevePhotoDesigns.length * SLEEVE_PRICE;
-  // Text on a sleeve that has no photo design on that same sleeve counts as €12
-  const sleeveTextOnlyCount = designs.filter(d =>
-    isSleeveView(d.view) && !!d.textContent && !designs.some(o => o.view === d.view && !o.textContent)
-  ).length;
-  const regularTextCount = designs.filter(d => !!d.textContent && !isSleeveView(d.view)).length;
-  const textSurcharge = (regularTextCount + sleeveTextOnlyCount) * TEXT_PRICE;
-  const additionalDesignSurcharge = (() => {
-    let total = 0;
-    for (const v of ["front", "back"] as View[]) {
-      const photosOnSide = designs.filter(d => d.view === v && !d.textContent);
-      for (let i = 1; i < photosOnSide.length; i++) {
-        const d = photosOnSide[i];
-        const eff = (d.size === "L" ? "M" : d.size) as "S" | "M";
-        total += ADDITIONAL_DESIGN_PRICING[d.style]?.[eff] || 0;
-      }
-    }
-    return total;
-  })();
-  const currentPrice = basePrice + backSurcharge + sleeveSurcharge + textSurcharge + additionalDesignSurcharge;
+  const { currentPrice } = calculatePrice(designs, product, style, size);
 
   // Multiple-order modal: compute live total from qty selectors
   const multipleOrderTotal = (() => {
@@ -1081,7 +536,7 @@ export default function TinyThreadStudio() {
   const generateEmbroidery = useCallback(async (designId: string, imageBase64: string, styleType: Style, isRegenerate = false, licensePlate?: string): Promise<boolean> => {
     console.log("[generateEmbroidery] called", { designId, styleType, locked: generationLockRef.current });
     if (generationLockRef.current) {
-      console.log("[generateEmbroidery] BLOCKED by lock — returning false");
+      console.log("[generateEmbroidery] BLOCKED by lock ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â returning false");
       return false;
     }
     generationLockRef.current = true;
@@ -1540,7 +995,7 @@ export default function TinyThreadStudio() {
 
   const getSizeInMm = (sizePx: number, sizeCategory: Size, isText = false) => {
     if (isText) {
-      // currentSizePx maps to canvas via (px/780)*800; garment=700mm, canvas=800px → mm = px*(700/780)
+      // currentSizePx maps to canvas via (px/780)*800; garment=700mm, canvas=800px ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ mm = px*(700/780)
       return Math.round(sizePx * (700 / 780));
     }
     const constraints = SIZE_CONSTRAINTS[sizeCategory];
@@ -1618,7 +1073,7 @@ export default function TinyThreadStudio() {
     setShowConfirmCart(true);
   }, [designs.length, toast]);
 
-  // Handle "Order multiple identical" — adds one cart line per chosen size
+  // Handle "Order multiple identical" ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â adds one cart line per chosen size
   const handleAddMultipleToCart = useCallback(async () => {
     if (designs.length === 0) return;
     const allReady = designs.every(d => d.textContent || d.processedImages?.[d.style]);
@@ -1727,7 +1182,7 @@ export default function TinyThreadStudio() {
       if (idx0R >= 0 && designBlobUrls[idx0R]) sharedProps["_design_image_right_sleeve"]  = designBlobUrls[idx0R]!;
       const carPhotoDesignMulti = designs.find(d => !d.textContent && d.style === "car");
       if (carPhotoDesignMulti && carPhotoDesignMulti.licensePlate !== undefined) {
-        sharedProps["_license_plate"] = carPhotoDesignMulti.licensePlate || "Nav nepieciešama";
+        sharedProps["_license_plate"] = carPhotoDesignMulti.licensePlate || "Nav nepiecieÃƒâ€¦Ã‚Â¡ama";
       }
       if (textDesigns.length > 0) {
         sharedProps["_text_detail"] = textDesigns.map(d => {
@@ -1747,7 +1202,7 @@ export default function TinyThreadStudio() {
         properties: {
           ...sharedProps,
           "_embroidery_size": designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", "),
-          [isLVm ? "Izmērs" : "Size"]: itemSize,
+          [isLVm ? "IzmÃƒâ€žÃ¢â‚¬Å“rs" : "Size"]: itemSize,
         },
       }));
 
@@ -1840,13 +1295,13 @@ export default function TinyThreadStudio() {
       // License plate (car style, hidden from customer)
       const carPhotoDesign = designs.find(d => !d.textContent && d.style === "car");
       if (carPhotoDesign && carPhotoDesign.licensePlate !== undefined) {
-        params.set("properties[_license_plate]", carPhotoDesign.licensePlate || "Nav nepieciešama");
+        params.set("properties[_license_plate]", carPhotoDesign.licensePlate || "Nav nepiecieÃƒâ€¦Ã‚Â¡ama");
       }
 
       // Clean customer-facing properties (language-aware)
       const isLV = lang === "lv";
       const primarySize = photoFront?.size || photoBack?.size || size;
-      params.set(`properties[${isLV ? "Izmērs" : "Size"}]`, primarySize);
+      params.set(`properties[${isLV ? "IzmÃƒâ€žÃ¢â‚¬Å“rs" : "Size"}]`, primarySize);
       if (textDesigns.length > 0) {
         params.set(`properties[${isLV ? "Teksts" : "Text"}]`, textDesigns.map(d => `"${d.textContent}"`).join(" | "));
       }
@@ -1896,7 +1351,7 @@ export default function TinyThreadStudio() {
       // --- Capture front+back screenshots for designer email ---
       // Uses native canvas API instead of html2canvas: works on iOS Safari, Android Chrome,
       // and any screen size without DOM manipulation or view-switching race conditions.
-      // Produces a fixed 800×1000 composite using the same position/size math as the server.
+      // Produces a fixed 800ÃƒÆ’Ã¢â‚¬â€1000 composite using the same position/size math as the server.
       let screenshotFrontUrl: string | null = null;
       let screenshotBackUrl: string | null = null;
       let screenshotLeftSleeveUrl: string | null = null;
@@ -1938,7 +1393,7 @@ export default function TinyThreadStudio() {
           const ctx = canvas.getContext("2d");
           if (!ctx) return null;
 
-          // 1. Garment background — white fill + object-contain draw so the garment
+          // 1. Garment background ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â white fill + object-contain draw so the garment
           //    is never stretched, matching the app preview's `object-contain` behaviour.
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, SHOT_W, SHOT_H);
@@ -1951,11 +1406,11 @@ export default function TinyThreadStudio() {
               const cr = SHOT_W / SHOT_H;
               let gw: number, gh: number, gx: number, gy: number;
               if (ir > cr) {
-                // image wider than canvas → letterbox top/bottom
+                // image wider than canvas ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ letterbox top/bottom
                 gw = SHOT_W; gh = Math.round(SHOT_W / ir);
                 gx = 0;      gy = Math.round((SHOT_H - gh) / 2);
               } else {
-                // image taller than canvas → pillarbox left/right
+                // image taller than canvas ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ pillarbox left/right
                 gh = SHOT_H; gw = Math.round(SHOT_H * ir);
                 gx = Math.round((SHOT_W - gw) / 2); gy = 0;
               }
@@ -1963,9 +1418,9 @@ export default function TinyThreadStudio() {
             } catch { /* skip garment if load fails */ }
           }
 
-// 2. Design overlays — identical position formula to the DOM and server composite:
+// 2. Design overlays ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â identical position formula to the DOM and server composite:
           //    left = SHOT_W * position.x / 100, top = SHOT_H * position.y / 100 (center-anchored)
-          //    size = currentSizePx / 780 * SHOT_W  (780px reference space → 800px canvas)
+          //    size = currentSizePx / 780 * SHOT_W  (780px reference space ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ 800px canvas)
           const viewDesigns = designs.filter(d => d.view === targetView);
           for (const design of viewDesigns) {
             const sizePx = Math.round((design.currentSizePx / 780) * SHOT_W);
@@ -1989,7 +1444,7 @@ export default function TinyThreadStudio() {
               ctx.textAlign = "center";
               lines.forEach((line, i) => ctx.fillText(line, 0, -totalTextH / 2 + lineH * i + lineH / 2, sizePx));
             } else {
-              // processedImages are base64 data: URLs (bg-removed) — no CORS needed
+              // processedImages are base64 data: URLs (bg-removed) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no CORS needed
               const imgSrc = proxyIfNeeded(
                 design.processedImages?.[design.style] ||
                 design.rawImageUrl ||
@@ -2160,7 +1615,7 @@ export default function TinyThreadStudio() {
       // Sleeve embroidery info property
       const sleeveDesigns = designs.filter(d => isSleeveView(d.view));
       if (sleeveDesigns.length > 0) {
-        params.set(`properties[${isLV ? "Piedurknes izšuvums" : "Sleeve Embroidery"}]`, sleeveDesigns.map(d => {
+        params.set(`properties[${isLV ? "Piedurknes izÃƒâ€¦Ã‚Â¡uvums" : "Sleeve Embroidery"}]`, sleeveDesigns.map(d => {
           if (d.textContent) {
             const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
             const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
@@ -2170,7 +1625,7 @@ export default function TinyThreadStudio() {
           } else {
             const styleName = STYLES.find(s => s.id === d.style)?.name || d.style;
             const sideLabel = d.view === "left-sleeve" ? "Left Sleeve" : "Right Sleeve";
-            return `${styleName} (100×100mm, ${sideLabel})`;
+            return `${styleName} (100ÃƒÆ’Ã¢â‚¬â€100mm, ${sideLabel})`;
           }
         }).join(" | "));
       }
@@ -2185,7 +1640,7 @@ export default function TinyThreadStudio() {
 
         const uploadIfNeeded = async (src: string, filename: string): Promise<string> => {
           if (!src) return "";
-          if (isBlob(src)) return src; // already stored — reuse the URL
+          if (isBlob(src)) return src; // already stored ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â reuse the URL
           const res = await fetch("/api/store-image", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2420,7 +1875,7 @@ export default function TinyThreadStudio() {
                     left: `${design.position.x}%`,
                     top: `${design.position.y}%`,
                     transform: `translate(-50%, -50%) rotate(${design.rotation || 0}deg)`,
-                    // Text: no fixed dimensions — container auto-sizes to text content so the
+                    // Text: no fixed dimensions ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â container auto-sizes to text content so the
                     // selection ring wraps the actual rendered text, not an arbitrary square.
                     // Images: fixed square sized to currentSizePx.
                     ...(isText ? {} : {
@@ -2584,7 +2039,7 @@ export default function TinyThreadStudio() {
                         );
                       })()}
 
-                      {/* Resize Handle — hidden for fixed-size sleeve designs */}
+                      {/* Resize Handle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â hidden for fixed-size sleeve designs */}
                       {!isSleeveView(design.view) && (
                         <div
                           onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
@@ -2699,7 +2154,7 @@ export default function TinyThreadStudio() {
               );
             })}
 
-          {/* Upload Prompt Overlay — only when view has no designs at all */}
+          {/* Upload Prompt Overlay ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only when view has no designs at all */}
             {currentDesignsForView.length === 0 && (
               <div 
                 className="absolute inset-0 flex items-center justify-center z-10 group cursor-pointer transition-all"
@@ -2756,14 +2211,14 @@ export default function TinyThreadStudio() {
             "px-3 py-1.5 rounded text-sm font-semibold uppercase tracking-wide",
             theme === "dark" ? "bg-neutral-800 text-neutral-400" : "bg-white text-gray-500 shadow-sm"
           )}>
-            {product.toUpperCase()} · {color.toUpperCase()} · {view.toUpperCase()}
+            {product.toUpperCase()} Ãƒâ€šÃ‚Â· {color.toUpperCase()} Ãƒâ€šÃ‚Â· {view.toUpperCase()}
           </div>
           {selectedDesign && (
             <div className={cn(
               "px-3 py-1.5 rounded text-xs font-medium",
               theme === "dark" ? "bg-neutral-800 text-neutral-400" : "bg-white text-gray-500 shadow-sm"
             )}>
-              {selectedDesign.style === "outline" ? t.styleOutline : selectedDesign.style === "standard" ? t.styleStandard : selectedDesign.style === "pet-head" ? t.stylePetHead : t.styleCar} · {selectedDesign.size}
+              {selectedDesign.style === "outline" ? t.styleOutline : selectedDesign.style === "standard" ? t.styleStandard : selectedDesign.style === "pet-head" ? t.stylePetHead : t.styleCar} Ãƒâ€šÃ‚Â· {selectedDesign.size}
             </div>
           )}
         </div>
@@ -2959,7 +2414,7 @@ export default function TinyThreadStudio() {
               {(["black", "white"] as Color[]).map(c => {
                 const colorLabel = c === "black"
                   ? (lang === "lv" ? "Melna" : "Black")
-                  : (lang === "lv" ? "Krēma krāsa" : "Cream");
+                  : (lang === "lv" ? "KrÃƒâ€žÃ¢â‚¬Å“ma krÃƒâ€žÃ‚Âsa" : "Cream");
                 return (
                   <button
                     key={c}
@@ -3005,202 +2460,27 @@ export default function TinyThreadStudio() {
             </div>
           )}
 
-          {/* Size Selection — hidden for sleeve views (fixed 100mm) */}
-          {isSleeveView(view) ? (
-            <div className="space-y-2">
-              <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                {t.size}
-              </label>
-              <div className={cn(
-                "px-4 py-3 rounded-lg border text-center text-sm font-semibold",
-                theme === "dark" ? "border-neutral-700 text-neutral-300 bg-neutral-800/50" : "border-gray-200 text-gray-600 bg-gray-50"
-              )}>
-                {t.sleeveSizeFixed}
-              </div>
-            </div>
-          ) : (
-            <div className={cn(
-              "space-y-2 rounded-xl transition-all",
-              addingMode?.step === "size" ? "ring-2 ring-[#3e92cc]/70 shadow-[0_0_14px_rgba(62,146,204,0.3)] p-2" : ""
-            )}>
-              <div className="flex items-center justify-between">
-                <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                  {addingMode?.step === "size" ? <span className="text-[#3e92cc]">{t.chooseSizeHint}</span> : t.size}
-                </label>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {(["S", "M"] as ("S" | "M")[]).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      if (addingMode) {
-                        // In adding mode: store pending size — do NOT touch existing designs
-                        setViewSizes(prev => ({ ...prev, [view]: s }));
-                        if (addingMode.step === "size") {
-                          setAddingMode(prev => prev ? { ...prev, step: "style", size: s } : null);
-                        } else {
-                          setAddingMode(prev => prev ? { ...prev, size: s } : null);
-                        }
-                      } else {
-                        // Normal edit: update existing design sizes
-                        const { min, max } = SIZE_CONSTRAINTS[s];
-                        const mid = Math.round(min + (max - min) / 2);
-                        setDesigns(prev => prev.map(d => {
-                          if (isSleeveView(d.view) || d.textContent) return d;
-                          const targeted = selectedDesignId
-                            ? d.id === selectedDesignId && d.view === view
-                            : d.view === view && !d.textContent;
-                          if (!targeted) return d;
-                          return { ...d, size: s, currentSizePx: mid };
-                        }));
-                        setViewSizes(prev => ({ ...prev, [view]: s }));
-                      }
-                    }}
-                    className={cn(
-                      "py-3 px-2 rounded-lg border text-center transition-all",
-                      (addingMode
-                        ? addingMode.size === s
-                        : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s)
-                        ? "border-[#3e92cc] bg-[#3e92cc]/10"
-                        : theme === "dark"
-                          ? "border-neutral-700 hover:border-neutral-600"
-                          : "border-gray-200 hover:border-gray-300"
-                    )}
-                  >
-                    <div className={cn("text-lg font-semibold",
-                      (addingMode
-                        ? addingMode.size === s
-                        : (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === s)
-                        ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900"
-                    )}>{s}</div>
-                    <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS[s].label}</div>
-                  </button>
-                ))}
-                {/* L button only shown when NOT in adding mode and product supports it */}
-                {!addingMode && product !== "cap" && !selectedIsAdditional && (
-                  <button
-                    key="L"
-                    onClick={() => {
-                      const { min, max } = SIZE_CONSTRAINTS["L"];
-                      const mid = Math.round(min + (max - min) / 2);
-                      setDesigns(prev => prev.map(d => {
-                        if (isSleeveView(d.view) || d.textContent) return d;
-                        const targeted = selectedDesignId
-                          ? d.id === selectedDesignId && d.view === view
-                          : d.view === view && !d.textContent;
-                        if (!targeted) return d;
-                        return { ...d, size: "L", currentSizePx: mid };
-                      }));
-                      setViewSizes(prev => ({ ...prev, [view]: "L" }));
-                    }}
-                    className={cn(
-                      "py-3 px-2 rounded-lg border text-center transition-all",
-                      (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === "L"
-                        ? "border-[#3e92cc] bg-[#3e92cc]/10"
-                        : theme === "dark"
-                          ? "border-neutral-700 hover:border-neutral-600"
-                          : "border-gray-200 hover:border-gray-300"
-                    )}
-                  >
-                    <div className={cn("text-lg font-semibold",
-                      (selectedDesign?.size ?? currentDesignsForView.find(d => !d.textContent)?.size ?? size) === "L"
-                        ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900"
-                    )}>L</div>
-                    <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>{SIZE_CONSTRAINTS["L"].label}</div>
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
-          {/* What to Expect - Before/After Example */}
-          {!designs.length && (style === "pet-head" || style === "car" || style === "standard" || style === "outline") && (
-            <div className={cn("rounded-xl overflow-hidden border", theme === "dark" ? "border-neutral-800 bg-neutral-900/50" : "border-gray-200 bg-gray-50")}>
-              <div className={cn("px-3 py-2 text-center", theme === "dark" ? "bg-neutral-800/50" : "bg-gray-100")}>
-                <p className={cn("text-xs font-semibold uppercase tracking-wider", theme === "dark" ? "text-neutral-400" : "text-gray-500")}>
-                  {t.fromPhotoToStitch}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 p-3">
-                <div className="flex-1 relative">
-                  <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_before.jpg" : style === "standard" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/logo_before_final.jpg" : style === "outline" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/outline_before.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_before.jpg"} alt="Before" className="w-full aspect-square object-cover rounded-lg" />
-                  <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-white/70" : "bg-white/80 text-gray-600")}>
-                    {t.photoLabel}
-                  </div>
-                </div>
-                <div className={cn("text-lg flex-shrink-0", theme === "dark" ? "text-neutral-600" : "text-gray-300")}>→</div>
-                <div className="flex-1 relative">
-                  <img src={style === "car" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/car_after.jpg" : style === "standard" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/logo_after_final.jpg" : style === "outline" ? "https://guhctceu21hc4orl.public.blob.vercel-storage.com/outline_after.jpg" : "https://guhctceu21hc4orl.public.blob.vercel-storage.com/example_after.jpg"} alt="After" className="w-full aspect-square object-cover rounded-lg" />
-                  <div className={cn("absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold", theme === "dark" ? "bg-black/70 text-[#3e92cc]" : "bg-white/80 text-[#3e92cc]")}>
-                    {t.resultLabel}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* Style Selection */}
-          <div className={cn(
-            "space-y-2 rounded-xl transition-all",
-            addingMode?.step === "style" ? "ring-2 ring-[#3e92cc]/70 shadow-[0_0_14px_rgba(62,146,204,0.3)] p-2" : "",
-            addingMode?.step === "size" ? "opacity-40 pointer-events-none select-none" : ""
-          )}>
-            <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-              {addingMode?.step === "style" ? <span className="text-[#3e92cc]">{t.chooseStyleHint}</span> : t.style}
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
-              {STYLES.map(s => {
-                const chosenSize = addingMode?.size;
-                const priceLine = addingMode?.step === "style" && chosenSize
-                  ? (addingMode.context === "additional"
-                    ? `${chosenSize}: +€${ADDITIONAL_DESIGN_PRICING[s.id as Style]?.[chosenSize]}`
-                    : `${chosenSize}: +€${BACK_SURCHARGE[s.id]?.[chosenSize]}`)
-                  : null;
-                return (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    if (addingMode?.step === "style") {
-                      // In adding mode: just update style, advance to upload — do NOT trigger regeneration
-                      setStyle(s.id as Style);
-                      setSelectedDesignId(null);
-                      setAddingMode(prev => prev ? { ...prev, step: "upload" } : null);
-                    } else {
-                      handleStyleChange(s.id);
-                    }
-                  }}
-                  className={cn(
-                    "w-full p-3 rounded-lg border text-left transition-all",
-                    style === s.id
-                      ? "border-[#3e92cc] bg-[#3e92cc]/10"
-                      : theme === "dark"
-                        ? "border-neutral-700 hover:border-neutral-600"
-                        : "border-gray-200 hover:border-gray-300"
-                  )}
-                >
-                  <div className={cn("font-medium text-sm", style === s.id ? "text-[#3e92cc]" : theme === "dark" ? "text-white" : "text-gray-900")}>
-                    {s.id === "outline" ? t.styleOutline : s.id === "standard" ? t.styleStandard : s.id === "pet-head" ? t.stylePetHead : t.styleCar}
-                  </div>
-                  <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                    {s.id === "outline" ? t.outlineDesc : s.id === "standard" ? t.standardDesc : s.id === "pet-head" ? t.petHeadDesc : t.carDesc}
-                  </div>
-                  <div className={cn("text-xs mt-0.5 hidden md:block", theme === "dark" ? "text-neutral-600" : "text-gray-400")}>
-                    {t.bestFor}: {s.id === "outline" ? t.outlineBest : s.id === "standard" ? t.standardBest : s.id === "pet-head" ? t.petHeadBest : t.carBest}
-                  </div>
-                  {priceLine && (
-                    <div className="text-xs mt-1.5 text-[#3e92cc] font-semibold">{priceLine}</div>
-                  )}
-                </button>
-                );
-              })}
-            </div>
-            {style === "pet-head" && (
-              <div className="p-2 rounded-lg bg-[#3e92cc]/10 border border-[#3e92cc]/20">
-                <p className="text-xs text-[#3e92cc]">{t.petHeadHint}</p>
-              </div>
-            )}
-          </div>
-
+          <SizeStyleSelector
+            view={view}
+            product={product}
+            color={color}
+            style={style}
+            theme={theme}
+            t={t}
+            addingMode={addingMode}
+            setAddingMode={setAddingMode}
+            viewSizes={viewSizes}
+            setViewSizes={setViewSizes}
+            designs={designs}
+            setDesigns={setDesigns}
+            selectedDesignId={selectedDesignId}
+            selectedDesign={selectedDesign}
+            selectedIsAdditional={selectedIsAdditional}
+            currentDesignsForView={currentDesignsForView}
+            onStyleChange={handleStyleChange}
+          />
           {/* Cancel adding mode button */}
           {addingMode && (
             <button
@@ -3212,7 +2492,7 @@ export default function TinyThreadStudio() {
                   : "border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
               )}
             >
-              ✕ {t.cancelAdding}
+              ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¢ {t.cancelAdding}
             </button>
           )}
 
@@ -3228,7 +2508,7 @@ export default function TinyThreadStudio() {
             />
           </div>
 
-          {/* Upload Photo — visible when view has no photo design, OR in adding mode upload step */}
+          {/* Upload Photo ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â visible when view has no photo design, OR in adding mode upload step */}
           {((!addingMode && !currentDesignsForView.some(d => !d.textContent)) || addingMode?.step === "upload") && (
             <div className="space-y-2">
               <label className={cn("text-sm font-semibold uppercase tracking-wide",
@@ -3281,153 +2561,26 @@ export default function TinyThreadStudio() {
 
           {/* Design Layers */}
           {designs.length > 0 && (
-            <div className="space-y-2">
-              <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                {t.designLayers}
-              </label>
-              <div className="space-y-2">
-                {designs.map((design, designIdx) => (
-                  <div
-                    key={design.id}
-                    onClick={() => {
-                      setSelectedDesignId(design.id);
-                      // Sync style selector to this design so the user sees which style is active
-                      if (!design.textContent) setStyle(design.style);
-                    }}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
-                      selectedDesignId === design.id
-                        ? "border-[#3e92cc] bg-[#3e92cc]/10"
-                        : theme === "dark"
-                          ? "border-neutral-700 hover:border-neutral-600"
-                          : "border-gray-200 hover:border-gray-300"
-                    )}
-                  >
-                    {design.textContent ? (
-                      <div
-                        className="w-10 h-10 rounded flex items-center justify-center text-[10px] font-bold text-center px-1 leading-tight overflow-hidden"
-                        style={{
-                          background: color === "black" ? "#1a1a1a" : "#f5f5f5",
-                          color: design.textColor || (color === "black" ? "#fff" : "#000"),
-                          fontFamily: (TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0]).css,
-                          fontVariant: (TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0]).fontVariant,
-                        }}
-                      >
-                        {design.textContent.slice(0, 6)}
-                      </div>
-                    ) : (
-                      <img
-                        src={design.originalImage}
-                        alt="Design"
-                        className="w-10 h-10 rounded object-cover"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className={cn("text-sm font-medium truncate", theme === "dark" ? "text-white" : "text-gray-900")}>
-                        {design.textContent
-                          ? `${t.textOnly}: "${design.textContent}"`
-                          : designLabels[designIdx]}
-                      </div>
-                      <div className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
-                        {design.view === "front" ? t.front : design.view === "back" ? t.back : design.view === "left-sleeve" ? t.leftSleeve : t.rightSleeve}{design.textContent || isSleeveView(design.view) ? "" : ` · ${design.size}`}
-                      </div>
-                    </div>
-                    {design.textContent && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditText(design);
-                        }}
-                        className="p-1 rounded hover:bg-[#3e92cc]/20 text-[#3e92cc]"
-                        title={t.addText}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                    )}
-                    {customer && !design.textContent && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSaveDesign(design);
-                        }}
-                        disabled={isSavingDesign}
-                        className={cn("p-1 rounded transition-colors", isSavingDesign ? "opacity-50" : "hover:bg-[#3e92cc]/20 text-[#3e92cc]")}
-                        title={"Saglab\u0101t dizainu"}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteDesign(design.id);
-                      }}
-                      className={cn("p-1 rounded hover:bg-red-500/20 text-red-400")}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {/* Show "Add to back/front" button only for hoodies, max 1 photo design per side */}
-              {product === "hoodie" && (() => {
-                const photoDesigns = designs.filter(d => !d.textContent);
-                if (photoDesigns.length !== 1) return null;
-                const existingView = photoDesigns[0]?.view;
-                const otherView = existingView === "front" ? "back" : "front";
-                const hasPhotoOnOtherSide = photoDesigns.some(d => d.view === otherView);
-                if (hasPhotoOnOtherSide) return null;
-                return (
-                  <div>
-                    <button
-                      onClick={() => {
-                        setView(otherView as "front" | "back");
-                        setSelectedDesignId(null);
-                        setAddingMode({ context: otherView === "back" ? "back" : "additional", step: "size" });
-                      }}
-                      className={cn(
-                        "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
-                        theme === "dark"
-                          ? "border-[#3e92cc]/50 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/20"
-                          : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
-                      )}
-                    >
-                      + {otherView === "back" ? t.addToBack : t.addToFront}
-                    </button>
-                    {otherView === "back" && (
-                      <p className="text-center text-xs text-white/40 mt-1">{t.addToBackPrice}</p>
-                    )}
-                  </div>
-                );
-              })()}
-              {/* Add another design to current side (2nd or 3rd photo on front/back) */}
-              {!isSleeveView(view) && (() => {
-                const photosOnCurrentView = designs.filter(d => d.view === view && !d.textContent).length;
-                if (photosOnCurrentView < 1 || photosOnCurrentView >= MAX_DESIGNS_PER_SIDE) return null;
-                return (
-                  <div>
-                    <button
-                      onClick={() => setAddingMode({ context: "additional", step: "size" })}
-                      className={cn(
-                        "w-full py-2 text-sm border border-dashed rounded-lg transition-all",
-                        theme === "dark"
-                          ? "border-[#3e92cc]/50 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/20"
-                          : "border-[#3e92cc]/60 text-[#3e92cc] hover:border-[#3e92cc] hover:bg-[#3e92cc]/10"
-                      )}
-                    >
-                      + {t.addAnotherDesign}
-                    </button>
-                    <p className="text-center text-xs text-white/40 mt-1">{t.additionalDesignPrice}</p>
-                  </div>
-                );
-              })()}
-            </div>
+            <DesignLayersPanel
+              designs={designs}
+              designLabels={designLabels}
+              selectedDesignId={selectedDesignId}
+              setSelectedDesignId={setSelectedDesignId}
+              setStyle={setStyle}
+              onDeleteDesign={handleDeleteDesign}
+              onEditText={handleEditText}
+              onSaveDesign={handleSaveDesign}
+              customer={customer}
+              isSavingDesign={isSavingDesign}
+              product={product}
+              view={view}
+              setView={setView}
+              addingMode={addingMode}
+              setAddingMode={setAddingMode}
+              theme={theme}
+              color={color}
+              t={t}
+            />
           )}
 
           {/* Add Text Button (only if there's no text on current side) */}
@@ -3492,7 +2645,7 @@ export default function TinyThreadStudio() {
                   {t.addingToCart}
                 </>
               ) : (
-                <>{t.addToCart}{currentPrice > 0 ? ` — €${currentPrice}` : ""}</>
+                <>{t.addToCart}{currentPrice > 0 ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬${currentPrice}` : ""}</>
               )}
             </Button>
             {/* Order multiple identical */}
@@ -3521,7 +2674,7 @@ export default function TinyThreadStudio() {
                       : "border-gray-300 text-gray-400 hover:border-gray-500 hover:text-gray-600"
                   )}
                   aria-label="Info"
-                >ℹ</button>
+                >ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¹</button>
                 {showMultipleTooltip && (
                   <div className={cn(
                     "absolute bottom-full right-0 mb-2 px-3 py-2 text-xs rounded-lg w-64 z-50 shadow-lg pointer-events-none",
@@ -3558,7 +2711,7 @@ export default function TinyThreadStudio() {
               {t.addingToCart}
             </>
           ) : (
-            <>{t.addToCart}{currentPrice > 0 ? ` — €${currentPrice}` : ""}</>
+            <>{t.addToCart}{currentPrice > 0 ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬${currentPrice}` : ""}</>
           )}
         </Button>
         <div className="flex items-center gap-2 mt-1.5">
@@ -3584,7 +2737,7 @@ export default function TinyThreadStudio() {
                   : "border-gray-300 text-gray-400"
               )}
               aria-label="Info"
-            >ℹ</button>
+            >ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¹</button>
             {showMultipleTooltip && (
               <div className={cn(
                 "absolute bottom-full right-0 mb-2 px-3 py-2 text-xs rounded-lg w-64 z-50 shadow-lg",
@@ -3603,7 +2756,7 @@ export default function TinyThreadStudio() {
       {showWelcome && (
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
           <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
-            <div className="text-4xl mb-4">🧵</div>
+            <div className="text-4xl mb-4">ÃƒÂ°Ã…Â¸Ã‚Â§Ã‚Âµ</div>
             <h2 className="text-xl font-bold text-white mb-2">{t.welcome}</h2>
             <p className="text-white/50 text-sm mb-6">{t.welcomeDesc}</p>
             
@@ -3632,7 +2785,7 @@ export default function TinyThreadStudio() {
       {showMaxDesignsPopup && (
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
           <div className={cn("rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl", theme === "dark" ? "bg-[#1e1b18] border border-white/10" : "bg-white border border-gray-200")}>
-            <div className="text-4xl mb-4">🧵</div>
+            <div className="text-4xl mb-4">ÃƒÂ°Ã…Â¸Ã‚Â§Ã‚Âµ</div>
             <h2 className={cn("text-lg font-bold mb-3", theme === "dark" ? "text-white" : "text-gray-900")}>{t.maxDesignsTitle}</h2>
             <p className={cn("text-sm mb-6", theme === "dark" ? "text-white/60" : "text-gray-500")}>{t.maxDesignsBody}</p>
             <button
@@ -3661,7 +2814,7 @@ export default function TinyThreadStudio() {
                 onClick={() => { setShowGuide(false); setGuideStep(0); }}
                 className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full text-white/30 hover:text-white/70 transition-colors text-xs"
                 style={{ background: "rgba(255,255,255,0.06)" }}
-              >✕</button>
+              >ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¢</button>
 
               {/* Large icon box */}
               <div
@@ -3725,176 +2878,41 @@ export default function TinyThreadStudio() {
       )}
 
       {/* Text Input Modal */}
-      {showTextModal && (() => {
-        const isSleeve = isSleeveView(view);
-        const activeMaxChars = isSleeve ? SLEEVE_TEXT_MAX_CHARS : (textMultiRowInput ? TEXT_MAX_CHARS_MULTIROW : TEXT_MAX_CHARS);
-        const closeModal = () => {
-          setShowTextModal(false);
-          setTextInput("");
-          setEditingTextId(null);
-          setTextColorInput("");
-          setTextMultiRowInput(false);
-          setTextSizeInput("M");
-        };
-        const previewFontDef = TEXT_FONTS.find(f => f.id === textFontInput) || TEXT_FONTS[0];
-        const previewColor = textColorInput || (color === "black" ? "#FFFFFF" : "#000000");
-        return (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="bg-[#1e1b18] border border-white/10 rounded-t-2xl md:rounded-2xl p-4 md:p-6 max-w-md w-full md:my-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">{t.addText}</h2>
-              <button onClick={closeModal} className="text-white/40 hover:text-white/70">✕</button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Multi-row toggle (hidden for sleeve) */}
-              {!isSleeve && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-white/50 uppercase tracking-wider">{textMultiRowInput ? t.textMultiRow : t.textSingleRow}</span>
-                  <button
-                    onClick={() => {
-                      setTextMultiRowInput(v => !v);
-                      setTextInput("");
-                    }}
-                    className={cn(
-                      "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                      textMultiRowInput ? "bg-[#3e92cc]" : "bg-white/20"
-                    )}
-                  >
-                    <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform", textMultiRowInput ? "translate-x-4" : "translate-x-0.5")} />
-                  </button>
-                </div>
-              )}
-
-              <div>
-                <textarea
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value.slice(0, activeMaxChars))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !textMultiRowInput) e.preventDefault();
-                  }}
-                  placeholder={t.textPlaceholder}
-                  rows={textMultiRowInput ? 3 : 2}
-                  maxLength={activeMaxChars}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3e92cc]/60 resize-none"
-                  autoFocus
-                />
-                <p className={cn("text-xs mt-1.5 text-right font-mono", textInput.length >= activeMaxChars ? "text-red-400 font-semibold" : "text-white/40")}>
-                  {textInput.length}/{activeMaxChars}
-                </p>
-              </div>
-
-              {/* Text size S/M only */}
-              <div>
-                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textSizeLabel}</label>
-                <div className="flex gap-2">
-                  {(["S", "M"] as const).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => {
-                        setTextSizeInput(s);
-                        if (editingTextId) {
-                          setDesigns(prev => prev.map(d =>
-                            d.id === editingTextId ? { ...d, size: s as Size, currentSizePx: TEXT_SIZE_PX[s] } : d
-                          ));
-                        }
-                      }}
-                      className={cn(
-                        "flex-1 py-3 rounded-lg border text-sm font-bold transition-colors",
-                        textSizeInput === s
-                          ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
-                          : "border-white/10 text-white/50 hover:border-white/30"
-                      )}
-                    >
-                      {s === "S" ? t.textSizeS : t.textSizeM}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textFont}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {TEXT_FONTS.map(f => (
-                    <button
-                      key={f.id}
-                      onClick={() => setTextFontInput(f.id)}
-                      className={cn(
-                        "px-3 py-3 rounded-lg border text-sm transition-colors text-left",
-                        textFontInput === f.id
-                          ? "border-[#3e92cc] bg-[#3e92cc]/10 text-white"
-                          : "border-white/10 text-white/60 hover:border-white/30"
-                      )}
-                      style={{ fontFamily: f.css, fontVariant: f.fontVariant }}
-                    >
-                      {f.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color picker */}
-              <div>
-                <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textColor}</label>
-                <div className="flex flex-wrap gap-2">
-                  {TEXT_COLOR_PALETTE.map(c => {
-                    const isActive = (c.hex || "") === textColorInput;
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => setTextColorInput(c.hex || "")}
-                        title={c.label}
-                        className={cn(
-                          "w-10 h-10 rounded-full border-2 transition-transform hover:scale-110",
-                          isActive ? "border-white ring-2 ring-[#3e92cc]" : "border-white/20"
-                        )}
-                        style={{
-                          background: c.hex || "linear-gradient(135deg, #d8315b 0%, #f5c518 33%, #2e7d32 66%, #3e92cc 100%)",
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-
-              {/* Live preview */}
-              {textInput.trim() && (
-                <div className="rounded-lg border border-white/10 p-4 flex items-center justify-center gap-2" style={{ background: color === "black" ? "#1a1a1a" : "#f5f5f5" }}>
-                  <p
-                    style={{
-                      fontFamily: previewFontDef.css,
-                      fontVariant: previewFontDef.fontVariant,
-                      color: previewColor,
-                      fontWeight: 700,
-                      fontSize: 24,
-                      lineHeight: 1.2,
-                      whiteSpace: textMultiRowInput ? "pre-line" : "nowrap",
-                      textAlign: "center",
-                    }}
-                  >
-                    {textInput.trim()}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <button onClick={closeModal} className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/15">
-                  {t.cancel}
-                </button>
-                <button
-                  onClick={handleAddText}
-                  disabled={!textInput.trim()}
-                  className="flex-1 px-4 py-2.5 rounded-lg bg-[#d8315b] hover:bg-[#c02850] text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {editingTextId ? t.addText : (isSleeve && designs.some(d => d.view === view && !d.textContent)) ? t.addTextFree : t.addTextCta}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        );
-      })()}
+      {showTextModal && (
+        <TextModal
+          view={view}
+          color={color}
+          t={t}
+          editingTextId={editingTextId}
+          textInput={textInput}
+          setTextInput={setTextInput}
+          textFontInput={textFontInput}
+          setTextFontInput={setTextFontInput}
+          textColorInput={textColorInput}
+          setTextColorInput={setTextColorInput}
+          textMultiRowInput={textMultiRowInput}
+          setTextMultiRowInput={setTextMultiRowInput}
+          textSizeInput={textSizeInput}
+          setTextSizeInput={setTextSizeInput}
+          sleeveHasPhoto={isSleeveView(view) && designs.some(d => d.view === view && !d.textContent)}
+          onEditSizeChange={(s) => {
+            if (editingTextId) {
+              setDesigns(prev => prev.map(d =>
+                d.id === editingTextId ? { ...d, size: s as Size, currentSizePx: TEXT_SIZE_PX[s] } : d
+              ));
+            }
+          }}
+          onClose={() => {
+            setShowTextModal(false);
+            setTextInput("");
+            setEditingTextId(null);
+            setTextColorInput("");
+            setTextMultiRowInput(false);
+            setTextSizeInput("M");
+          }}
+          onConfirm={handleAddText}
+        />
+      )}
 
       {/* Order Multiple Identical Modal */}
       {showMultipleModal && (() => {
@@ -3935,7 +2953,7 @@ export default function TinyThreadStudio() {
                     "w-7 h-7 flex items-center justify-center rounded-full text-sm transition-colors",
                     theme === "dark" ? "text-white/40 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                   )}
-                >✕</button>
+                >ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¢</button>
               </div>
 
               {/* Size columns */}
@@ -3959,7 +2977,7 @@ export default function TinyThreadStudio() {
                     >
                       <span className={cn("font-bold text-sm", theme === "dark" ? "text-white" : "text-gray-900")}>{label}</span>
                       {price != null && hasVariant ? (
-                        <span className={cn("text-xs", theme === "dark" ? "text-white/45" : "text-gray-400")}>€{price}</span>
+                        <span className={cn("text-xs", theme === "dark" ? "text-white/45" : "text-gray-400")}>ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬{price}</span>
                       ) : (
                         <span className={cn("text-xs", theme === "dark" ? "text-white/30" : "text-gray-400")}>{t.orderMultipleSizeNA}</span>
                       )}
@@ -3972,7 +2990,7 @@ export default function TinyThreadStudio() {
                               "w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30",
                               theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
                             )}
-                          >−</button>
+                          >ÃƒÂ¢Ã‹â€ Ã¢â‚¬â„¢</button>
                           <span className={cn("w-5 text-center text-sm font-bold tabular-nums", theme === "dark" ? "text-white" : "text-gray-900")}>{qty}</span>
                           <button
                             onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.min(10, (prev[key] || 0) + 1) }))}
@@ -3984,7 +3002,7 @@ export default function TinyThreadStudio() {
                           >+</button>
                         </div>
                       ) : (
-                        <span className={cn("text-sm", theme === "dark" ? "text-white/20" : "text-gray-300")}>—</span>
+                        <span className={cn("text-sm", theme === "dark" ? "text-white/20" : "text-gray-300")}>ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</span>
                       )}
                     </div>
                   );
@@ -3997,7 +3015,7 @@ export default function TinyThreadStudio() {
                 theme === "dark" ? "border-white/10" : "border-gray-200"
               )}>
                 <span className={cn("text-sm", theme === "dark" ? "text-white/50" : "text-gray-500")}>{t.orderMultipleTotal}</span>
-                <span className={cn("font-bold text-lg", theme === "dark" ? "text-white" : "text-gray-900")}>€{multipleOrderTotal}</span>
+                <span className={cn("font-bold text-lg", theme === "dark" ? "text-white" : "text-gray-900")}>ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬{multipleOrderTotal}</span>
               </div>
 
               {/* Add to Cart */}
@@ -4012,7 +3030,7 @@ export default function TinyThreadStudio() {
                     {t.orderMultipleAdding}
                   </>
                 ) : (
-                  <>{t.orderMultipleAddBtn}{multipleOrderTotal > 0 ? ` — €${multipleOrderTotal}` : ""}</>
+                  <>{t.orderMultipleAddBtn}{multipleOrderTotal > 0 ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬${multipleOrderTotal}` : ""}</>
                 )}
               </Button>
             </div>
@@ -4092,7 +3110,7 @@ export default function TinyThreadStudio() {
       {showConfirmCart && (
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
           <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
-            <div className="text-4xl mb-4">🧵</div>
+            <div className="text-4xl mb-4">ÃƒÂ°Ã…Â¸Ã‚Â§Ã‚Âµ</div>
             <h2 className="text-xl font-bold text-white mb-2">{t.confirmTitle}</h2>
             <p className="text-white/50 text-sm mb-6">{t.confirmDesc}</p>
 
