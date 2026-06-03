@@ -635,6 +635,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             from: "TinyThread Orders <onboarding@resend.dev>",
             to: ["karvelsm@gmail.com"],
+            cc: ["waqasahmed2468@gmail.com"],
             subject: `New Order #${orderNumber} - ${item.title}`,
             html: emailHtml,
             attachments,
