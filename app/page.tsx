@@ -233,13 +233,6 @@ export default function TinyThreadStudio() {
     }
   }, []);
 
-  // Called by LoginGate on successful login
-  const handleLogin = (data: { id: string; firstName: string; lastName: string; email: string; accessToken?: string }) => {
-    setCustomer(data);
-    localStorage.setItem("tinythread_session", JSON.stringify(data));
-    loadSavedDesigns(data.id);
-  };
-
   // Load saved designs for a customer
   const loadSavedDesigns = async (customerId: string) => {
     setIsLoadingSaved(true);
@@ -940,7 +933,6 @@ export default function TinyThreadStudio() {
       <LoginGate
         lang={lang}
         onLangChange={handleLangChange}
-        onLogin={handleLogin}
       />
     );
   }

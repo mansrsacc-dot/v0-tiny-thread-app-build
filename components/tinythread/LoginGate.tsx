@@ -6,37 +6,20 @@ import type { Lang } from "@/lib/translations";
 interface LoginGateProps {
   lang: Lang;
   onLangChange: (l: Lang) => void;
-  onLogin: (customer: { id: string; firstName: string; lastName: string; email: string; accessToken?: string }) => void;
 }
 
-export function LoginGate({ lang, onLangChange, onLogin }: LoginGateProps) {
+export function LoginGate({ lang, onLangChange }: LoginGateProps) {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const lv = lang === "lv";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    if (!email.trim()) return;
     setLoading(true);
-    try {
-      const res = await fetch("/api/customer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (data.id) {
-        onLogin(data);
-      } else {
-        setError(lv ? "Nepareizs e-pasts vai parole" : "Incorrect email or password");
-      }
-    } catch {
-      setError(lv ? "Kaut kas nogāja greizi. Mēģini vēlreiz." : "Something went wrong. Please try again.");
-    }
-    setLoading(false);
+    // Redirect to OAuth login — Shopify sends magic link, returns via /api/auth/callback
+    window.location.href = "/api/auth/login?email=" + encodeURIComponent(email.trim());
   };
 
   return (
@@ -84,40 +67,28 @@ export function LoginGate({ lang, onLangChange, onLogin }: LoginGateProps) {
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                autoFocus
                 placeholder="you@example.com"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
               />
             </div>
 
-            <div>
-              <label className="text-white/40 text-xs uppercase tracking-wider block mb-1.5">
-                {lv ? "Parole" : "Password"}
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
-              />
-            </div>
-
-            {error && (
-              <p className="text-red-400 text-xs text-center">{error}</p>
-            )}
-
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !email.trim()}
               className="w-full py-3 bg-[#3e92cc] text-white font-bold rounded-lg hover:bg-[#2f7bb0] disabled:opacity-50 transition-colors text-sm"
             >
               {loading
-                ? (lv ? "Pieslēdzas..." : "Logging in...")
+                ? (lv ? "Novirza uz pieslēgšanos..." : "Redirecting...")
                 : (lv ? "Pieslēdzies" : "Log in")}
             </button>
           </form>
+
+          <p className="text-white/30 text-xs text-center mt-4 leading-relaxed">
+            {lv
+              ? "Mēs nosūtīsim saiti uz tavu e-pastu"
+              : "We'll send a login link to your email"}
+          </p>
         </div>
 
         {/* Register link */}
