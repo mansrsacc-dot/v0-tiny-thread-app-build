@@ -63,7 +63,7 @@ export const T: Record<Lang, Record<string, string>> = {
     failedSave: "Neizdevās saglabāt dizainu",
     designSaved: "Dizains saglabāts!",
     designApplied: "Dizains pielietots!",
-    pleaseLogin: "Lūdzu, ielogojies",
+    pleaseLogin: "Lūdzu, pieslēdzies",
     pleaseLoginDesc: "Lai saglabātu dizainu, nepieciešams konts",
     outlineDesc: "Minimālistiska līniju grafika",
     outlineBest: "portreti, minimālistiski dizaini, paraksti",

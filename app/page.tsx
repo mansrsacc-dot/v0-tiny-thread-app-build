@@ -31,6 +31,7 @@ import { OrderMultipleModal } from "@/components/tinythread/OrderMultipleModal";
 import { GarmentCanvas } from "@/components/tinythread/GarmentCanvas";
 import { CartButtons } from "@/components/tinythread/CartButtons";
 import { SavedDesignsPanel } from "@/components/tinythread/SavedDesignsPanel";
+import { LoginGate } from "@/components/tinythread/LoginGate";
 
 declare global {
   interface Window {
@@ -87,6 +88,7 @@ export default function TinyThreadStudio() {
 
   // Customer & saved designs state
   const [customer, setCustomer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [savedDesigns, setSavedDesigns] = useState<any[]>([]);
   const [showSavedDesigns, setShowSavedDesigns] = useState(false);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
@@ -161,18 +163,14 @@ export default function TinyThreadStudio() {
     }
   };
 
-  // Read URL parameters to pre-select product and color
+  // Read URL parameters to pre-select product and color; handle all auth paths
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlProduct = params.get("product");
     const urlColor = params.get("color");
-    
-    if (urlProduct === "hoodie" || urlProduct === "cap") {
-      setProduct(urlProduct);
-    }
-    if (urlColor === "black" || urlColor === "white") {
-      setColor(urlColor);
-    }
+
+    if (urlProduct === "hoodie" || urlProduct === "cap") setProduct(urlProduct);
+    if (urlColor === "black" || urlColor === "white") setColor(urlColor);
 
     // Auto-login if customer_email + signature are passed from Shopify
     const customerEmail = params.get("customer_email");
@@ -187,12 +185,60 @@ export default function TinyThreadStudio() {
         .then(data => {
           if (data.id) {
             setCustomer(data);
+            localStorage.setItem("tinythread_session", JSON.stringify(data));
             loadSavedDesigns(data.id);
           }
         })
-        .catch(e => console.error("[AUTH] Auto-login error:", e));
+        .catch(e => console.error("[AUTH] Auto-login error:", e))
+        .finally(() => setAuthChecked(true));
+      return;
+    }
+
+    // No URL params — restore session from localStorage
+    const stored = localStorage.getItem("tinythread_session");
+    if (stored) {
+      try {
+        const session = JSON.parse(stored);
+        if (session.accessToken) {
+          // Validate the stored token with Shopify
+          fetch("/api/customer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: session.accessToken }),
+          })
+            .then(r => r.json())
+            .then(data => {
+              if (data.id) {
+                setCustomer(data);
+                localStorage.setItem("tinythread_session", JSON.stringify(data));
+                loadSavedDesigns(data.id);
+              } else {
+                localStorage.removeItem("tinythread_session");
+              }
+            })
+            .catch(() => localStorage.removeItem("tinythread_session"))
+            .finally(() => setAuthChecked(true));
+        } else {
+          // Email+sig session (no token) — restore directly
+          setCustomer(session);
+          loadSavedDesigns(session.id);
+          setAuthChecked(true);
+        }
+      } catch {
+        localStorage.removeItem("tinythread_session");
+        setAuthChecked(true);
+      }
+    } else {
+      setAuthChecked(true);
     }
   }, []);
+
+  // Called by LoginGate on successful login
+  const handleLogin = (data: { id: string; firstName: string; lastName: string; email: string; accessToken?: string }) => {
+    setCustomer(data);
+    localStorage.setItem("tinythread_session", JSON.stringify(data));
+    loadSavedDesigns(data.id);
+  };
 
   // Load saved designs for a customer
   const loadSavedDesigns = async (customerId: string) => {
@@ -882,6 +928,22 @@ export default function TinyThreadStudio() {
     if (s === "pet-head") return t.stylePetHead;
     return t.styleCar;
   });
+
+  // Auth loading state — blank screen while checking localStorage/token
+  if (!authChecked) {
+    return <div className="min-h-screen bg-[#0f0e0d]" />;
+  }
+
+  // Login gate — shown when no authenticated customer
+  if (!customer) {
+    return (
+      <LoginGate
+        lang={lang}
+        onLangChange={handleLangChange}
+        onLogin={handleLogin}
+      />
+    );
+  }
 
   return (
     <div className={cn("min-h-screen flex flex-col md:flex-row", theme === "dark" ? "dark" : "")}>
