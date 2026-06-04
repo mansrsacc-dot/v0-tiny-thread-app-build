@@ -633,7 +633,7 @@ export async function POST(req: NextRequest) {
           method: "POST",
           headers: { "Authorization": `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: "TinyThread Orders <orders@tinythread.lv>",
+            from: "TinyThread Orders <orders@tinythread.shop>",
             to: ["karvelsm@gmail.com"],
             cc: ["waqasahmed2468@gmail.com"],
             subject: `New Order #${orderNumber} - ${item.title}`,

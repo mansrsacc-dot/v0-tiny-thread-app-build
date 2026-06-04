@@ -981,7 +981,7 @@ export default function TinyThreadStudio() {
         <div className="p-5 space-y-5">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <a href="https://tinythread.shop" className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
+            <a href="https://tinythread.lv" className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 rounded-full border-2 border-[#3e92cc] flex items-center justify-center">
                 <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#3e92cc]" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="3" />
