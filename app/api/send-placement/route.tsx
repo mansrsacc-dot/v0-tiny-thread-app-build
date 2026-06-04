@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "TinyThread Orders <onboarding@resend.dev>",
+        from: "TinyThread Orders <orders@tinythread.lv>",
         to: ["karvelsm@gmail.com"],
         cc: ["waqasahmed2468@gmail.com"],
         subject: `TinyThread Design - ${product} ${garmentColor} - ${style}`,
