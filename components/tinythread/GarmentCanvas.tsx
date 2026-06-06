@@ -165,6 +165,10 @@ export function GarmentCanvas({
                 width: design.currentSizePx * sizeScale,
                 height: design.currentSizePx * sizeScale,
               }),
+              // Permanent dashed outline keeps designs visible on any garment color.
+              // Blue ring-2 is added via className when selected (box-shadow, coexists with outline).
+              outline: selectedDesignId === design.id ? "none" : "1px dashed rgba(80,80,80,0.3)",
+              outlineOffset: "2px",
             }}
             className={cn(
               "cursor-move group",

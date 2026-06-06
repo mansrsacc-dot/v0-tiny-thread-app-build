@@ -94,7 +94,7 @@ export function OrderMultipleModal({
               <div
                 key={key}
                 className={cn(
-                  "flex flex-col items-center gap-2 p-2.5 rounded-xl border",
+                  "flex flex-col items-center gap-1.5 p-1.5 rounded-xl border min-w-0 overflow-hidden",
                   theme === "dark" ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50",
                   !hasVariant && "opacity-40"
                 )}
@@ -103,24 +103,24 @@ export function OrderMultipleModal({
                 {price != null && hasVariant ? (
                   <span className={cn("text-xs", theme === "dark" ? "text-white/45" : "text-gray-400")}>€{price}</span>
                 ) : (
-                  <span className={cn("text-xs", theme === "dark" ? "text-white/30" : "text-gray-400")}>{t.orderMultipleSizeNA}</span>
+                  <span className={cn("text-xs truncate", theme === "dark" ? "text-white/30" : "text-gray-400")}>{t.orderMultipleSizeNA}</span>
                 )}
                 {hasVariant ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 w-full justify-center">
                     <button
                       onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) - 1) }))}
                       disabled={qty === 0}
                       className={cn(
-                        "w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30",
+                        "w-5 h-5 shrink-0 rounded flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-30",
                         theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
                       )}
                     >−</button>
-                    <span className={cn("w-5 text-center text-sm font-bold tabular-nums", theme === "dark" ? "text-white" : "text-gray-900")}>{qty}</span>
+                    <span className={cn("w-5 shrink-0 text-center text-sm font-bold tabular-nums", theme === "dark" ? "text-white" : "text-gray-900")}>{qty}</span>
                     <button
                       onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.min(10, (prev[key] || 0) + 1) }))}
                       disabled={qty === 10}
                       className={cn(
-                        "w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30",
+                        "w-5 h-5 shrink-0 rounded flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-30",
                         theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
                       )}
                     >+</button>

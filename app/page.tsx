@@ -1372,6 +1372,8 @@ export default function TinyThreadStudio() {
       {showWelcome && (
         <WelcomePopup
           t={t}
+          lang={lang}
+          onLangChange={handleLangChange}
           onShowGuide={() => { setShowWelcome(false); setShowGuide(true); localStorage.setItem("tinythread_visited", "1"); }}
           onClose={() => { setShowWelcome(false); localStorage.setItem("tinythread_visited", "1"); }}
         />

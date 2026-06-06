@@ -54,7 +54,7 @@ export function TextModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[9999] flex items-end md:items-center justify-center p-0 md:p-4">
-      <div className="bg-[#1e1b18] border border-white/10 rounded-t-2xl md:rounded-2xl p-4 md:p-6 max-w-md w-full md:my-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#1e1b18] border border-white/10 rounded-t-2xl md:rounded-2xl p-4 md:p-6 max-w-md w-full md:my-4 max-h-[85svh] md:max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-white">{t.addText}</h2>
           <button onClick={onClose} className="text-white/40 hover:text-white/70">✕</button>
@@ -96,6 +96,7 @@ export function TextModal({
               rows={textMultiRowInput ? 3 : 2}
               maxLength={activeMaxChars}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3e92cc]/60 resize-none"
+              style={{ fontSize: "16px" }}
               autoFocus
             />
             <p className={cn(
@@ -152,10 +153,10 @@ export function TextModal({
             </div>
           </div>
 
-          {/* Color picker */}
+          {/* Color picker — horizontal scroll so it never grows tall and overlaps size control */}
           <div>
             <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">{t.textColor}</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
               {TEXT_COLOR_PALETTE.map(c => {
                 const isActive = (c.hex || "") === textColorInput;
                 return (
@@ -164,7 +165,7 @@ export function TextModal({
                     onClick={() => setTextColorInput(c.hex || "")}
                     title={c.label}
                     className={cn(
-                      "w-10 h-10 rounded-full border-2 transition-transform hover:scale-110",
+                      "shrink-0 w-10 h-10 rounded-full border-2 transition-transform hover:scale-110",
                       isActive ? "border-white ring-2 ring-[#3e92cc]" : "border-white/20"
                     )}
                     style={{

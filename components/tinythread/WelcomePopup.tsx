@@ -1,15 +1,27 @@
 "use client";
 
+import type { Lang } from "@/lib/translations";
+
 interface WelcomePopupProps {
   onShowGuide: () => void;
   onClose: () => void;
   t: Record<string, string>;
+  lang: Lang;
+  onLangChange: (l: Lang) => void;
 }
 
-export function WelcomePopup({ onShowGuide, onClose, t }: WelcomePopupProps) {
+export function WelcomePopup({ onShowGuide, onClose, t, lang, onLangChange }: WelcomePopupProps) {
   return (
     <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
-      <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
+      <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center relative">
+        {/* Language toggle — top-right corner so user can switch before reading */}
+        <button
+          onClick={() => onLangChange(lang === "lv" ? "en" : "lv")}
+          className="absolute top-4 right-4 px-2 py-1 rounded-md text-xs font-semibold border border-neutral-600 text-neutral-300 hover:border-[#3e92cc] hover:text-[#3e92cc] transition-colors"
+        >
+          {lang === "lv" ? "EN" : "LV"}
+        </button>
+
         <div className="text-4xl mb-4">🧵</div>
         <h2 className="text-xl font-bold text-white mb-2">{t.welcome}</h2>
         <p className="text-white/50 text-sm mb-6">{t.welcomeDesc}</p>

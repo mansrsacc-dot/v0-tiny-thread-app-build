@@ -210,7 +210,7 @@ const handleAddToCart = useCallback(async () => {
     const variantId = VARIANT_IDS[variantKey];
     
     if (!variantId) {
-      throw new Error("Unknown product variant: " + variantKey);
+      throw new Error(t.errorGeneric);
     }
 
     // Build design specs for cart properties
@@ -532,6 +532,8 @@ const handleAddToCart = useCallback(async () => {
     }
     if (screenshotFrontUrl) params.set("properties[_screenshot_front]", screenshotFrontUrl);
     if (screenshotBackUrl)  params.set("properties[_screenshot_back]",  screenshotBackUrl);
+    // _preview_image: Shopify convention for cart line item image override (theme must support it)
+    if (screenshotFrontUrl) params.set("properties[_preview_image]", screenshotFrontUrl);
     if (screenshotLeftSleeveUrl)  params.set("properties[_screenshot_left_sleeve]",  screenshotLeftSleeveUrl);
     if (screenshotRightSleeveUrl) params.set("properties[_screenshot_right_sleeve]", screenshotRightSleeveUrl);
 
@@ -717,10 +719,9 @@ const handleAddToCart = useCallback(async () => {
 
   } catch (error: unknown) {
     console.error("[ADD TO CART] Error:", error);
-    const errorMessage = error instanceof Error ? error.message : t.errorGeneric;
-    toast({ 
-      title: t.errorCart, 
-      description: errorMessage,
+    toast({
+      title: t.errorCart,
+      description: t.errorGeneric,
       variant: "destructive"
     });
     setIsAddingToCart(false);
