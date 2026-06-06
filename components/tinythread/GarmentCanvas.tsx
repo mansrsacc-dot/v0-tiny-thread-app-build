@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
@@ -60,6 +60,51 @@ export function GarmentCanvas({
   const handleResizeMouseDown = handleResizePointerDown;
   const [regenTooltipDesignId, setRegenTooltipDesignId] = useState<string | null>(null);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Drag-rotation state: captures element center + start angle when rotate handle is grabbed
+  const [rotatingDesign, setRotatingDesign] = useState<{
+    id: string; cx: number; cy: number; startAngle: number; startRotation: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!rotatingDesign) return;
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      const clientX = "touches" in e ? (e.touches[0]?.clientX ?? 0) : e.clientX;
+      const clientY = "touches" in e ? (e.touches[0]?.clientY ?? 0) : e.clientY;
+      const currentAngle = Math.atan2(clientY - rotatingDesign.cy, clientX - rotatingDesign.cx);
+      const delta = currentAngle - rotatingDesign.startAngle;
+      setDesigns(prev => prev.map(d =>
+        d.id === rotatingDesign.id
+          ? { ...d, rotation: rotatingDesign.startRotation + (delta * 180 / Math.PI) }
+          : d
+      ));
+    };
+    const onUp = () => setRotatingDesign(null);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [rotatingDesign, setDesigns]);
+
+  const startRotate = (e: React.MouseEvent | React.TouchEvent, design: Design) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!previewRef.current) return;
+    const rect = previewRef.current.getBoundingClientRect();
+    const cx = rect.left + (design.position.x / 100) * rect.width;
+    const cy = rect.top + (design.position.y / 100) * rect.height;
+    const clientX = "touches" in e ? (e.touches[0]?.clientX ?? 0) : e.clientX;
+    const clientY = "touches" in e ? (e.touches[0]?.clientY ?? 0) : e.clientY;
+    setRotatingDesign({ id: design.id, cx, cy, startAngle: Math.atan2(clientY - cy, clientX - cx), startRotation: design.rotation || 0 });
+  };
+
   return (
 <div className={cn(
   "w-full md:flex-1 md:h-screen order-1 md:order-2 flex flex-col relative",
@@ -194,9 +239,6 @@ export function GarmentCanvas({
                     lineHeight: 1.2,
                     whiteSpace: design.textMultiRow ? "pre-line" : "nowrap",
                     textAlign: "center",
-                    textShadow: color === "black"
-                      ? "0 0 3px rgba(255,255,255,0.85), 0 0 8px rgba(255,255,255,0.4)"
-                      : "0 0 3px rgba(0,0,0,0.6), 0 0 6px rgba(0,0,0,0.25)",
                   }}
                 >
                   {design.textContent}
@@ -214,40 +256,29 @@ export function GarmentCanvas({
             
             {selectedDesignId === design.id && (
               <>
-                {/* Delete Button */}
+                {/* Delete — top-left, fully outside the bounding box */}
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteDesign(design.id);
-                  }}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 z-50"
+                  onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleDeleteDesign(design.id); }}
+                  onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                  className="absolute -top-3 -left-3 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 z-50 shadow-md"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-                
-                {/* Rotate Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDesigns(prev => prev.map(d => 
-                      d.id === design.id ? { ...d, rotation: (d.rotation || 0) + 90 } : d
-                    ));
-                  }}
-                  onTouchEnd={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    setDesigns(prev => prev.map(d => 
-                      d.id === design.id ? { ...d, rotation: (d.rotation || 0) + 90 } : d
-                    ));
-                  }}
-                  className="absolute -top-2 -left-2 w-6 h-6 bg-[#3e92cc] rounded-full flex items-center justify-center text-black hover:bg-[#3e92cc] z-50"
+
+                {/* Rotate — top-right, drag for continuous free rotation */}
+                <div
+                  onMouseDown={(e) => startRotate(e, design)}
+                  onTouchStart={(e) => startRotate(e, design)}
+                  className="absolute -top-3 -right-3 w-6 h-6 bg-[#3e92cc] rounded-full flex items-center justify-center text-white z-50 shadow-md select-none"
+                  style={{ cursor: rotatingDesign?.id === design.id ? "grabbing" : "grab" }}
+                  title="Drag to rotate"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                </button>
+                </div>
 
                 {/* Text-specific: Font cycle + always-visible color bar (only for text designs) */}
                 {isText && (() => {
@@ -335,14 +366,14 @@ export function GarmentCanvas({
                   );
                 })()}
 
-                {/* Resize Handle -- hidden for fixed-size sleeve designs */}
+                {/* Resize — bottom-right, fully outside the bounding box */}
                 {!isSleeveView(design.view) && (
                   <div
                     onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
                     onTouchStart={(e) => handleResizePointerDown(e, design.id)}
-                    className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#3e92cc] rounded-sm cursor-se-resize flex items-center justify-center"
+                    className="absolute -bottom-3 -right-3 w-6 h-6 bg-[#3e92cc] rounded-full cursor-se-resize flex items-center justify-center shadow-md z-50"
                   >
-                    <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 20l16-16M12 20h8v-8" />
                     </svg>
                   </div>
