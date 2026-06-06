@@ -194,7 +194,9 @@ export function GarmentCanvas({
                     lineHeight: 1.2,
                     whiteSpace: design.textMultiRow ? "pre-line" : "nowrap",
                     textAlign: "center",
-                    textShadow: color === "black" ? "0 0 2px rgba(0,0,0,0.3)" : "0 0 2px rgba(255,255,255,0.3)",
+                    textShadow: color === "black"
+                      ? "0 0 3px rgba(255,255,255,0.85), 0 0 8px rgba(255,255,255,0.4)"
+                      : "0 0 3px rgba(0,0,0,0.6), 0 0 6px rgba(0,0,0,0.25)",
                   }}
                 >
                   {design.textContent}
@@ -218,7 +220,7 @@ export function GarmentCanvas({
                     e.stopPropagation();
                     handleDeleteDesign(design.id);
                   }}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 z-50"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -240,7 +242,7 @@ export function GarmentCanvas({
                       d.id === design.id ? { ...d, rotation: (d.rotation || 0) + 90 } : d
                     ));
                   }}
-                  className="absolute -top-2 -left-2 w-6 h-6 bg-[#3e92cc] rounded-full flex items-center justify-center text-black hover:bg-[#3e92cc]"
+                  className="absolute -top-2 -left-2 w-6 h-6 bg-[#3e92cc] rounded-full flex items-center justify-center text-black hover:bg-[#3e92cc] z-50"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -282,20 +284,25 @@ export function GarmentCanvas({
                         onTouchStart={(e) => { e.stopPropagation(); }}
                         onClick={blockEvent}
                         title={t.textFont}
-                        className="absolute -top-9 left-1/2 -translate-x-1/2 px-2 h-7 bg-black/85 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap z-30 shadow-lg"
+                        className="absolute -top-9 left-1/2 -translate-x-1/2 px-2 h-7 bg-black/85 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap z-50 shadow-lg"
                         style={{ fontFamily: fontDef.css, fontVariant: fontDef.fontVariant }}
                       >
                         <span className="opacity-60 text-[9px]">Aa</span>
                         <span>{fontDef.name}</span>
                       </button>
 
-                      {/* Always-visible color swatch bar below the text */}
+                      {/* Always-visible color swatch bar below the text.
+                          Moved to -bottom-16 so it clears the size indicator badge (-bottom-6).
+                          onTouchMove + onWheel stop propagation so swipe/scroll on the bar
+                          never bubbles to the canvas drag handler (Fix 3). */}
                       <div
                         onPointerDown={(e) => { e.stopPropagation(); }}
                         onMouseDown={blockEvent}
                         onTouchStart={(e) => { e.stopPropagation(); }}
+                        onTouchMove={(e) => { e.stopPropagation(); }}
+                        onWheel={(e) => { e.stopPropagation(); }}
                         onClick={blockEvent}
-                        className="absolute -bottom-12 left-1/2 -translate-x-1/2 z-30 bg-black/85 backdrop-blur-sm rounded-lg px-2 py-1.5 flex gap-1 items-center shadow-lg"
+                        className="absolute -bottom-16 left-1/2 -translate-x-1/2 z-30 bg-black/85 backdrop-blur-sm rounded-lg px-2 py-1.5 flex gap-1 items-center shadow-lg"
                         style={{ width: "max-content", maxWidth: "min(92vw, 360px)" }}
                       >
                         {TEXT_COLOR_PALETTE.map(c => {
@@ -341,11 +348,17 @@ export function GarmentCanvas({
                   </div>
                 )}
 
-                {/* Size Indicator */}
-                <div className={cn(
-                  "absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap",
-                  theme === "dark" ? "bg-neutral-800 text-neutral-300" : "bg-white text-gray-700 shadow-sm"
-                )}>
+                {/* Size Indicator — z-40 keeps it above the color swatch bar (z-30) */}
+                <div
+                  className={cn(
+                    "absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap z-40",
+                    theme === "dark" ? "bg-neutral-800 text-neutral-300" : "bg-white text-gray-700 shadow-sm"
+                  )}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchMove={(e) => e.stopPropagation()}
+                  onWheel={(e) => e.stopPropagation()}
+                >
                   {isSleeveView(design.view) ? t.sleeveSizeFixed : `~${getSizeInMm(design.currentSizePx, design.size, !!design.textContent)}mm`}
                 </div>
                 
