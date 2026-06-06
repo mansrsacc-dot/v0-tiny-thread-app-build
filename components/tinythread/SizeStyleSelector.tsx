@@ -27,6 +27,7 @@ interface SizeStyleSelectorProps {
   selectedIsAdditional: boolean;
   currentDesignsForView: Design[];
   onStyleChange: (style: Style) => void;
+  onScrollToPreview?: () => void;
 }
 
 export function SizeStyleSelector({
@@ -47,10 +48,14 @@ export function SizeStyleSelector({
   selectedIsAdditional,
   currentDesignsForView,
   onStyleChange,
+  onScrollToPreview,
 }: SizeStyleSelectorProps) {
   const size: Size = viewSizes[view] ?? "M";
 
   const handleSizeClick = (s: "S" | "M" | "L") => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setTimeout(() => onScrollToPreview?.(), 80);
+    }
     if (addingMode) {
       setViewSizes(prev => ({ ...prev, [view]: s }));
       if (addingMode.step === "size") {
@@ -227,6 +232,9 @@ export function SizeStyleSelector({
               <button
                 key={s.id}
                 onClick={() => {
+                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                    setTimeout(() => onScrollToPreview?.(), 80);
+                  }
                   if (addingMode?.step === "style") {
                     onStyleChange(s.id as Style);
                     setAddingMode(addingMode ? { ...addingMode, step: "upload" } : null);

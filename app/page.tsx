@@ -707,6 +707,9 @@ export default function TinyThreadStudio() {
 
   const handleStyleChange = useCallback((newStyle: Style) => {
     setStyle(newStyle);
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setTimeout(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
 
     // Only update + regenerate the selected design if it lives on the current view.
     // If the current view is empty, changing style should never touch designs on other views.
@@ -1161,7 +1164,12 @@ export default function TinyThreadStudio() {
                 return (
                   <button
                     key={c}
-                    onClick={() => setColor(c)}
+                    onClick={() => {
+                      setColor(c);
+                      if (typeof window !== "undefined" && window.innerWidth < 768) {
+                        setTimeout(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                      }
+                    }}
                     className={cn(
                       "w-11 h-11 rounded-full border-2 transition-all",
                       color === c ? "ring-2 ring-[#3e92cc] ring-offset-2" : "",
@@ -1221,6 +1229,11 @@ export default function TinyThreadStudio() {
             selectedIsAdditional={selectedIsAdditional}
             currentDesignsForView={currentDesignsForView}
             onStyleChange={handleStyleChange}
+            onScrollToPreview={() => {
+              if (typeof window !== "undefined" && window.innerWidth < 768) {
+                setTimeout(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+              }
+            }}
           />
           {/* Cancel adding mode button */}
           {addingMode && (
