@@ -396,11 +396,14 @@ export function GarmentCanvas({
                   {isSleeveView(design.view) ? t.sleeveSizeFixed : `~${getSizeInMm(design.currentSizePx, design.size, !!design.textContent)}mm`}
                 </div>
                 
-                {/* Regenerate & History Controls - Below Design */}
+                {/* Regenerate & History Controls — pinned to bottom-inside the design element
+                    so it never escapes the canvas or overlaps panel UI below */}
                 {design.generatedImages[design.style] && (
-                  <div 
-                    className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-sm"
+                  <div
+                    className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 px-2 py-1 rounded-b bg-black/70 backdrop-blur-sm"
                     onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
                   >
                     {/* Regenerate Button */}
                     <Tooltip
@@ -444,8 +447,8 @@ export function GarmentCanvas({
                           </span>
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="top" className="bg-neutral-900 text-neutral-100 border-neutral-700">
-                        {t.regenTooltipPrefix} — {4 - design.regenerationCount} {t.regenLeft}
+                      <TooltipContent side="top" className="bg-neutral-900 text-neutral-100 border-neutral-700 max-w-[260px] text-center">
+                        {t.regenTooltip}
                       </TooltipContent>
                     </Tooltip>
                     
