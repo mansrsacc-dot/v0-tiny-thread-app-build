@@ -256,22 +256,24 @@ export function GarmentCanvas({
             
             {selectedDesignId === design.id && (
               <>
-                {/* Delete — top-left, fully outside the bounding box */}
+                {/* Delete — top-left corner, handle fully outside element
+                    -top-6/-left-6 = 24px offset; handle is 24px tall → bottom edge at 0px (element top). Zero overlap. */}
                 <button
                   onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleDeleteDesign(design.id); }}
                   onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                  className="absolute -top-3 -left-3 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 z-50 shadow-md"
+                  className="absolute -top-6 -left-6 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 z-50 shadow-md"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
 
-                {/* Rotate — top-right, drag for continuous free rotation */}
+                {/* Rotate — top-right corner, drag for continuous free rotation
+                    Same math: -top-6/-right-6 keeps handle fully outside. */}
                 <div
                   onMouseDown={(e) => startRotate(e, design)}
                   onTouchStart={(e) => startRotate(e, design)}
-                  className="absolute -top-3 -right-3 w-6 h-6 bg-[#3e92cc] rounded-full flex items-center justify-center text-white z-50 shadow-md select-none"
+                  className="absolute -top-6 -right-6 w-6 h-6 bg-[#3e92cc] rounded-full flex items-center justify-center text-white z-50 shadow-md select-none"
                   style={{ cursor: rotatingDesign?.id === design.id ? "grabbing" : "grab" }}
                   title="Drag to rotate"
                 >
@@ -315,7 +317,7 @@ export function GarmentCanvas({
                         onTouchStart={(e) => { e.stopPropagation(); }}
                         onClick={blockEvent}
                         title={t.textFont}
-                        className="absolute -top-9 left-1/2 -translate-x-1/2 px-2 h-7 bg-black/85 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap z-50 shadow-lg"
+                        className="absolute -top-14 left-1/2 -translate-x-1/2 px-2 h-7 bg-black/85 backdrop-blur-sm rounded text-white text-[11px] font-bold hover:bg-black flex items-center gap-1 whitespace-nowrap z-50 shadow-lg"
                         style={{ fontFamily: fontDef.css, fontVariant: fontDef.fontVariant }}
                       >
                         <span className="opacity-60 text-[9px]">Aa</span>
@@ -333,7 +335,7 @@ export function GarmentCanvas({
                         onTouchMove={(e) => { e.stopPropagation(); }}
                         onWheel={(e) => { e.stopPropagation(); }}
                         onClick={blockEvent}
-                        className="absolute -bottom-16 left-1/2 -translate-x-1/2 z-30 bg-black/85 backdrop-blur-sm rounded-lg px-2 py-1.5 flex gap-1 items-center shadow-lg"
+                        className="absolute -bottom-24 left-1/2 -translate-x-1/2 z-30 bg-black/85 backdrop-blur-sm rounded-lg px-2 py-1.5 flex gap-1 items-center shadow-lg"
                         style={{ width: "max-content", maxWidth: "min(92vw, 360px)" }}
                       >
                         {TEXT_COLOR_PALETTE.map(c => {
@@ -366,12 +368,13 @@ export function GarmentCanvas({
                   );
                 })()}
 
-                {/* Resize — bottom-right, fully outside the bounding box */}
+                {/* Resize — bottom-right corner, fully outside the bounding box.
+                    -bottom-6/-right-6 = 24px offset; handle 24px tall → top edge at element bottom. Zero overlap. */}
                 {!isSleeveView(design.view) && (
                   <div
                     onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
                     onTouchStart={(e) => handleResizePointerDown(e, design.id)}
-                    className="absolute -bottom-3 -right-3 w-6 h-6 bg-[#3e92cc] rounded-full cursor-se-resize flex items-center justify-center shadow-md z-50"
+                    className="absolute -bottom-6 -right-6 w-6 h-6 bg-[#3e92cc] rounded-full cursor-se-resize flex items-center justify-center shadow-md z-50"
                   >
                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 20l16-16M12 20h8v-8" />
@@ -379,10 +382,10 @@ export function GarmentCanvas({
                   </div>
                 )}
 
-                {/* Size Indicator — z-40 keeps it above the color swatch bar (z-30) */}
+                {/* Size Indicator — -bottom-12 = 48px below element; resize handle ends at 24px → 4px gap. z-40 above color swatch. */}
                 <div
                   className={cn(
-                    "absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap z-40",
+                    "absolute -bottom-12 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap z-40",
                     theme === "dark" ? "bg-neutral-800 text-neutral-300" : "bg-white text-gray-700 shadow-sm"
                   )}
                   onMouseDown={(e) => e.stopPropagation()}
