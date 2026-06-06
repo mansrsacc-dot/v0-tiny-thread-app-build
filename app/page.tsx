@@ -254,6 +254,30 @@ export default function TinyThreadStudio() {
       toast({ title: t.pleaseLogin, description: t.pleaseLoginDesc });
       return;
     }
+
+    // Toggle: if already saved, remove it
+    if (design.savedDesignId) {
+      setIsSavingDesign(true);
+      try {
+        const res = await fetch("/api/designs", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerId: customer.id, designId: design.savedDesignId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setDesigns(prev => prev.map(d => d.id === design.id ? { ...d, savedDesignId: undefined } : d));
+          setSavedDesigns(prev => prev.filter(s => s.id !== design.savedDesignId));
+          toast({ title: t.designRemoved });
+        }
+      } catch {
+        toast({ title: t.error, description: t.failedSave });
+      } finally {
+        setIsSavingDesign(false);
+      }
+      return;
+    }
+
     setIsSavingDesign(true);
     try {
       // Upload the generated design to Vercel Blob (permanent URL)
@@ -312,10 +336,14 @@ export default function TinyThreadStudio() {
       const data = await res.json();
       if (data.success) {
         toast({ title: t.designSaved });
+        const savedId = data.design?.id;
         if (data.design) {
           setSavedDesigns(prev => [...prev, data.design]);
         } else {
           await loadSavedDesigns(customer.id);
+        }
+        if (savedId) {
+          setDesigns(prev => prev.map(d => d.id === design.id ? { ...d, savedDesignId: savedId } : d));
         }
       } else {
         toast({ title: t.error, description: data.error || t.failedSave });
@@ -415,7 +443,7 @@ export default function TinyThreadStudio() {
       const data = await response.json();
 
       if (!response.ok || data.error) {
-        toast({ title: t.error, description: data.error || t.errorGeneric });
+        toast({ title: t.error, description: data.error || t.failedGenerateStitched });
         return false;
       }
 
@@ -485,7 +513,7 @@ export default function TinyThreadStudio() {
       }
       return false;
     } catch (error) {
-      toast({ title: t.error, description: t.errorGeneric });
+      toast({ title: t.error, description: t.failedGenerateStitched });
       return false;
     } finally {
       setIsGenerating(false);
@@ -494,6 +522,10 @@ export default function TinyThreadStudio() {
   }, [color, toast, t]);
 
   const handleFileUpload = useCallback((file: File) => {
+    if (file.type !== "image/jpeg" && file.type !== "image/png") {
+      toast({ title: t.error, description: t.uploadFormatError });
+      return;
+    }
     setAddingMode(null);
     // Limit: max 3 photos per side
     const photosOnThisView = designs.filter(d => d.view === view && !d.textContent).length;
@@ -1302,10 +1334,7 @@ export default function TinyThreadStudio() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
-              {isSavingDesign
-                ? ("Saglab\u0101...")
-                : ("Saglab\u0101t dizainu")
-              }
+              {isSavingDesign ? t.savingDesign : t.saveDesign}
             </button>
           )}
 

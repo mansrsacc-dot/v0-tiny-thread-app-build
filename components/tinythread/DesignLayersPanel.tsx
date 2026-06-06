@@ -132,9 +132,11 @@ export function DesignLayersPanel({
                   "p-1 rounded transition-colors",
                   isSavingDesign ? "opacity-50" : "hover:bg-[#3e92cc]/20 text-[#3e92cc]"
                 )}
-                title="Saglabāt dizainu"
+                title={t.saveDesign}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <svg className="w-4 h-4" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}
+                  fill={design.savedDesignId ? "currentColor" : "none"}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </button>

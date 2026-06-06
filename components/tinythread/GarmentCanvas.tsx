@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GARMENT_IMAGES } from "@/lib/garment-images";
 import type { View, Product, Color, Size, Style } from "@/lib/garment-images";
 import type { Design } from "@/lib/types";
@@ -56,6 +58,8 @@ export function GarmentCanvas({
 }: GarmentCanvasProps) {
   const handleMouseDown = handlePointerDown;
   const handleResizeMouseDown = handleResizePointerDown;
+  const [regenTooltipDesignId, setRegenTooltipDesignId] = useState<string | null>(null);
+  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   return (
 <div className={cn(
   "w-full md:flex-1 md:h-screen order-1 md:order-2 flex flex-col relative",
@@ -348,34 +352,51 @@ export function GarmentCanvas({
                     onMouseDown={(e) => e.stopPropagation()}
                   >
                     {/* Regenerate Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRegenerate();
-                      }}
-                      disabled={cooldown > 0 || isGenerating || design.regenerationCount >= 4}
-                      className={cn(
-                        "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
-                        cooldown > 0 || isGenerating || design.regenerationCount >= 4
-                          ? "opacity-50 cursor-not-allowed text-neutral-400"
-                          : "hover:bg-white/10 text-neutral-200"
-                      )}
+                    <Tooltip
+                      open={regenTooltipDesignId === design.id}
+                      onOpenChange={(open) => setRegenTooltipDesignId(open ? design.id : null)}
                     >
-                      {isGenerating ? (
-                        <Spinner className="w-3 h-3" />
-                      ) : (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      )}
-                      <span>
-                        {design.regenerationCount >= 4 
-                          ? t.maxReached 
-                          : cooldown > 0 
-                            ? `${cooldown}s` 
-                            : `(${4 - design.regenerationCount} ${t.regenLeft})`}
-                      </span>
-                    </button>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRegenerate();
+                          }}
+                          disabled={cooldown > 0 || isGenerating || design.regenerationCount >= 4}
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
+                            cooldown > 0 || isGenerating || design.regenerationCount >= 4
+                              ? "opacity-50 cursor-not-allowed text-neutral-400"
+                              : "hover:bg-white/10 text-neutral-200"
+                          )}
+                          onTouchStart={() => {
+                            touchTimerRef.current = setTimeout(() => setRegenTooltipDesignId(design.id), 400);
+                          }}
+                          onTouchEnd={() => {
+                            if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+                            setTimeout(() => setRegenTooltipDesignId(null), 1800);
+                          }}
+                        >
+                          {isGenerating ? (
+                            <Spinner className="w-3 h-3" />
+                          ) : (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          )}
+                          <span>
+                            {design.regenerationCount >= 4
+                              ? t.maxReached
+                              : cooldown > 0
+                                ? `${cooldown}s`
+                                : `(${4 - design.regenerationCount} ${t.regenLeft})`}
+                          </span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="bg-neutral-900 text-neutral-100 border-neutral-700">
+                        {t.regenTooltipPrefix} — {4 - design.regenerationCount} {t.regenLeft}
+                      </TooltipContent>
+                    </Tooltip>
                     
                     {/* History Navigation */}
                     {(() => {

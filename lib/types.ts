@@ -22,6 +22,7 @@ export interface Design {
   textColor?: string;
   textMultiRow?: boolean;
   licensePlate?: string;
+  savedDesignId?: string;
 }
 
 export type AddingMode = {
