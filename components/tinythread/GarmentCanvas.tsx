@@ -143,7 +143,7 @@ export function GarmentCanvas({
     <div
       ref={previewRef}
       data-testid="garment-preview"
-      className="relative w-auto max-h-[85vh] mx-auto transition-transform duration-150 bg-white rounded-lg shadow-sm aspect-[4/5]"
+      className="relative w-auto max-h-[85vh] mx-auto transition-transform duration-150 bg-white rounded-lg shadow-sm aspect-[4/5] overflow-hidden"
       style={{ cursor: designs.length === 0 ? 'pointer' : 'default', transform: `scale(${zoom})`, transformOrigin: 'center center' }}
       onClick={(e) => {
         if (designs.length > 0 && (e.target === e.currentTarget || e.target instanceof HTMLImageElement)) {
@@ -368,8 +368,7 @@ export function GarmentCanvas({
                   );
                 })()}
 
-                {/* Resize — bottom-right corner, fully outside the bounding box.
-                    -bottom-6/-right-6 = 24px offset; handle 24px tall → top edge at element bottom. Zero overlap. */}
+                {/* Resize — bottom-right corner, fully outside the bounding box */}
                 {!isSleeveView(design.view) && (
                   <div
                     onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
@@ -382,128 +381,86 @@ export function GarmentCanvas({
                   </div>
                 )}
 
-                {/* Size Indicator — -bottom-12 = 48px below element; resize handle ends at 24px → 4px gap. z-40 above color swatch. */}
+                {/* Caption row — sits below the resize handle zone (which ends 24px below the element).
+                    -bottom-14 = 56px from element bottom → caption top at 28px → 4px gap from handle.
+                    All labels outside the bounding box; previewRef overflow:hidden prevents panel overlap. */}
                 <div
-                  className={cn(
-                    "absolute -bottom-12 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap z-40",
-                    theme === "dark" ? "bg-neutral-800 text-neutral-300" : "bg-white text-gray-700 shadow-sm"
-                  )}
+                  className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/75 backdrop-blur-sm whitespace-nowrap z-40"
                   onMouseDown={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                   onTouchMove={(e) => e.stopPropagation()}
                   onWheel={(e) => e.stopPropagation()}
                 >
-                  {isSleeveView(design.view) ? t.sleeveSizeFixed : `~${getSizeInMm(design.currentSizePx, design.size, !!design.textContent)}mm`}
+                  {/* Size label */}
+                  <span className="text-xs text-neutral-300">
+                    {isSleeveView(design.view) ? t.sleeveSizeFixed : `~${getSizeInMm(design.currentSizePx, design.size, !!design.textContent)}mm`}
+                  </span>
+
+                  {/* Regen + history — only when a generated image exists */}
+                  {design.generatedImages[design.style] && (
+                    <>
+                      <span className="text-neutral-600 text-xs select-none">·</span>
+                      <Tooltip
+                        open={regenTooltipDesignId === design.id}
+                        onOpenChange={(open) => setRegenTooltipDesignId(open ? design.id : null)}
+                      >
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRegenerate(); }}
+                            disabled={cooldown > 0 || isGenerating || design.regenerationCount >= 4}
+                            className={cn(
+                              "flex items-center gap-1 rounded text-xs font-medium transition-all",
+                              cooldown > 0 || isGenerating || design.regenerationCount >= 4
+                                ? "opacity-50 cursor-not-allowed text-neutral-400"
+                                : "hover:bg-white/10 text-neutral-200"
+                            )}
+                            onTouchStart={() => { touchTimerRef.current = setTimeout(() => setRegenTooltipDesignId(design.id), 400); }}
+                            onTouchEnd={() => { if (touchTimerRef.current) clearTimeout(touchTimerRef.current); setTimeout(() => setRegenTooltipDesignId(null), 1800); }}
+                          >
+                            {isGenerating ? <Spinner className="w-3 h-3" /> : (
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            )}
+                            <span>
+                              {design.regenerationCount >= 4 ? t.maxReached : cooldown > 0 ? `${cooldown}s` : `(${4 - design.regenerationCount} ${t.regenLeft})`}
+                            </span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="bg-neutral-900 text-neutral-100 border-neutral-700 max-w-[260px] text-center">
+                          {t.regenTooltip}
+                        </TooltipContent>
+                      </Tooltip>
+
+                      {/* History prev/next — only when there are multiple generations */}
+                      {(() => {
+                        const history = design.generationHistory[design.style] || [];
+                        const currentIndex = design.currentHistoryIndex[design.style] ?? 0;
+                        if (history.length <= 1) return null;
+                        return (
+                          <>
+                            <span className="text-neutral-600 text-xs select-none">·</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigateHistory("prev", design.id); }}
+                              disabled={currentIndex === 0}
+                              className={cn("p-0.5 rounded transition-all", currentIndex === 0 ? "opacity-30 cursor-not-allowed" : "hover:bg-white/10")}
+                            >
+                              <svg className="w-3 h-3 text-neutral-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                            <span className="text-xs text-neutral-400 tabular-nums">{currentIndex + 1}/{history.length}</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigateHistory("next", design.id); }}
+                              disabled={currentIndex === history.length - 1}
+                              className={cn("p-0.5 rounded transition-all", currentIndex === history.length - 1 ? "opacity-30 cursor-not-allowed" : "hover:bg-white/10")}
+                            >
+                              <svg className="w-3 h-3 text-neutral-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
                 </div>
-                
-                {/* Regenerate & History Controls — pinned to bottom-inside the design element
-                    so it never escapes the canvas or overlaps panel UI below */}
-                {design.generatedImages[design.style] && (
-                  <div
-                    className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 px-2 py-1 rounded-b bg-black/70 backdrop-blur-sm"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchMove={(e) => e.stopPropagation()}
-                  >
-                    {/* Regenerate Button */}
-                    <Tooltip
-                      open={regenTooltipDesignId === design.id}
-                      onOpenChange={(open) => setRegenTooltipDesignId(open ? design.id : null)}
-                    >
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRegenerate();
-                          }}
-                          disabled={cooldown > 0 || isGenerating || design.regenerationCount >= 4}
-                          className={cn(
-                            "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
-                            cooldown > 0 || isGenerating || design.regenerationCount >= 4
-                              ? "opacity-50 cursor-not-allowed text-neutral-400"
-                              : "hover:bg-white/10 text-neutral-200"
-                          )}
-                          onTouchStart={() => {
-                            touchTimerRef.current = setTimeout(() => setRegenTooltipDesignId(design.id), 400);
-                          }}
-                          onTouchEnd={() => {
-                            if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
-                            setTimeout(() => setRegenTooltipDesignId(null), 1800);
-                          }}
-                        >
-                          {isGenerating ? (
-                            <Spinner className="w-3 h-3" />
-                          ) : (
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                          )}
-                          <span>
-                            {design.regenerationCount >= 4
-                              ? t.maxReached
-                              : cooldown > 0
-                                ? `${cooldown}s`
-                                : `(${4 - design.regenerationCount} ${t.regenLeft})`}
-                          </span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="bg-neutral-900 text-neutral-100 border-neutral-700 max-w-[260px] text-center">
-                        {t.regenTooltip}
-                      </TooltipContent>
-                    </Tooltip>
-                    
-                    {/* History Navigation */}
-                    {(() => {
-                      const history = design.generationHistory[design.style] || [];
-                      const currentIndex = design.currentHistoryIndex[design.style] ?? 0;
-                      
-                      if (history.length <= 1) return null;
-                      
-                      return (
-                        <>
-                          <div className="w-px h-4 bg-neutral-600" />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigateHistory("prev", design.id);
-                            }}
-                            disabled={currentIndex === 0}
-                            className={cn(
-                              "p-1 rounded transition-all",
-                              currentIndex === 0
-                                ? "opacity-30 cursor-not-allowed"
-                                : "hover:bg-white/10"
-                            )}
-                          >
-                            <svg className="w-3 h-3 text-neutral-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </button>
-                          <span className="text-sm text-neutral-400 min-w-[28px] text-center">
-                            {currentIndex + 1}/{history.length}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigateHistory("next", design.id);
-                            }}
-                            disabled={currentIndex === history.length - 1}
-                            className={cn(
-                              "p-1 rounded transition-all",
-                              currentIndex === history.length - 1
-                                ? "opacity-30 cursor-not-allowed"
-                                : "hover:bg-white/10"
-                            )}
-                          >
-                            <svg className="w-3 h-3 text-neutral-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
               </>
             )}
           </div>
