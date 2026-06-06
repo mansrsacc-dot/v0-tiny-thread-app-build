@@ -68,6 +68,7 @@ export default function TinyThreadStudio() {
   const guideLang = lang;
   const [guideStep, setGuideStep] = useState(0);
   const [showConfirmCart, setShowConfirmCart] = useState(false);
+  const [cartQuantity, setCartQuantity] = useState(1);
   const [showTextModal, setShowTextModal] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [textFontInput, setTextFontInput] = useState(TEXT_FONTS[0].id);
@@ -98,6 +99,8 @@ export default function TinyThreadStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationLockRef = useRef(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  const sidebarTopRef = useRef<HTMLDivElement>(null);
+  const prevColorRef = useRef(color);
   const [zoom, setZoom] = useState(1);
   // Track preview width so design sizes scale responsively on small screens.
   // Reference width 400px = the size-constraint values (60-260 px) were originally tuned against.
@@ -114,6 +117,29 @@ export default function TinyThreadStudio() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // When the garment color changes, existing generated images are stale (wrong color context).
+  // Clear them and auto-regenerate the selected design so it always matches the current color.
+  useEffect(() => {
+    if (prevColorRef.current === color) return;
+    prevColorRef.current = color;
+    // Capture selected design before clearing (designs snapshot from closure is intentional here)
+    const designToRegen = designs.find(d => d.id === selectedDesignId && !d.textContent && !!d.originalImage);
+    setDesigns(prev => prev.map(d => d.textContent ? d : {
+      ...d,
+      generatedImages: {},
+      processedImages: {},
+      generationHistory: {},
+      processedHistory: {},
+      currentHistoryIndex: {},
+      rawImageUrl: null,
+      generatedForColor: undefined,
+    }));
+    setShowStitched(false);
+    if (designToRegen) {
+      generateEmbroidery(designToRegen.id, designToRegen.originalImage, designToRegen.style);
+    }
+  }, [color]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Visual scale: reduce on-screen size so designs match real-life embroidery proportions
   // on the hoodie (max 250mm on a ~550mm chest = ~45% of body width). Stored sizePx and
@@ -502,6 +528,7 @@ export default function TinyThreadStudio() {
               processedHistory: { ...d.processedHistory, [styleType]: newProcessedHistory },
               currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
               rawImageUrl: rawReplicateUrl,
+              generatedForColor: color,
               ...(licensePlate !== undefined && { licensePlate }),
             };
           }
@@ -689,6 +716,9 @@ export default function TinyThreadStudio() {
       ));
 
       if (selectedDesign.originalImage && !selectedDesign.generatedImages[newStyle]) {
+        // No stitched image yet for this style — show original upload as safe fallback
+        // while generation runs, so a stale image from another style never appears.
+        setShowStitched(false);
         generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, newStyle);
       }
     }
@@ -936,7 +966,7 @@ export default function TinyThreadStudio() {
 
   const { handleAddToCart, handleAddMultipleToCart } = useCartActions({
     designs, product, color, viewSizes, style, view,
-    customer, lang, t, multipleQtys, size, currentPrice,
+    customer, lang, t, multipleQtys, size, currentPrice, cartQuantity,
     setIsAddingToCart, setIsAddingMultiple, setSavedDesigns, toast,
   });
 
@@ -1007,10 +1037,10 @@ export default function TinyThreadStudio() {
 
       {/* Sidebar Controls - Second on mobile, First on desktop */}
       <div className={cn(
-        "w-full md:w-80 lg:w-[360px] xl:w-[400px] md:min-w-[320px] flex-shrink-0 order-2 md:order-1 overflow-y-auto border-t md:border-t-0 md:border-r pb-32 md:pb-0 md:h-screen md:sticky md:top-0",
+        "w-full md:w-80 lg:w-[360px] xl:w-[400px] md:min-w-[320px] flex-shrink-0 order-2 md:order-1 border-t md:border-t-0 md:border-r pb-32 md:pb-0 md:h-screen md:sticky md:top-0 md:flex md:flex-col",
         theme === "dark" ? "bg-[#1e1b18] border-neutral-800" : "bg-white border-gray-200"
       )}>
-        <div className="p-5 space-y-5">
+        <div ref={sidebarTopRef} className="p-5 space-y-5 overflow-y-auto flex-1">
           {/* Header */}
           <div className="flex items-center justify-between">
             <a href="https://tinythread.lv" className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
@@ -1290,6 +1320,7 @@ export default function TinyThreadStudio() {
               theme={theme}
               color={color}
               t={t}
+              onScrollToUpload={() => sidebarTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
             />
           )}
 
@@ -1338,7 +1369,12 @@ export default function TinyThreadStudio() {
             </button>
           )}
 
-          {/* Cart Buttons - Desktop */}
+        </div>
+        {/* Cart Buttons - Desktop sticky footer: always visible at sidebar bottom */}
+        <div className={cn(
+          "hidden md:block shrink-0 p-4 border-t",
+          theme === "dark" ? "border-neutral-800" : "border-gray-200"
+        )}>
           <CartButtons
             mobile={false}
             designs={designs}
@@ -1477,6 +1513,8 @@ export default function TinyThreadStudio() {
       {showConfirmCart && (
         <ConfirmCartModal
           hasOnlyFrontDesign={designs.length === 1}
+          quantity={cartQuantity}
+          onQuantityChange={setCartQuantity}
           t={t}
           onConfirm={() => { setShowConfirmCart(false); handleAddToCart(); }}
           onClose={() => setShowConfirmCart(false)}

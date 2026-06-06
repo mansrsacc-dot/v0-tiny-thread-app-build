@@ -26,6 +26,7 @@ interface DesignLayersPanelProps {
   theme: "dark" | "light";
   color: Color;
   t: Record<string, string>;
+  onScrollToUpload?: () => void;
 }
 
 export function DesignLayersPanel({
@@ -47,6 +48,7 @@ export function DesignLayersPanel({
   theme,
   color,
   t,
+  onScrollToUpload,
 }: DesignLayersPanelProps) {
   return (
     <div className="space-y-2">
@@ -168,6 +170,9 @@ export function DesignLayersPanel({
                 setView(otherView as "front" | "back");
                 setSelectedDesignId(null);
                 setAddingMode({ context: otherView === "back" ? "back" : "additional", step: "size" });
+                if (typeof window !== "undefined" && window.innerWidth < 768) {
+                  setTimeout(() => onScrollToUpload?.(), 50);
+                }
               }}
               className={cn(
                 "w-full py-2 text-sm border border-dashed rounded-lg transition-all",

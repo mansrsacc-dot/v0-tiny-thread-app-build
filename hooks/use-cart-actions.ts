@@ -25,6 +25,7 @@ interface CartActionsParams {
   multipleQtys: Record<string, number>;
   size: Size;
   currentPrice: number;
+  cartQuantity: number;
   setIsAddingToCart: (v: boolean) => void;
   setIsAddingMultiple: React.Dispatch<React.SetStateAction<boolean>>;
   setSavedDesigns: React.Dispatch<React.SetStateAction<any[]>>;
@@ -34,7 +35,7 @@ interface CartActionsParams {
 
 export function useCartActions({
   designs, product, color, viewSizes, style, view,
-  customer, lang, t, multipleQtys, size, currentPrice,
+  customer, lang, t, multipleQtys, size, currentPrice, cartQuantity,
   setIsAddingToCart, setIsAddingMultiple, setSavedDesigns, toast,
 }: CartActionsParams) {
 const handleAddMultipleToCart = useCallback(async () => {
@@ -224,7 +225,7 @@ const handleAddToCart = useCallback(async () => {
     // Build the cart/add URL with properties
     const params = new URLSearchParams();
     params.set("id", variantId);
-    params.set("quantity", "1");
+    params.set("quantity", String(cartQuantity > 0 ? cartQuantity : 1));
 
     // Hidden designer-only properties (underscore prefix = hidden in Shopify customer view)
     const photoStyleNames = designs
