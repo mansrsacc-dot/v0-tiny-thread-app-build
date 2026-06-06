@@ -26,6 +26,7 @@ interface CartActionsParams {
   size: Size;
   currentPrice: number;
   cartQuantity: number;
+  garmentSize: "S" | "M" | "L" | "XL";
   setIsAddingToCart: (v: boolean) => void;
   setIsAddingMultiple: React.Dispatch<React.SetStateAction<boolean>>;
   setSavedDesigns: React.Dispatch<React.SetStateAction<any[]>>;
@@ -35,7 +36,7 @@ interface CartActionsParams {
 
 export function useCartActions({
   designs, product, color, viewSizes, style, view,
-  customer, lang, t, multipleQtys, size, currentPrice, cartQuantity,
+  customer, lang, t, multipleQtys, size, currentPrice, cartQuantity, garmentSize,
   setIsAddingToCart, setIsAddingMultiple, setSavedDesigns, toast,
 }: CartActionsParams) {
 const handleAddMultipleToCart = useCallback(async () => {
@@ -166,7 +167,9 @@ const handleAddMultipleToCart = useCallback(async () => {
       properties: {
         ...sharedProps,
         "_embroidery_size": designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", "),
-        [isLVm ? "Izmrs" : "Size"]: itemSize,
+        "_garment_size": garmentSize,
+        [isLVm ? "Apģērba izmērs" : "Garment Size"]: garmentSize,
+        [isLVm ? "Izmērs (izšuvums)" : "Size (embroidery)"]: itemSize,
       },
     }));
 
@@ -264,8 +267,11 @@ const handleAddToCart = useCallback(async () => {
 
     // Clean customer-facing properties (language-aware)
     const isLV = lang === "lv";
-    const primarySize = photoFront?.size || photoBack?.size || size;
-    params.set(`properties[${isLV ? "Izmērs" : "Size"}]`, primarySize);
+    // Visible "Size" = the wearable garment size the customer picks in the app
+    // (moved here after removing the Shopify size variant picker). Embroidery
+    // dimensions remain in the hidden _embroidery_size property for the designer.
+    params.set(`properties[${isLV ? "Izmērs" : "Size"}]`, garmentSize);
+    params.set("properties[_garment_size]", garmentSize);
     if (textDesigns.length > 0) {
       params.set(`properties[${isLV ? "Teksts" : "Text"}]`, textDesigns.map(d => `"${d.textContent}"`).join(" | "));
     }

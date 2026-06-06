@@ -294,9 +294,10 @@ export async function POST(req: NextRequest) {
       const designCount = getProp("_design_count") || getProp("Design Count") || "1";
       const orderRef = getProp("_order_ref");
 
-      // Garment clothing size (S/M/L/XL) from the Shopify variant title.
-      // variant_title may be "L / Black" — take the first segment.
-      const garmentSize = (item.variant_title as string | undefined)?.split(" / ")[0]?.trim() || null;
+      // Garment clothing size (S/M/L/XL). Prefer the _garment_size property the app
+      // now sends (selected in-app after the Shopify size picker was removed); fall
+      // back to the variant title ("L / Black" → first segment) for older orders.
+      const garmentSize = getProp("_garment_size") || (item.variant_title as string | undefined)?.split(" / ")[0]?.trim() || null;
 
       const frontDesignUrl = getProp("_design_image");
       const frontGarmentRef = getProp("_garment");

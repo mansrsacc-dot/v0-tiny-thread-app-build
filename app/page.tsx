@@ -47,6 +47,9 @@ export default function TinyThreadStudio() {
   const t = T[lang];
   const [product, setProduct] = useState<Product>("hoodie");
   const [color, setColor] = useState<Color>("black");
+  // Wearable garment size (S/M/L/XL) — moved into the app after removing the Shopify size variant picker.
+  // Does NOT affect price (all garment sizes cost the same); passed to cart as a line-item property.
+  const [garmentSize, setGarmentSize] = useState<"S" | "M" | "L" | "XL">("M");
   const [view, setView] = useState<View>("front");
   const [viewSizes, setViewSizes] = useState<Record<string, Size>>({
     front: "S", back: "M", "left-sleeve": "M", "right-sleeve": "M",
@@ -969,7 +972,7 @@ export default function TinyThreadStudio() {
 
   const { handleAddToCart, handleAddMultipleToCart } = useCartActions({
     designs, product, color, viewSizes, style, view,
-    customer, lang, t, multipleQtys, size, currentPrice, cartQuantity,
+    customer, lang, t, multipleQtys, size, currentPrice, cartQuantity, garmentSize,
     setIsAddingToCart, setIsAddingMultiple, setSavedDesigns, toast,
   });
 
@@ -1183,6 +1186,34 @@ export default function TinyThreadStudio() {
               })}
             </div>
           </div>
+
+          {/* Garment Size Selection (wearable size) — hoodies only; caps are one-size */}
+          {product === "hoodie" && (
+            <div className="space-y-2">
+              <label className={cn("text-sm font-semibold uppercase tracking-wide", theme === "dark" ? "text-neutral-500" : "text-gray-500")}>
+                {t.garmentSize}
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {(["S", "M", "L", "XL"] as const).map(gs => (
+                  <button
+                    key={gs}
+                    onClick={() => setGarmentSize(gs)}
+                    className={cn(
+                      "py-3 rounded-lg border text-sm font-bold transition-all",
+                      garmentSize === gs
+                        ? "border-[#3e92cc] bg-[#3e92cc]/10 text-[#3e92cc]"
+                        : theme === "dark"
+                          ? "border-neutral-700 text-neutral-300 hover:border-neutral-600"
+                          : "border-gray-200 text-gray-700 hover:border-gray-300"
+                    )}
+                  >
+                    {gs}
+                  </button>
+                ))}
+              </div>
+              <p className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-400")}>{t.garmentSizeHint}</p>
+            </div>
+          )}
 
           {/* View Selection */}
           {product === "hoodie" && (
