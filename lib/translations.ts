@@ -61,7 +61,7 @@ export const T: Record<Lang, Record<string, string>> = {
     errorGeneric: "Kaut kas nogāja greizi. Lūdzu, mēģini vēlreiz.",
     error: "Kļūda",
     quantity: "Daudzums",
-    garmentSize: "Apģērba izmērs",
+    garmentSize: "Džempera izmērs",
     garmentSizeHint: "Izvēlies sava džempera izmēru",
     saveDesign: "Saglabāt dizainu",
     savingDesign: "Saglabā...",

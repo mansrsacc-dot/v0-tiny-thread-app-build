@@ -168,7 +168,7 @@ const handleAddMultipleToCart = useCallback(async () => {
         ...sharedProps,
         "_embroidery_size": designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", "),
         "_garment_size": garmentSize,
-        [isLVm ? "Apģērba izmērs" : "Garment Size"]: garmentSize,
+        [isLVm ? "Džempera izmērs" : "Garment Size"]: garmentSize,
         [isLVm ? "Izmērs (izšuvums)" : "Size (embroidery)"]: itemSize,
       },
     }));
