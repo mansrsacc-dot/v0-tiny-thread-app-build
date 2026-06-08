@@ -862,9 +862,11 @@ export default function TinyThreadStudio() {
         e.preventDefault();
         const design = designs.find(d => d.id === selectedDesignId);
         if (design) {
-          // Divide delta by sizeScale so the resize handle tracks the cursor 1:1 on screen
-          // (the design is rendered at currentSizePx * sizeScale).
-          const delta = (pos.x - resizeState.startX) / (sizeScale || 1);
+          // Divide delta by the on-screen scale so the resize handle tracks the cursor 1:1.
+          // Images render at currentSizePx * sizeScale * imgBoost, where M/L (non-sleeve)
+          // get an extra +15% boost (kept in sync with GarmentCanvas).
+          const imgBoost = (!design.textContent && !isSleeveView(design.view) && (design.size === "M" || design.size === "L")) ? 1.15 : 1;
+          const delta = (pos.x - resizeState.startX) / ((sizeScale * imgBoost) || 1);
           const constraints = design.textContent
             ? TEXT_SIZE_CONSTRAINTS[design.size as "S" | "M" | "L"]
             : isSleeveView(design.view)

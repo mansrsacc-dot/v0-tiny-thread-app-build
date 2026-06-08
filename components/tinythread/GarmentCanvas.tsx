@@ -191,6 +191,11 @@ export function GarmentCanvas({
         const safeTextSizePx = isText ? Math.min(design.currentSizePx, TEXT_SIZE_CONSTRAINTS.L.max) : design.currentSizePx;
         if (!isText && !imageToShow) return null;
 
+        // 2026-06-08: extra +15% render boost for M/L generated image designs (S and
+        // fixed-size sleeve designs unchanged). Visual only — currentSizePx/mm untouched.
+        // Mirrored in the resize-handle math in page.tsx so the handle still tracks 1:1.
+        const imgBoost = (!isText && !isSleeveView(design.view) && (design.size === "M" || design.size === "L")) ? 1.15 : 1;
+
         const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
         // Thread color: explicit color from design, else auto (white on black, black on white)
         const textColor = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
@@ -207,8 +212,8 @@ export function GarmentCanvas({
               // selection ring wraps the actual rendered text, not an arbitrary square.
               // Images: fixed square sized to currentSizePx.
               ...(isText ? {} : {
-                width: design.currentSizePx * sizeScale,
-                height: design.currentSizePx * sizeScale,
+                width: design.currentSizePx * sizeScale * imgBoost,
+                height: design.currentSizePx * sizeScale * imgBoost,
               }),
               // Permanent dashed outline keeps designs visible on any garment color.
               // Blue ring-2 is added via className when selected (box-shadow, coexists with outline).
