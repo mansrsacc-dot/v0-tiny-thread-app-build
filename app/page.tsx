@@ -147,7 +147,10 @@ export default function TinyThreadStudio() {
   // Visual scale: reduce on-screen size so designs match real-life embroidery proportions
   // on the hoodie (max 250mm on a ~550mm chest = ~45% of body width). Stored sizePx and
   // mm calculations stay unchanged -- this only affects visual rendering.
-  const RENDER_SCALE = 0.55;
+  // 2026-06-08: bumped 0.55 -> 0.6325 (+15%) so generated designs render larger on canvas.
+  // Affects generated image designs only (text uses its own font-size formula); applies to
+  // all views. Size is still driven by S/M/L + px-per-mm — this is purely the render multiplier.
+  const RENDER_SCALE = 0.6325;
   const sizeScale = (previewWidth / 400) * RENDER_SCALE;
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
@@ -721,11 +724,22 @@ export default function TinyThreadStudio() {
         d.id === selectedDesign.id ? { ...d, style: newStyle } : d
       ));
 
-      if (selectedDesign.originalImage && !selectedDesign.generatedImages[newStyle]) {
-        // No stitched image yet for this style — show original upload as safe fallback
-        // while generation runs, so a stale image from another style never appears.
-        setShowStitched(false);
-        generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, newStyle);
+      if (selectedDesign.originalImage) {
+        if (newStyle === "car") {
+          // Car style always requires the license-plate question before generating.
+          // Show the popup on every switch TO car (regardless of an existing car render),
+          // mirroring the upload flow — the popup's handlers drive generateEmbroidery.
+          setShowStitched(false);
+          setCarPlatePending({ designId: selectedDesign.id, base64: selectedDesign.originalImage, sleevePlacement: isSleeveView(view) });
+          setCarPlateStep("ask");
+          setCarPlateInput("");
+          setShowCarPlatePopup(true);
+        } else if (!selectedDesign.generatedImages[newStyle]) {
+          // No stitched image yet for this style — show original upload as safe fallback
+          // while generation runs, so a stale image from another style never appears.
+          setShowStitched(false);
+          generateEmbroidery(selectedDesign.id, selectedDesign.originalImage, newStyle);
+        }
       }
     }
   }, [selectedDesign, view, generateEmbroidery]);
