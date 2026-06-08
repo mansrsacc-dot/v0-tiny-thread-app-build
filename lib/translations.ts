@@ -141,7 +141,7 @@ export const T: Record<Lang, Record<string, string>> = {
     orderMultipleAddBtn: "Pievienot grozam",
     orderMultipleAdding: "Pievieno...",
     orderMultipleSizeNA: "Drīzumā",
-    addAnotherDesign: "Pievienot vēl dizainu šai pusei",
+    addAnotherDesign: "Pievienot vel dizainu šai pusei",
     addToBackPrice: "no €17",
     additionalDesignPrice: "no €17",
     chooseSizeHint: "Izvēlies izmēru",

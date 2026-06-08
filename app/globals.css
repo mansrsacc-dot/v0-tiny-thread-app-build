@@ -123,3 +123,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Brief blue-border flash on style cards after a size is chosen, to draw the
+   eye to "now choose your style". Reverts to the card's normal border when done. */
+@keyframes styleCardFlash {
+  0%, 50%, 100% {
+    border-color: #3e92cc;
+    box-shadow: 0 0 12px rgba(62, 146, 204, 0.55);
+  }
+  25%, 75% {
+    border-color: rgba(62, 146, 204, 0);
+    box-shadow: 0 0 0 rgba(62, 146, 204, 0);
+  }
+}
+.style-card-flash {
+  animation: styleCardFlash 0.9s ease-in-out;
+}

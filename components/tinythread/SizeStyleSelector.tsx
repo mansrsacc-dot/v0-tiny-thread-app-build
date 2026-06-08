@@ -52,6 +52,18 @@ export function SizeStyleSelector({
 }: SizeStyleSelectorProps) {
   const size: Size = viewSizes[view] ?? "M";
 
+  // After the user picks a size (step advances to "style"), briefly flash all style
+  // cards with a blue border as a "now choose your style" hint, then let it fade.
+  const [flashStyleCards, setFlashStyleCards] = React.useState(false);
+  React.useEffect(() => {
+    if (addingMode?.step === "style") {
+      setFlashStyleCards(true);
+      const timer = setTimeout(() => setFlashStyleCards(false), 900);
+      return () => clearTimeout(timer);
+    }
+    setFlashStyleCards(false);
+  }, [addingMode?.step]);
+
   const handleSizeClick = (s: "S" | "M" | "L") => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       setTimeout(() => onScrollToPreview?.(), 80);
@@ -244,6 +256,7 @@ export function SizeStyleSelector({
                 }}
                 className={cn(
                   "w-full p-3 rounded-lg border text-left transition-all",
+                  flashStyleCards && "style-card-flash",
                   style === s.id
                     ? "border-[#3e92cc] bg-[#3e92cc]/10"
                     : theme === "dark"
