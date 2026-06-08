@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { GARMENT_IMAGES } from "@/lib/garment-images";
 import type { View, Product, Color, Size, Style } from "@/lib/garment-images";
 import type { Design } from "@/lib/types";
-import { TEXT_FONTS, TEXT_COLOR_PALETTE, TEXT_SIZE_CONSTRAINTS, SLEEVE_SIZE_CONSTRAINTS } from "@/lib/constants";
+import { TEXT_FONTS, TEXT_COLOR_PALETTE, TEXT_SIZE_CONSTRAINTS, SLEEVE_SIZE_CONSTRAINTS, SLEEVE_DESIGN_SIZE_PX } from "@/lib/constants";
 import { SIZE_CONSTRAINTS } from "@/lib/garment-images";
 
 const isSleeveView = (v: string) => v === "left-sleeve" || v === "right-sleeve";
@@ -373,8 +373,10 @@ export function GarmentCanvas({
                   );
                 })()}
 
-                {/* Resize — bottom-right corner, fully outside the bounding box */}
-                {!isSleeveView(design.view) && (
+                {/* Resize — bottom-right corner, fully outside the bounding box.
+                    Shown for all image designs (incl. sleeve, which can grow up to +40%);
+                    hidden only for sleeve text, which stays a fixed size. */}
+                {!(isSleeveView(design.view) && isText) && (
                   <div
                     onMouseDown={(e) => handleResizeMouseDown(e, design.id)}
                     onTouchStart={(e) => handleResizePointerDown(e, design.id)}
@@ -398,7 +400,11 @@ export function GarmentCanvas({
                 >
                   {/* Size label */}
                   <span className="text-xs text-neutral-300">
-                    {isSleeveView(design.view) ? t.sleeveSizeFixed : `~${getSizeInMm(design.currentSizePx, design.size, !!design.textContent)}mm`}
+                    {isSleeveView(design.view)
+                      ? (isText
+                          ? t.sleeveSizeFixed
+                          : `${Math.round((design.currentSizePx / SLEEVE_DESIGN_SIZE_PX) * 100)}%`)
+                      : `~${getSizeInMm(design.currentSizePx, design.size, !!design.textContent)}mm`}
                   </span>
 
                   {/* Regen + history — only when a generated image exists */}

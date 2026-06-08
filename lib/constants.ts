@@ -134,9 +134,11 @@ export const SLEEVE_PRICE = 25;
 export const SLEEVE_TEXT_PRICE = 12;
 export const SLEEVE_TEXT_MAX_CHARS = 10;
 export const SLEEVE_DESIGN_SIZE_PX = 85;
+// Sleeve designs start at the base size and can be dragged up to 40% bigger
+// (base is the minimum so they can only grow from the default, never shrink below it).
 export const SLEEVE_SIZE_CONSTRAINTS = {
-  min: Math.round(SLEEVE_DESIGN_SIZE_PX / 4),
-  max: SLEEVE_DESIGN_SIZE_PX,
+  min: SLEEVE_DESIGN_SIZE_PX,
+  max: Math.round(SLEEVE_DESIGN_SIZE_PX * 1.4),
 } as const;
 export const SLEEVE_PHOTO_ADDON_VARIANT_ID = "57473281982795";
 
