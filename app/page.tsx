@@ -1238,23 +1238,37 @@ export default function TinyThreadStudio() {
                 {t.view}
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {(["front", "back", "left-sleeve", "right-sleeve"] as View[]).map(v => (
+                {(["front", "back", "left-sleeve", "right-sleeve"] as View[]).map(v => {
+                  // Lock view switching while an add/edit-embroidery flow is open, so the
+                  // user must confirm or press Atcelt before starting a design elsewhere.
+                  const locked = !!addingMode;
+                  return (
                   <button
                     key={v}
-                    onClick={() => { setView(v); setSelectedDesignId(null); }}
+                    disabled={locked}
+                    title={locked ? t.viewLocked : undefined}
+                    onClick={() => { if (locked) return; setView(v); setSelectedDesignId(null); }}
                     className={cn(
                       "py-3 px-3 rounded-lg border text-sm font-medium transition-all",
                       view === v
                         ? "border-[#3e92cc] bg-[#3e92cc]/10 text-[#3e92cc]"
                         : theme === "dark"
                           ? "border-neutral-700 text-neutral-300 hover:border-neutral-600"
-                          : "border-gray-200 text-gray-700 hover:border-gray-300"
+                          : "border-gray-200 text-gray-700 hover:border-gray-300",
+                      locked && "cursor-not-allowed",
+                      locked && view !== v && "opacity-40"
                     )}
                   >
                     {v === "front" ? t.front : v === "back" ? t.back : v === "left-sleeve" ? t.leftSleeve : t.rightSleeve}
                   </button>
-                ))}
+                  );
+                })}
               </div>
+              {!!addingMode && (
+                <p className={cn("text-xs", theme === "dark" ? "text-neutral-500" : "text-gray-400")}>
+                  {t.viewLocked}
+                </p>
+              )}
             </div>
           )}
 

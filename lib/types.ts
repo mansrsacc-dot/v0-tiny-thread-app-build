@@ -29,7 +29,8 @@ export interface Design {
 export type AddingMode = {
   context: "additional" | "back";
   step: "size" | "style" | "upload";
-  size?: "S" | "M";
+  // First-design contexts (back / front-first) allow L; the additional-design flow stays S/M.
+  size?: "S" | "M" | "L";
 } | null;
 
 export type Customer = {

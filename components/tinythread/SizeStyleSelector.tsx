@@ -71,9 +71,9 @@ export function SizeStyleSelector({
     if (addingMode) {
       setViewSizes(prev => ({ ...prev, [view]: s }));
       if (addingMode.step === "size") {
-        setAddingMode({ ...addingMode, step: "style", size: s as "S" | "M" });
+        setAddingMode({ ...addingMode, step: "style", size: s });
       } else {
-        setAddingMode({ ...addingMode, size: s as "S" | "M" });
+        setAddingMode({ ...addingMode, size: s });
       }
     } else {
       const { min, max } = SIZE_CONSTRAINTS[s];
@@ -143,8 +143,9 @@ export function SizeStyleSelector({
                 </div>
               </button>
             ))}
-            {/* L button only when not adding mode, not cap, not additional slot */}
-            {!addingMode && product !== "cap" && !selectedIsAdditional && (
+            {/* L is available for the FIRST design on a side (no addingMode, or a back/
+                front-first add-flow) — only the additional-design flow is capped at S/M. */}
+            {product !== "cap" && !selectedIsAdditional && addingMode?.context !== "additional" && (
               <button
                 onClick={() => handleSizeClick("L")}
                 className={cn(
@@ -237,7 +238,7 @@ export function SizeStyleSelector({
             const chosenSize = addingMode?.size;
             const priceLine = addingMode?.step === "style" && chosenSize
               ? (addingMode.context === "additional"
-                ? `${chosenSize}: +€${ADDITIONAL_DESIGN_PRICING[s.id as Style]?.[chosenSize]}`
+                ? `${chosenSize}: +€${ADDITIONAL_DESIGN_PRICING[s.id as Style]?.[chosenSize as "S" | "M"]}`
                 : `${chosenSize}: +€${BACK_SURCHARGE[s.id]?.[chosenSize]}`)
               : null;
             return (
