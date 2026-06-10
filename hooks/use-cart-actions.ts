@@ -5,7 +5,7 @@ import type { Design } from "@/lib/types";
 import type { Lang } from "@/lib/translations";
 import {
   VARIANT_IDS, TEXT_FONTS, TEXT_COLOR_PALETTE, TEXT_ADDON_VARIANT_ID,
-  SLEEVE_PHOTO_ADDON_VARIANT_ID, ADDITIONAL_DESIGN_VARIANT_IDS,
+  SLEEVE_PHOTO_ADDON_VARIANT_ID, ADDITIONAL_DESIGN_VARIANT_IDS, BACK_DESIGN_VARIANT_IDS,
 } from "@/lib/constants";
 import { GARMENT_IMAGES, STYLES } from "@/lib/garment-images";
 import { submitCartForm, createThumbnail } from "@/lib/image-utils";
@@ -207,10 +207,11 @@ const handleAddToCart = useCallback(async () => {
     const variantStyleRaw = (photoFront?.style || photoBack?.style || style);
     // Map car style to pet-head variants until car variants are created
     const variantStyle = variantStyleRaw === "car" ? "pet-head" : variantStyleRaw;
+    // Always submit the primary (front, else back) as a single-side Front-Only variant.
+    // When a back design also exists it is added as its own back-design line below, priced
+    // at the back's own style+size — so asymmetric front/back is charged correctly.
     const cartSize = photoFront?.size || photoBack?.size || size;
-    const variantKey = hasFrontAndBack
-      ? `${product}-${color}-${cartSize}-${variantStyle}-fb`
-      : `${product}-${color}-${cartSize}-${variantStyle}`;
+    const variantKey = `${product}-${color}-${cartSize}-${variantStyle}`;
     const variantId = VARIANT_IDS[variantKey];
     
     if (!variantId) {
@@ -688,10 +689,24 @@ const handleAddToCart = useCallback(async () => {
         propsObj[k.slice("properties[".length, -1)] = v;
       }
     }
+    // Number of identical garments the customer ordered (confirm popup). The main line
+    // AND every per-unit add-on must scale by this; previously the main line was hard-
+    // coded to 1, so qty>1 silently undercharged the whole order.
+    const qtyMain = cartQuantity > 0 ? cartQuantity : 1;
     const cartItems: { id: string; quantity: number; properties: Record<string, string> }[] = [
-      { id: variantId, quantity: 1, properties: propsObj },
+      { id: variantId, quantity: qtyMain, properties: propsObj },
     ];
     const orderRef = propsObj["_order_ref"] || "";
+
+    // Back design = first back photo, priced by its OWN style+size (real style, incl. car).
+    if (hasFrontAndBack && photoBack) {
+      const backVariantId = BACK_DESIGN_VARIANT_IDS[photoBack.style]?.[photoBack.size];
+      if (backVariantId) {
+        const backStyleName = STYLES.find(s => s.id === photoBack.style)?.name || photoBack.style;
+        const backMm = Math.round((photoBack.currentSizePx / 780) * 700);
+        cartItems.push({ id: backVariantId, quantity: qtyMain, properties: { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" } });
+      }
+    }
 
     const regularTextCount2 = designs.filter(d => !!d.textContent && !isSleeveView(d.view)).length;
     const sleeveTextOnly2Count = designs.filter(d => isSleeveView(d.view) && !!d.textContent && !designs.some(o => o.view === d.view && !o.textContent)).length;
@@ -707,17 +722,17 @@ const handleAddToCart = useCallback(async () => {
     }
 
     if (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) {
-      cartItems.push({ id: TEXT_ADDON_VARIANT_ID, quantity: billableTextCount, properties: { "_for_order_ref": orderRef } });
+      cartItems.push({ id: TEXT_ADDON_VARIANT_ID, quantity: billableTextCount * qtyMain, properties: { "_for_order_ref": orderRef } });
     }
     if (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) {
-      cartItems.push({ id: SLEEVE_PHOTO_ADDON_VARIANT_ID, quantity: sleevePhotoCount, properties: { "_for_order_ref": orderRef } });
+      cartItems.push({ id: SLEEVE_PHOTO_ADDON_VARIANT_ID, quantity: sleevePhotoCount * qtyMain, properties: { "_for_order_ref": orderRef } });
     }
     for (const { design: addDesign, addSize } of additionalPhotoDesigns) {
       const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
       if (addVariantId) {
         const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
         const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
-        cartItems.push({ id: addVariantId, quantity: 1, properties: { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view } });
+        cartItems.push({ id: addVariantId, quantity: qtyMain, properties: { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view } });
       }
     }
     console.log("[ADD TO CART] variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);
@@ -733,7 +748,7 @@ const handleAddToCart = useCallback(async () => {
     });
     setIsAddingToCart(false);
   }
-}, [designs, product, color, viewSizes, style, view, toast, customer, lang]);
+}, [designs, product, color, viewSizes, style, view, size, cartQuantity, toast, customer, lang]);
 
 
   return { handleAddToCart, handleAddMultipleToCart };

@@ -157,3 +157,14 @@ export const ADDITIONAL_DESIGN_VARIANT_IDS: Record<Style, Record<"S" | "M", stri
   "pet-head": { S: "57443339600203", M: "57443339632971" },
   car:        { S: "57443339665739", M: "57443339698507" },
 };
+
+// Back design = the FIRST design on the back, submitted as its own add-on line so it
+// is priced by the BACK's own style+size (not the front's). Prices equal
+// BACK_SURCHARGE[style][size]. Product: "Aizmugures dizains / Back Design" (15789522977099).
+// Replaces the combined "-fb" variant, which couldn't represent asymmetric front/back.
+export const BACK_DESIGN_VARIANT_IDS: Record<Style, Record<"S" | "M" | "L", string>> = {
+  outline:    { S: "57552339042635", M: "57552339075403", L: "57552339108171" },
+  standard:   { S: "57552339140939", M: "57552339173707", L: "57552339206475" },
+  "pet-head": { S: "57552339239243", M: "57552339272011", L: "57552339304779" },
+  car:        { S: "57552339337547", M: "57552339370315", L: "57552339403083" },
+};
