@@ -53,21 +53,27 @@ const handleAddMultipleToCart = useCallback(async () => {
   const variantStyleRaw = photoFront?.style || photoBack?.style || style;
   const variantStyle = variantStyleRaw === "car" ? "pet-head" : variantStyleRaw;
 
-  // Only sizes that have Shopify variant IDs (XL not yet available)
-  const availableSizeKeys = product === "hoodie" ? ["S", "M", "L"] : ["S", "M"];
-  const cartItems = availableSizeKeys
-    .map(sz => {
-      const qty = multipleQtys[sz] || 0;
-      if (qty === 0) return null;
-      const vKey = hasFrontAndBack
-        ? `${product}-${color}-${sz}-${variantStyle}-fb`
-        : `${product}-${color}-${sz}-${variantStyle}`;
-      const variantId = VARIANT_IDS[vKey];
-      return variantId ? { id: variantId, quantity: qty, size: sz } : null;
-    })
-    .filter(Boolean) as { id: string; quantity: number; size: string }[];
+  // Embroidery size (from the canvas design) drives the variant — identical for every
+  // unit. Garment size only changes the fit and is sent as a line-item property below,
+  // never as the variant. Mirrors the single Add-to-Cart flow.
+  // Front-Only base for every unit; the back (if any) is a separate back-design add-on
+  // scaled by total units below, so display (currentPrice × qty) equals the charge.
+  const cartSize = photoFront?.size || photoBack?.size || size;
+  const baseVariantKey = `${product}-${color}-${cartSize}-${variantStyle}`;
+  const baseVariantId = VARIANT_IDS[baseVariantKey];
+  if (!baseVariantId) {
+    toast({ title: t.errorCart, description: t.errorGeneric });
+    return;
+  }
 
-  if (cartItems.length === 0) {
+  // Garment-size columns = fit only, flat price. Hoodie: S/M/L/XL (XL now selectable).
+  // Cap: two fit groups. The label is what we send to Shopify as the visible size.
+  const garmentCols: { key: string; label: string }[] = product === "hoodie"
+    ? [{ key: "S", label: "S" }, { key: "M", label: "M" }, { key: "L", label: "L" }, { key: "XL", label: "XL" }]
+    : [{ key: "S", label: "S/M" }, { key: "M", label: "L/XL" }];
+  const selectedCols = garmentCols.filter(c => (multipleQtys[c.key] || 0) > 0);
+  const totalUnits = selectedCols.reduce((s, c) => s + (multipleQtys[c.key] || 0), 0);
+  if (totalUnits === 0) {
     toast({ title: t.errorCart, description: t.errorGeneric });
     return;
   }
@@ -161,26 +167,72 @@ const handleAddMultipleToCart = useCallback(async () => {
     }
 
     const designSizeMm = designs.map(d => d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100);
-    const items = cartItems.map(({ id, quantity, size: itemSize }) => ({
-      id,
-      quantity,
+    const embroiderySizeDetail = designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", ");
+
+    // One base line per selected garment size — same embroidery-size variant, garment
+    // size carried as a property. Differing properties keep the lines separate in Shopify.
+    const baseItems = selectedCols.map(c => ({
+      id: baseVariantId,
+      quantity: multipleQtys[c.key]!,
       properties: {
         ...sharedProps,
-        "_embroidery_size": designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", "),
-        "_garment_size": garmentSize,
-        [isLVm ? "Džempera izmērs" : "Garment Size"]: garmentSize,
-        [isLVm ? "Izmērs (izšuvums)" : "Size (embroidery)"]: itemSize,
+        "_embroidery_size": embroiderySizeDetail,
+        "_garment_size": c.label,
+        [isLVm ? "Izmērs" : "Size"]: c.label,
       },
     }));
 
-    submitCartForm(items);
+    // Add-ons (text / sleeve photo / additional designs) are per finished unit, so scale
+    // them by the total number of units across all garment sizes — the same add-on
+    // variants the single Add-to-Cart flow uses, so the cart total equals
+    // (full per-unit price) × (total units) and matches what the popup displays.
+    const regularTextCount = designs.filter(d => !!d.textContent && !isSleeveView(d.view)).length;
+    const sleeveTextOnlyCount = designs.filter(d =>
+      isSleeveView(d.view) && !!d.textContent && !designs.some(o => o.view === d.view && !o.textContent)
+    ).length;
+    const billableTextCount = regularTextCount + sleeveTextOnlyCount;
+    const sleevePhotoCount = designs.filter(d => isSleeveView(d.view) && !d.textContent).length;
+    const additionalPhotoDesigns: { design: Design; addSize: "S" | "M" }[] = [];
+    for (const v of ["front", "back"] as View[]) {
+      const photosOnSide = designs.filter(d => d.view === v && !d.textContent);
+      for (let i = 1; i < photosOnSide.length; i++) {
+        const d = photosOnSide[i];
+        additionalPhotoDesigns.push({ design: d, addSize: (d.size === "L" ? "M" : d.size) as "S" | "M" });
+      }
+    }
+
+    const addonItems: { id: string; quantity: number; properties: Record<string, string> }[] = [];
+    if (hasFrontAndBack && photoBack) {
+      const backVariantId = BACK_DESIGN_VARIANT_IDS[photoBack.style]?.[photoBack.size];
+      if (backVariantId) {
+        const backStyleName = STYLES.find(s => s.id === photoBack.style)?.name || photoBack.style;
+        const backMm = Math.round((photoBack.currentSizePx / 780) * 700);
+        addonItems.push({ id: backVariantId, quantity: totalUnits, properties: { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" } });
+      }
+    }
+    if (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) {
+      addonItems.push({ id: TEXT_ADDON_VARIANT_ID, quantity: billableTextCount * totalUnits, properties: { "_for_order_ref": orderRef } });
+    }
+    if (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) {
+      addonItems.push({ id: SLEEVE_PHOTO_ADDON_VARIANT_ID, quantity: sleevePhotoCount * totalUnits, properties: { "_for_order_ref": orderRef } });
+    }
+    for (const { design: addDesign, addSize } of additionalPhotoDesigns) {
+      const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
+      if (addVariantId) {
+        const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
+        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
+        addonItems.push({ id: addVariantId, quantity: totalUnits, properties: { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view } });
+      }
+    }
+
+    submitCartForm([...baseItems, ...addonItems]);
   } catch (e) {
     console.error("[MULTIPLE ORDER] Failed:", e);
     toast({ title: t.errorCart, description: t.errorGeneric });
   } finally {
     setIsAddingMultiple(false);
   }
-}, [multipleQtys, designs, product, color, style, toast, t, lang]);
+}, [multipleQtys, designs, product, color, style, size, toast, t, lang]);
 
 // Handle Add to Cart - uses Shopify's cart/add URL to add to the REAL browser cart
 const handleAddToCart = useCallback(async () => {

@@ -3,16 +3,13 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import type { Product, Color, Style } from "@/lib/garment-images";
-import type { Design } from "@/lib/types";
-import { VARIANT_IDS, PRICING } from "@/lib/constants";
+import type { Product } from "@/lib/garment-images";
 
 interface OrderMultipleModalProps {
   product: Product;
-  color: Color;
-  style: Style;
-  primaryPhotoStyle: Style;
-  designs: Design[];
+  // Flat per-unit price of the finished canvas design (embroidery size, style, text,
+  // sleeve, additional designs all included). Every garment size costs this same price.
+  flatUnitPrice: number;
   multipleQtys: Record<string, number>;
   setMultipleQtys: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   multipleOrderTotal: number;
@@ -26,10 +23,7 @@ interface OrderMultipleModalProps {
 
 export function OrderMultipleModal({
   product,
-  color,
-  style,
-  primaryPhotoStyle,
-  designs,
+  flatUnitPrice,
   multipleQtys,
   setMultipleQtys,
   multipleOrderTotal,
@@ -40,24 +34,11 @@ export function OrderMultipleModal({
   theme,
   t,
 }: OrderMultipleModalProps) {
-  const hoodieSizes = [
-    { key: "S",  label: "S"    },
-    { key: "M",  label: "M"    },
-    { key: "L",  label: "L"    },
-    { key: "XL", label: "XL"   },
-  ];
-  const capSizes = [
-    { key: "S", label: "S/M"  },
-    { key: "M", label: "L/XL" },
-  ];
-  const sizes = product === "hoodie" ? hoodieSizes : capSizes;
-  const pricingTable = (PRICING[product] || {})[primaryPhotoStyle] || {};
-  const photoFrontForModal = designs.find(d => d.view === "front" && !d.textContent);
-  const photoBackForModal  = designs.find(d => d.view === "back"  && !d.textContent);
-  const hasFBModal = !!photoFrontForModal && !!photoBackForModal;
-  const variantStyleForModal = ((photoFrontForModal?.style || photoBackForModal?.style || style) === "car"
-    ? "pet-head"
-    : (photoFrontForModal?.style || photoBackForModal?.style || style));
+  // Garment-size (fit) columns. Same finished design on every fit — flat price.
+  // Hoodie: S/M/L/XL (XL is a normal selectable column). Cap: two fit groups.
+  const sizes = product === "hoodie"
+    ? [{ key: "S", label: "S" }, { key: "M", label: "M" }, { key: "L", label: "L" }, { key: "XL", label: "XL" }]
+    : [{ key: "S", label: "S/M" }, { key: "M", label: "L/XL" }];
 
   return (
     <div
@@ -83,11 +64,6 @@ export function OrderMultipleModal({
 
         <div className={cn("grid gap-2 mb-5", product === "hoodie" ? "grid-cols-4" : "grid-cols-2")}>
           {sizes.map(({ key, label }) => {
-            const price = pricingTable[key] as number | undefined;
-            const vKey = hasFBModal
-              ? `${product}-${color}-${key}-${variantStyleForModal}-fb`
-              : `${product}-${color}-${key}-${variantStyleForModal}`;
-            const hasVariant = !!VARIANT_IDS[vKey];
             const qty = multipleQtys[key] || 0;
 
             return (
@@ -95,39 +71,30 @@ export function OrderMultipleModal({
                 key={key}
                 className={cn(
                   "flex flex-col items-center gap-1.5 p-1.5 rounded-xl border min-w-0 overflow-hidden",
-                  theme === "dark" ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50",
-                  !hasVariant && "opacity-40"
+                  theme === "dark" ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"
                 )}
               >
                 <span className={cn("font-bold text-sm", theme === "dark" ? "text-white" : "text-gray-900")}>{label}</span>
-                {price != null && hasVariant ? (
-                  <span className={cn("text-xs", theme === "dark" ? "text-white/45" : "text-gray-400")}>€{price}</span>
-                ) : (
-                  <span className={cn("text-xs truncate", theme === "dark" ? "text-white/30" : "text-gray-400")}>{t.orderMultipleSizeNA}</span>
-                )}
-                {hasVariant ? (
-                  <div className="flex items-center gap-0.5 w-full justify-center">
-                    <button
-                      onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) - 1) }))}
-                      disabled={qty === 0}
-                      className={cn(
-                        "w-5 h-5 shrink-0 rounded flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-30",
-                        theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                      )}
-                    >−</button>
-                    <span className={cn("w-5 shrink-0 text-center text-sm font-bold tabular-nums", theme === "dark" ? "text-white" : "text-gray-900")}>{qty}</span>
-                    <button
-                      onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.min(10, (prev[key] || 0) + 1) }))}
-                      disabled={qty === 10}
-                      className={cn(
-                        "w-5 h-5 shrink-0 rounded flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-30",
-                        theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                      )}
-                    >+</button>
-                  </div>
-                ) : (
-                  <span className={cn("text-sm", theme === "dark" ? "text-white/20" : "text-gray-300")}>—</span>
-                )}
+                <span className={cn("text-xs", theme === "dark" ? "text-white/45" : "text-gray-400")}>€{flatUnitPrice}</span>
+                <div className="flex items-center gap-0.5 w-full justify-center">
+                  <button
+                    onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) - 1) }))}
+                    disabled={qty === 0}
+                    className={cn(
+                      "w-5 h-5 shrink-0 rounded flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-30",
+                      theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                    )}
+                  >−</button>
+                  <span className={cn("w-5 shrink-0 text-center text-sm font-bold tabular-nums", theme === "dark" ? "text-white" : "text-gray-900")}>{qty}</span>
+                  <button
+                    onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.min(10, (prev[key] || 0) + 1) }))}
+                    disabled={qty === 10}
+                    className={cn(
+                      "w-5 h-5 shrink-0 rounded flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-30",
+                      theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                    )}
+                  >+</button>
+                </div>
               </div>
             );
           })}

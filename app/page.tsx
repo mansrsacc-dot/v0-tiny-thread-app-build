@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { T, type Lang } from "@/lib/translations";
 import {
-  PRICING, TEXT_FONTS, TEXT_SIZE_PX, TEXT_SIZE_CONSTRAINTS,
+  TEXT_FONTS, TEXT_SIZE_PX, TEXT_SIZE_CONSTRAINTS,
   TEXT_MAX_CHARS, TEXT_MAX_CHARS_MULTIROW,
   SLEEVE_TEXT_MAX_CHARS, SLEEVE_DESIGN_SIZE_PX,
   SLEEVE_SIZE_CONSTRAINTS, MAX_DESIGNS_PER_SIDE,
@@ -161,19 +161,16 @@ export default function TinyThreadStudio() {
   // Base price uses the primary photo design's style (front first, else back, else currently selected)
   const photoFrontDesign = designs.find(d => d.view === "front" && !d.textContent);
   const photoBackDesign = designs.find(d => d.view === "back" && !d.textContent);
-  const primaryPhotoStyle: Style = (photoFrontDesign?.style || photoBackDesign?.style || style);
   // Use the actual stored size of the primary design, not the global UI size state.
   // Global `size` only serves as a default for the next design to be added.
   const primaryDesignSize = (photoFrontDesign?.size || photoBackDesign?.size || size) as Size;
   const { currentPrice } = calculatePrice(designs, product, style, size);
 
-  // Multiple-order modal: compute live total from qty selectors
-  const multipleOrderTotal = (() => {
-    const stylePrices = (PRICING[product] || {})[primaryPhotoStyle] || {};
-    const sizes = product === "hoodie" ? ["S", "M", "L"] : ["S", "M"];
-    return sizes.reduce((sum, sz) => sum + (multipleQtys[sz] || 0) * (stylePrices[sz] || 0), 0);
-  })();
+  // Multiple-order modal: garment size is fit-only and flat-priced, so every unit costs
+  // the full per-unit price of the finished canvas design. Total = full price × qty.
+  // (Phase 1: full price only — no multi-unit discount until a real Shopify mechanism exists.)
   const multipleOrderTotalQty = Object.values(multipleQtys).reduce((a, b) => a + b, 0);
+  const multipleOrderTotal = currentPrice * multipleOrderTotalQty;
 
   // Check if first visit and show welcome popup
   useEffect(() => {
@@ -1542,10 +1539,7 @@ export default function TinyThreadStudio() {
       {showMultipleModal && (
         <OrderMultipleModal
           product={product}
-          color={color}
-          style={style}
-          primaryPhotoStyle={primaryPhotoStyle}
-          designs={designs}
+          flatUnitPrice={currentPrice}
           multipleQtys={multipleQtys}
           setMultipleQtys={setMultipleQtys}
           multipleOrderTotal={multipleOrderTotal}
