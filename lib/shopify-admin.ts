@@ -49,6 +49,7 @@ export async function getShopifyAdminToken(): Promise<string> {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
+    allowOverwrite: true,
   }).catch((e) => console.error("[SHOPIFY] Failed to cache token in Blob:", e));
   console.log("[SHOPIFY] Fresh admin token acquired, expires", new Date(fresh.expiresAt).toISOString());
   return fresh.token;

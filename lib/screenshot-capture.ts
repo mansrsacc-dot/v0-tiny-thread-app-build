@@ -151,6 +151,7 @@ export async function captureCartScreenshots(
           body: JSON.stringify({ base64Data: dataUrl, filename: `mockup_${side}_${Date.now()}.png` }),
         });
         const data = await res.json();
+        if (!data.url) console.warn(`[SCREENSHOT] upload failed for ${side} — composite omitted (non-blocking)`);
         return data.url || null;
       } catch { return null; }
     };

@@ -40,22 +40,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing imageUrl or base64Data" }, { status: 400 });
     }
 
-    // Try Vercel Blob upload (permanent URL)
+    // Upload to Vercel Blob (permanent URL). FAIL SAFE: if Blob is unavailable we return an
+    // error — we must NEVER inline base64, which would bloat cart line-item properties past
+    // Shopify's limit and break checkout. Callers handle the failure (abort add-to-cart for
+    // the critical design image; omit/skip for previews and gallery saves).
     const put = await getBlobPut();
-    if (put) {
-      try {
-        const blob = await put(name, buffer, { access: "public", contentType });
-        console.log(`[STORE-IMAGE] Blob upload OK: ${blob.url}`);
-        return NextResponse.json({ url: blob.url, size: buffer.length });
-      } catch (blobErr: any) {
-        console.log(`[STORE-IMAGE] Blob failed (${blobErr.message}), falling back to base64`);
-      }
+    if (!put) {
+      console.error("[STORE-IMAGE] @vercel/blob unavailable (no put) — failing safe, no base64");
+      return NextResponse.json({ error: "blob_upload_failed" }, { status: 502 });
     }
-
-    // Fallback: return as base64 data URL
-    const base64 = `data:${contentType};base64,${buffer.toString("base64")}`;
-    console.log(`[STORE-IMAGE] Returning base64 (${buffer.length} bytes)`);
-    return NextResponse.json({ url: base64, size: buffer.length });
+    try {
+      const blob = await put(name, buffer, { access: "public", contentType });
+      console.log(`[STORE-IMAGE] Blob upload OK: ${blob.url}`);
+      return NextResponse.json({ url: blob.url, size: buffer.length });
+    } catch (blobErr: any) {
+      console.error(`[STORE-IMAGE] Blob failed (${blobErr.message}) — failing safe, no base64`);
+      return NextResponse.json({ error: "blob_upload_failed" }, { status: 502 });
+    }
   } catch (error: any) {
     console.error("[STORE-IMAGE] Error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });

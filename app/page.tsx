@@ -328,6 +328,8 @@ export default function TinyThreadStudio() {
         const uploadData = await uploadRes.json();
         if (uploadData.url) permanentGeneratedUrl = uploadData.url;
       }
+      // FAIL SAFE: don't persist a gallery record with a missing image if the Blob upload failed.
+      if (generatedSrc && !permanentGeneratedUrl) throw new Error("image_upload_failed");
 
       // Upload the original photo to Vercel Blob
       let permanentOriginalUrl = "";

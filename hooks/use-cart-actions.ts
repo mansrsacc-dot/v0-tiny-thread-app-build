@@ -123,6 +123,18 @@ const handleAddMultipleToCart = useCallback(async () => {
       designs.map((d, idx) => d.textContent ? Promise.resolve(null) : uploadDesignToBlob(d, `${d.view}_${idx}`))
     );
 
+    // FAIL SAFE: a photo design with a source image but no Blob URL = a real upload failure.
+    // Never ship an order missing its artwork — abort here (finally resets isAddingMultiple).
+    const designUploadFailed = designs.some((d, idx) =>
+      !d.textContent &&
+      (d.processedImages?.[d.style] || d.rawImageUrl || d.generatedImages?.[d.style]) &&
+      !designBlobUrls[idx]
+    );
+    if (designUploadFailed) {
+      toast({ title: t.errorImageUpload, description: t.errorImageUploadDesc, variant: "destructive" });
+      return;
+    }
+
     const photoStyleNames = designs
       .filter(d => !d.textContent)
       .map(d => STYLES.find(s => s.id === d.style)?.name || d.style);
@@ -436,6 +448,19 @@ const handleAddToCart = useCallback(async () => {
     const singleBlobUrls = await Promise.all(
       designs.map((d, idx) => d.textContent ? Promise.resolve(null) : uploadDesignToBlob(d, `${d.view}_${idx}`))
     );
+
+    // FAIL SAFE: a photo design with a source image but no Blob URL = a real upload failure.
+    // Never ship an order missing its artwork — abort before submitting the cart.
+    const designUploadFailed = designs.some((d, idx) =>
+      !d.textContent &&
+      (d.processedImages?.[d.style] || d.rawImageUrl || d.generatedImages?.[d.style]) &&
+      !singleBlobUrls[idx]
+    );
+    if (designUploadFailed) {
+      toast({ title: t.errorImageUpload, description: t.errorImageUploadDesc, variant: "destructive" });
+      setIsAddingToCart(false);
+      return;
+    }
     // Set _positions with type and blobUrl so webhook can attach each design separately
     params.set("properties[_positions]", JSON.stringify(designs.map((d, idx) => ({
       view: d.view, x: d.position.x, y: d.position.y,
@@ -506,6 +531,9 @@ const handleAddToCart = useCallback(async () => {
           const permanentGenUrl = await uploadIfNeeded(
             genSrc, `auto_gen_${customer.id}_${Date.now()}.png`
           );
+          // Best-effort gallery save: if the image upload failed, skip this design rather than
+          // persist a record with no image. Never blocks the order (it's already placed).
+          if (genSrc && !permanentGenUrl) { console.warn("[AUTO-SAVE] skip — image upload failed for", design.id); continue; }
 
           // Upload original photo only if it's not already stored
           const permanentOrigUrl = await uploadIfNeeded(
