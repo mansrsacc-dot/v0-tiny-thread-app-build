@@ -984,10 +984,13 @@ export default function TinyThreadStudio() {
       toast({ title: t.noDesign, description: t.noDesignDesc });
       return;
     }
+    // Pre-fill the confirm popup's per-size grid with 1 of the current garment size (hoodie) or
+    // the first cap fit, so a single-garment order is one click; the customer can adjust sizes.
+    setMultipleQtys(product === "cap" ? { S: 1, M: 0 } : { S: 0, M: 0, L: 0, XL: 0, [garmentSize]: 1 });
     setShowConfirmCart(true);
-  }, [designs.length, toast]);
+  }, [designs.length, toast, t, product, garmentSize]);
 
-  const { handleAddToCart, handleAddMultipleToCart } = useCartActions({
+  const { handleAddMultipleToCart } = useCartActions({
     designs, product, color, viewSizes, style, view,
     customer, lang, t, multipleQtys, size, currentPrice, cartQuantity, garmentSize,
     setIsAddingToCart, setIsAddingMultiple, setSavedDesigns, toast,
@@ -1586,13 +1589,14 @@ export default function TinyThreadStudio() {
         <ConfirmCartModal
           hasOnlyFrontDesign={designs.length === 1}
           product={product}
-          quantity={cartQuantity}
-          unitPrice={currentPrice}
-          garmentSize={garmentSize}
-          onGarmentSizeChange={setGarmentSize}
-          onQuantityChange={setCartQuantity}
+          flatUnitPrice={currentPrice}
+          multipleQtys={multipleQtys}
+          setMultipleQtys={setMultipleQtys}
+          multipleOrderTotal={multipleOrderTotal}
+          multipleOrderTotalQty={multipleOrderTotalQty}
+          isAddingMultiple={isAddingMultiple}
           t={t}
-          onConfirm={() => { setShowConfirmCart(false); handleAddToCart(); }}
+          onConfirm={() => { setShowConfirmCart(false); handleAddMultipleToCart(); }}
           onClose={() => setShowConfirmCart(false)}
         />
       )}

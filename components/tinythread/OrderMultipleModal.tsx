@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import type { Product } from "@/lib/garment-images";
+import { SizeQtyGrid } from "@/components/tinythread/SizeQtyGrid";
 
 interface OrderMultipleModalProps {
   product: Product;
@@ -34,12 +35,6 @@ export function OrderMultipleModal({
   theme,
   t,
 }: OrderMultipleModalProps) {
-  // Garment-size (fit) columns. Same finished design on every fit — flat price.
-  // Hoodie: S/M/L/XL (XL is a normal selectable column). Cap: two fit groups.
-  const sizes = product === "hoodie"
-    ? [{ key: "S", label: "S" }, { key: "M", label: "M" }, { key: "L", label: "L" }, { key: "XL", label: "XL" }]
-    : [{ key: "S", label: "S/M" }, { key: "M", label: "L/XL" }];
-
   return (
     <div
       className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4"
@@ -62,43 +57,14 @@ export function OrderMultipleModal({
           >✕</button>
         </div>
 
-        <div className={cn("grid gap-2 mb-5", product === "hoodie" ? "grid-cols-4" : "grid-cols-2")}>
-          {sizes.map(({ key, label }) => {
-            const qty = multipleQtys[key] || 0;
-
-            return (
-              <div
-                key={key}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 p-1.5 rounded-xl border min-w-0 overflow-hidden",
-                  theme === "dark" ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"
-                )}
-              >
-                <span className={cn("font-bold text-sm", theme === "dark" ? "text-white" : "text-gray-900")}>{label}</span>
-                <span className={cn("text-xs", theme === "dark" ? "text-white/45" : "text-gray-400")}>€{flatUnitPrice}</span>
-                <div className="flex items-center gap-0.5 w-full justify-center">
-                  <button
-                    onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) - 1) }))}
-                    disabled={qty === 0}
-                    className={cn(
-                      "w-5 h-5 shrink-0 rounded flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-30",
-                      theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                    )}
-                  >−</button>
-                  <span className={cn("w-5 shrink-0 text-center text-sm font-bold tabular-nums", theme === "dark" ? "text-white" : "text-gray-900")}>{qty}</span>
-                  <button
-                    onClick={() => setMultipleQtys(prev => ({ ...prev, [key]: Math.min(10, (prev[key] || 0) + 1) }))}
-                    disabled={qty === 10}
-                    className={cn(
-                      "w-5 h-5 shrink-0 rounded flex items-center justify-center text-xs font-bold transition-colors disabled:opacity-30",
-                      theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                    )}
-                  >+</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <SizeQtyGrid
+          product={product}
+          flatUnitPrice={flatUnitPrice}
+          multipleQtys={multipleQtys}
+          setMultipleQtys={setMultipleQtys}
+          theme={theme}
+          className="mb-5"
+        />
 
         {/* Always-visible duplicate-discount note */}
         <p className="text-xs text-center text-[#3e92cc] mb-3">{t.dupDiscountNote}</p>

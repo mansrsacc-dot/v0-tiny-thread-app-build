@@ -1,25 +1,37 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import type { Product } from "@/lib/garment-images";
-import { dupDiscountedTotal } from "@/lib/constants";
+import { SizeQtyGrid } from "@/components/tinythread/SizeQtyGrid";
 
 interface ConfirmCartModalProps {
   hasOnlyFrontDesign: boolean;
   product: Product;
-  quantity: number;
-  unitPrice: number;
-  garmentSize: "S" | "M" | "L" | "XL";
-  onGarmentSizeChange: (s: "S" | "M" | "L" | "XL") => void;
-  onQuantityChange: (q: number) => void;
+  flatUnitPrice: number;
+  multipleQtys: Record<string, number>;
+  setMultipleQtys: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  multipleOrderTotal: number;
+  multipleOrderTotalQty: number;
+  isAddingMultiple: boolean;
   onConfirm: () => void;
   onClose: () => void;
   t: Record<string, string>;
 }
 
-export function ConfirmCartModal({ hasOnlyFrontDesign, product, quantity, unitPrice, garmentSize, onGarmentSizeChange, onQuantityChange, onConfirm, onClose, t }: ConfirmCartModalProps) {
-  const total = dupDiscountedTotal(unitPrice, quantity);
-  const totalDisplay = Number.isInteger(total) ? String(total) : total.toFixed(2);
+export function ConfirmCartModal({
+  hasOnlyFrontDesign,
+  product,
+  flatUnitPrice,
+  multipleQtys,
+  setMultipleQtys,
+  multipleOrderTotal,
+  multipleOrderTotalQty,
+  isAddingMultiple,
+  onConfirm,
+  onClose,
+  t,
+}: ConfirmCartModalProps) {
+  const totalDisplay = Number.isInteger(multipleOrderTotal) ? String(multipleOrderTotal) : multipleOrderTotal.toFixed(2);
   return (
     <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
       <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
@@ -30,47 +42,16 @@ export function ConfirmCartModal({ hasOnlyFrontDesign, product, quantity, unitPr
           <p className="text-[#3e92cc]/70 text-xs mb-6">{t.confirmAddBack}</p>
         )}
 
-        {/* Garment size selector (wearable fit, flat price — same as the sidebar). Hoodies
-            only; caps are one-size. Defaults to the sidebar's current garment size. */}
-        {product === "hoodie" && (
-          <div className="mb-6">
-            <p className="text-white/60 text-sm mb-2">{t.garmentSize}</p>
-            <div className="grid grid-cols-4 gap-2">
-              {(["S", "M", "L", "XL"] as const).map(gs => (
-                <button
-                  key={gs}
-                  onClick={() => onGarmentSizeChange(gs)}
-                  className={cn(
-                    "py-2.5 rounded-lg border text-sm font-bold transition-all",
-                    garmentSize === gs
-                      ? "border-[#3e92cc] bg-[#3e92cc]/10 text-[#3e92cc]"
-                      : "border-white/10 text-white/70 hover:border-white/30"
-                  )}
-                >
-                  {gs}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Quantity selector */}
-        <div className="flex items-center justify-center gap-4 mb-6">
-          <span className="text-white/60 text-sm">{t.quantity ?? "Qty"}</span>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
-              disabled={quantity <= 1}
-              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-lg flex items-center justify-center disabled:opacity-30 transition-colors"
-            >−</button>
-            <span className="w-8 text-center text-white font-bold text-lg tabular-nums">{quantity}</span>
-            <button
-              onClick={() => onQuantityChange(Math.min(10, quantity + 1))}
-              disabled={quantity >= 10}
-              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-lg flex items-center justify-center disabled:opacity-30 transition-colors"
-            >+</button>
-          </div>
-        </div>
+        {/* Per-size quantity grid — order multiple sizes of the same design (same control as
+            the "Pasūtīt vairākus vienādus" popup). Garment size is fit-only / flat price. */}
+        <SizeQtyGrid
+          product={product}
+          flatUnitPrice={flatUnitPrice}
+          multipleQtys={multipleQtys}
+          setMultipleQtys={setMultipleQtys}
+          theme="dark"
+          className="mb-6"
+        />
 
         {/* Always-visible duplicate-discount note + live discounted total */}
         <p className="text-[#3e92cc] text-xs mb-2">{t.dupDiscountNote}</p>
@@ -82,9 +63,14 @@ export function ConfirmCartModal({ hasOnlyFrontDesign, product, quantity, unitPr
         <div className="flex flex-col gap-3">
           <button
             onClick={onConfirm}
-            className="w-full px-6 py-3 bg-[#d8315b] hover:bg-[#c02850] text-white font-bold rounded-lg transition-colors"
+            disabled={multipleOrderTotalQty === 0 || isAddingMultiple}
+            className="w-full px-6 py-3 bg-[#d8315b] hover:bg-[#c02850] text-white font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
-            {t.confirmYes}
+            {isAddingMultiple ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.orderMultipleAdding}</>
+            ) : (
+              t.confirmYes
+            )}
           </button>
           <button
             onClick={onClose}
