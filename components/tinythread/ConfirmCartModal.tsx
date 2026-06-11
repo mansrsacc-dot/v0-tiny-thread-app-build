@@ -1,18 +1,23 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import type { Product } from "@/lib/garment-images";
 import { dupDiscountedTotal } from "@/lib/constants";
 
 interface ConfirmCartModalProps {
   hasOnlyFrontDesign: boolean;
+  product: Product;
   quantity: number;
   unitPrice: number;
+  garmentSize: "S" | "M" | "L" | "XL";
+  onGarmentSizeChange: (s: "S" | "M" | "L" | "XL") => void;
   onQuantityChange: (q: number) => void;
   onConfirm: () => void;
   onClose: () => void;
   t: Record<string, string>;
 }
 
-export function ConfirmCartModal({ hasOnlyFrontDesign, quantity, unitPrice, onQuantityChange, onConfirm, onClose, t }: ConfirmCartModalProps) {
+export function ConfirmCartModal({ hasOnlyFrontDesign, product, quantity, unitPrice, garmentSize, onGarmentSizeChange, onQuantityChange, onConfirm, onClose, t }: ConfirmCartModalProps) {
   const total = dupDiscountedTotal(unitPrice, quantity);
   const totalDisplay = Number.isInteger(total) ? String(total) : total.toFixed(2);
   return (
@@ -23,6 +28,30 @@ export function ConfirmCartModal({ hasOnlyFrontDesign, quantity, unitPrice, onQu
         <p className="text-white/50 text-sm mb-6">{t.confirmDesc}</p>
         {hasOnlyFrontDesign && (
           <p className="text-[#3e92cc]/70 text-xs mb-6">{t.confirmAddBack}</p>
+        )}
+
+        {/* Garment size selector (wearable fit, flat price — same as the sidebar). Hoodies
+            only; caps are one-size. Defaults to the sidebar's current garment size. */}
+        {product === "hoodie" && (
+          <div className="mb-6">
+            <p className="text-white/60 text-sm mb-2">{t.garmentSize}</p>
+            <div className="grid grid-cols-4 gap-2">
+              {(["S", "M", "L", "XL"] as const).map(gs => (
+                <button
+                  key={gs}
+                  onClick={() => onGarmentSizeChange(gs)}
+                  className={cn(
+                    "py-2.5 rounded-lg border text-sm font-bold transition-all",
+                    garmentSize === gs
+                      ? "border-[#3e92cc] bg-[#3e92cc]/10 text-[#3e92cc]"
+                      : "border-white/10 text-white/70 hover:border-white/30"
+                  )}
+                >
+                  {gs}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Quantity selector */}

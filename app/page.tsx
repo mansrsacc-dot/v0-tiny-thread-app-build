@@ -1585,8 +1585,11 @@ export default function TinyThreadStudio() {
       {showConfirmCart && (
         <ConfirmCartModal
           hasOnlyFrontDesign={designs.length === 1}
+          product={product}
           quantity={cartQuantity}
           unitPrice={currentPrice}
+          garmentSize={garmentSize}
+          onGarmentSizeChange={setGarmentSize}
           onQuantityChange={setCartQuantity}
           t={t}
           onConfirm={() => { setShowConfirmCart(false); handleAddToCart(); }}

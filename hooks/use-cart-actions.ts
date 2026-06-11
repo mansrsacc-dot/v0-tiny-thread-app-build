@@ -658,7 +658,7 @@ const handleAddToCart = useCallback(async () => {
     });
     setIsAddingToCart(false);
   }
-}, [designs, product, color, viewSizes, style, view, size, cartQuantity, toast, customer, lang]);
+}, [designs, product, color, viewSizes, style, view, size, cartQuantity, garmentSize, toast, customer, lang]);
 
 
   return { handleAddToCart, handleAddMultipleToCart };
