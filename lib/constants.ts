@@ -168,3 +168,20 @@ export const BACK_DESIGN_VARIANT_IDS: Record<Style, Record<"S" | "M" | "L", stri
   "pet-head": { S: "57552339239243", M: "57552339272011", L: "57552339304779" },
   car:        { S: "57552339337547", M: "57552339370315", L: "57552339403083" },
 };
+
+// Duplicate-discount: within one _order_ref group of N identical units, exactly one unit is
+// full price and every additional unit is 35% off. The discount is applied AT CHECKOUT by the
+// Regios discount app, configured to match the visible line-item property below.
+// The app's job is only to split each group into 1 unflagged (full) line + N-1 flagged lines.
+//   Regios config: property name = DUP_DISCOUNT_PROP_KEY, Equals, value = DUP_DISCOUNT_PROP_VALUE → 35% off.
+// KEEP THESE IN EXACT SYNC WITH THE REGIOS DASHBOARD (byte-for-byte, ASCII hyphen in the value).
+export const DUP_DISCOUNT_RATE = 0.35;
+export const DUP_DISCOUNT_PROP_KEY = "Atlaide / Discount";
+export const DUP_DISCOUNT_PROP_VALUE = "-35%";
+
+// Charge for N identical units: 1 full + (N-1) at (1 - rate). Used for display so the app
+// total matches what Regios charges at checkout.
+export function dupDiscountedTotal(unitPrice: number, units: number): number {
+  if (units <= 1) return unitPrice * Math.max(units, 0);
+  return unitPrice + (units - 1) * unitPrice * (1 - DUP_DISCOUNT_RATE);
+}

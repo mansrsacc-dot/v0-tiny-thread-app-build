@@ -298,6 +298,12 @@ export async function POST(req: NextRequest) {
       // now sends (selected in-app after the Shopify size picker was removed); fall
       // back to the variant title ("L / Black" → first segment) for older orders.
       const garmentSize = getProp("_garment_size") || (item.variant_title as string | undefined)?.split(" / ")[0]?.trim() || null;
+      // True units in this _order_ref group. The duplicate-discount split puts the design on a
+      // quantity-1 "full" line, so item.quantity alone would under-report; _group_units carries N.
+      const groupUnits = getProp("_group_units") || String(item.quantity ?? 1);
+      // Full per-size quantity breakdown (e.g. "M ×2, L ×1") for multi-size orders; single-size
+      // orders get "M ×3". Falls back to the single garment size for older orders.
+      const sizeBreakdown = getProp("_size_breakdown") || garmentSize;
 
       const frontDesignUrl = getProp("_design_image");
       const frontGarmentRef = getProp("_garment");
@@ -607,7 +613,8 @@ export async function POST(req: NextRequest) {
           <h3>Specifications:</h3>
           <table style="border-collapse: collapse; width: 100%;">
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Product</td><td style="padding: 8px; border: 1px solid #ddd;">${item.title}</td></tr>
-            ${(frontGarmentRef || getProp("_garment_back") || "").includes("hoodie") && garmentSize ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Garment Size</td><td style="padding: 8px; border: 1px solid #ddd;">${garmentSize}</td></tr>` : ""}
+            <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Quantity / Daudzums</td><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; font-size: 16px;">${groupUnits}</td></tr>
+            ${(frontGarmentRef || getProp("_garment_back") || "").includes("hoodie") && sizeBreakdown ? `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Garment Size / Izmēri</td><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${sizeBreakdown}</td></tr>` : ""}
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Style</td><td style="padding: 8px; border: 1px solid #ddd;">${style}</td></tr>
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Embroidery Size</td><td style="padding: 8px; border: 1px solid #ddd;">${size}</td></tr>
             <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Placement</td><td style="padding: 8px; border: 1px solid #ddd;">${placement}</td></tr>

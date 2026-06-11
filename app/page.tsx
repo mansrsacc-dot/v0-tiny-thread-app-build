@@ -13,7 +13,7 @@ import {
   TEXT_FONTS, TEXT_SIZE_PX, TEXT_SIZE_CONSTRAINTS,
   TEXT_MAX_CHARS, TEXT_MAX_CHARS_MULTIROW,
   SLEEVE_TEXT_MAX_CHARS, SLEEVE_DESIGN_SIZE_PX,
-  SLEEVE_SIZE_CONSTRAINTS, MAX_DESIGNS_PER_SIDE,
+  SLEEVE_SIZE_CONSTRAINTS, MAX_DESIGNS_PER_SIDE, dupDiscountedTotal,
 } from "@/lib/constants";
 import type { Design, AddingMode } from "@/lib/types";
 import { calculatePrice } from "@/hooks/use-price-calculator";
@@ -170,7 +170,9 @@ export default function TinyThreadStudio() {
   // the full per-unit price of the finished canvas design. Total = full price × qty.
   // (Phase 1: full price only — no multi-unit discount until a real Shopify mechanism exists.)
   const multipleOrderTotalQty = Object.values(multipleQtys).reduce((a, b) => a + b, 0);
-  const multipleOrderTotal = currentPrice * multipleOrderTotalQty;
+  // Discounted total: one full unit + (qty-1) at -35% (applied at checkout by Regios), so the
+  // popup total matches what the customer is actually charged.
+  const multipleOrderTotal = dupDiscountedTotal(currentPrice, multipleOrderTotalQty);
 
   // Check if first visit and show welcome popup
   useEffect(() => {
@@ -1582,6 +1584,7 @@ export default function TinyThreadStudio() {
         <ConfirmCartModal
           hasOnlyFrontDesign={designs.length === 1}
           quantity={cartQuantity}
+          unitPrice={currentPrice}
           onQuantityChange={setCartQuantity}
           t={t}
           onConfirm={() => { setShowConfirmCart(false); handleAddToCart(); }}

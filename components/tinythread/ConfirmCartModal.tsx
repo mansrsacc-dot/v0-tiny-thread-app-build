@@ -1,15 +1,20 @@
 "use client";
 
+import { dupDiscountedTotal } from "@/lib/constants";
+
 interface ConfirmCartModalProps {
   hasOnlyFrontDesign: boolean;
   quantity: number;
+  unitPrice: number;
   onQuantityChange: (q: number) => void;
   onConfirm: () => void;
   onClose: () => void;
   t: Record<string, string>;
 }
 
-export function ConfirmCartModal({ hasOnlyFrontDesign, quantity, onQuantityChange, onConfirm, onClose, t }: ConfirmCartModalProps) {
+export function ConfirmCartModal({ hasOnlyFrontDesign, quantity, unitPrice, onQuantityChange, onConfirm, onClose, t }: ConfirmCartModalProps) {
+  const total = dupDiscountedTotal(unitPrice, quantity);
+  const totalDisplay = Number.isInteger(total) ? String(total) : total.toFixed(2);
   return (
     <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
       <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center">
@@ -36,6 +41,13 @@ export function ConfirmCartModal({ hasOnlyFrontDesign, quantity, onQuantityChang
               className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-lg flex items-center justify-center disabled:opacity-30 transition-colors"
             >+</button>
           </div>
+        </div>
+
+        {/* Always-visible duplicate-discount note + live discounted total */}
+        <p className="text-[#3e92cc] text-xs mb-2">{t.dupDiscountNote}</p>
+        <div className="flex items-center justify-between border-t border-white/10 py-3 mb-5">
+          <span className="text-white/50 text-sm">{t.orderMultipleTotal}</span>
+          <span className="text-white font-bold text-lg">€{totalDisplay}</span>
         </div>
 
         <div className="flex flex-col gap-3">

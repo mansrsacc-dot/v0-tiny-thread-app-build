@@ -6,6 +6,7 @@ import type { Lang } from "@/lib/translations";
 import {
   VARIANT_IDS, TEXT_FONTS, TEXT_COLOR_PALETTE, TEXT_ADDON_VARIANT_ID,
   SLEEVE_PHOTO_ADDON_VARIANT_ID, ADDITIONAL_DESIGN_VARIANT_IDS, BACK_DESIGN_VARIANT_IDS,
+  DUP_DISCOUNT_PROP_KEY, DUP_DISCOUNT_PROP_VALUE,
 } from "@/lib/constants";
 import { GARMENT_IMAGES, STYLES } from "@/lib/garment-images";
 import { submitCartForm, createThumbnail } from "@/lib/image-utils";
@@ -169,18 +170,26 @@ const handleAddMultipleToCart = useCallback(async () => {
     const designSizeMm = designs.map(d => d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100);
     const embroiderySizeDetail = designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", ");
 
-    // One base line per selected garment size — same embroidery-size variant, garment
-    // size carried as a property. Differing properties keep the lines separate in Shopify.
-    const baseItems = selectedCols.map(c => ({
-      id: baseVariantId,
-      quantity: multipleQtys[c.key]!,
-      properties: {
-        ...sharedProps,
-        "_embroidery_size": embroiderySizeDetail,
-        "_garment_size": c.label,
-        [isLVm ? "Izmērs" : "Size"]: c.label,
-      },
-    }));
+    // Duplicate discount across the whole group (N = totalUnits): exactly ONE unit stays full
+    // price. The first selected garment size hosts that full unit on a line carrying the heavy
+    // design props + _group_units; its remaining units and every other size are flagged
+    // (Regios -35%) and lightweight (_for_order_ref) so the webhook renders the design once.
+    const N = totalUnits;
+    const dupFlag: Record<string, string> = N > 1 ? { [DUP_DISCOUNT_PROP_KEY]: DUP_DISCOUNT_PROP_VALUE } : {};
+    // Full per-size quantity breakdown for the designer email (e.g. "M ×2, L ×1"). Stamped on
+    // the one design-bearing line so the artist sees every size without checking order admin.
+    const sizeBreakdown = selectedCols.map(c => `${c.label} ×${multipleQtys[c.key]}`).join(", ");
+    const baseItems: { id: string; quantity: number; properties: Record<string, string> }[] = [];
+    selectedCols.forEach((c, idx) => {
+      const qty = multipleQtys[c.key]!;
+      const sizeProps = { "_garment_size": c.label, [isLVm ? "Izmērs" : "Size"]: c.label };
+      if (idx === 0) {
+        baseItems.push({ id: baseVariantId, quantity: 1, properties: { ...sharedProps, "_embroidery_size": embroiderySizeDetail, ...sizeProps, "_group_units": String(N), "_size_breakdown": sizeBreakdown } });
+        if (qty > 1) baseItems.push({ id: baseVariantId, quantity: qty - 1, properties: { "_for_order_ref": orderRef, ...sizeProps, ...dupFlag } });
+      } else {
+        baseItems.push({ id: baseVariantId, quantity: qty, properties: { "_for_order_ref": orderRef, ...sizeProps, ...dupFlag } });
+      }
+    });
 
     // Add-ons (text / sleeve photo / additional designs) are per finished unit, so scale
     // them by the total number of units across all garment sizes — the same add-on
@@ -202,26 +211,33 @@ const handleAddMultipleToCart = useCallback(async () => {
     }
 
     const addonItems: { id: string; quantity: number; properties: Record<string, string> }[] = [];
+    // Same full×1 + discounted×(N-1) split as the base, applied to every add-on so additional
+    // units get the discount on their full per-unit price.
+    const pushSplit = (id: string, perUnit: number, props: Record<string, string>) => {
+      if (perUnit <= 0) return;
+      addonItems.push({ id, quantity: perUnit, properties: props });
+      if (N > 1) addonItems.push({ id, quantity: perUnit * (N - 1), properties: { ...props, ...dupFlag } });
+    };
     if (hasFrontAndBack && photoBack) {
       const backVariantId = BACK_DESIGN_VARIANT_IDS[photoBack.style]?.[photoBack.size];
       if (backVariantId) {
         const backStyleName = STYLES.find(s => s.id === photoBack.style)?.name || photoBack.style;
         const backMm = Math.round((photoBack.currentSizePx / 780) * 700);
-        addonItems.push({ id: backVariantId, quantity: totalUnits, properties: { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" } });
+        pushSplit(backVariantId, 1, { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" });
       }
     }
     if (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) {
-      addonItems.push({ id: TEXT_ADDON_VARIANT_ID, quantity: billableTextCount * totalUnits, properties: { "_for_order_ref": orderRef } });
+      pushSplit(TEXT_ADDON_VARIANT_ID, billableTextCount, { "_for_order_ref": orderRef });
     }
     if (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) {
-      addonItems.push({ id: SLEEVE_PHOTO_ADDON_VARIANT_ID, quantity: sleevePhotoCount * totalUnits, properties: { "_for_order_ref": orderRef } });
+      pushSplit(SLEEVE_PHOTO_ADDON_VARIANT_ID, sleevePhotoCount, { "_for_order_ref": orderRef });
     }
     for (const { design: addDesign, addSize } of additionalPhotoDesigns) {
       const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
       if (addVariantId) {
         const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
         const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
-        addonItems.push({ id: addVariantId, quantity: totalUnits, properties: { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view } });
+        pushSplit(addVariantId, 1, { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view });
       }
     }
 
@@ -741,14 +757,30 @@ const handleAddToCart = useCallback(async () => {
         propsObj[k.slice("properties[".length, -1)] = v;
       }
     }
-    // Number of identical garments the customer ordered (confirm popup). The main line
-    // AND every per-unit add-on must scale by this; previously the main line was hard-
-    // coded to 1, so qty>1 silently undercharged the whole order.
-    const qtyMain = cartQuantity > 0 ? cartQuantity : 1;
-    const cartItems: { id: string; quantity: number; properties: Record<string, string> }[] = [
-      { id: variantId, quantity: qtyMain, properties: propsObj },
-    ];
+    // Duplicate discount: within this _order_ref group of N identical units, exactly ONE unit
+    // stays full price (unflagged) and the other N-1 are flagged so Regios takes 35% off. Split
+    // EVERY component (base, back, text, sleeve, additional) into a full ×1 portion and a
+    // discounted ×(N-1) portion. The flag property differs, so Shopify keeps them separate lines.
+    const N = cartQuantity > 0 ? cartQuantity : 1;
+    const dupFlag: Record<string, string> = N > 1 ? { [DUP_DISCOUNT_PROP_KEY]: DUP_DISCOUNT_PROP_VALUE } : {};
     const orderRef = propsObj["_order_ref"] || "";
+
+    // Base garment: the FULL line carries the heavy design props + _group_units (so the webhook/
+    // designer email reports the true total N). The discounted line is lightweight and carries
+    // _for_order_ref so the webhook skips it (one design email, not two).
+    const cartItems: { id: string; quantity: number; properties: Record<string, string> }[] = [
+      { id: variantId, quantity: 1, properties: { ...propsObj, "_group_units": String(N), "_size_breakdown": `${garmentSize} ×${N}` } },
+    ];
+    if (N > 1) {
+      cartItems.push({ id: variantId, quantity: N - 1, properties: { "_for_order_ref": orderRef, ...dupFlag } });
+    }
+
+    // Split an add-on into full (×perUnit, unflagged) + discounted (×perUnit·(N-1), flagged).
+    const pushSplit = (id: string, perUnit: number, props: Record<string, string>) => {
+      if (perUnit <= 0) return;
+      cartItems.push({ id, quantity: perUnit, properties: props });
+      if (N > 1) cartItems.push({ id, quantity: perUnit * (N - 1), properties: { ...props, ...dupFlag } });
+    };
 
     // Back design = first back photo, priced by its OWN style+size (real style, incl. car).
     if (hasFrontAndBack && photoBack) {
@@ -756,7 +788,7 @@ const handleAddToCart = useCallback(async () => {
       if (backVariantId) {
         const backStyleName = STYLES.find(s => s.id === photoBack.style)?.name || photoBack.style;
         const backMm = Math.round((photoBack.currentSizePx / 780) * 700);
-        cartItems.push({ id: backVariantId, quantity: qtyMain, properties: { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" } });
+        pushSplit(backVariantId, 1, { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" });
       }
     }
 
@@ -774,17 +806,17 @@ const handleAddToCart = useCallback(async () => {
     }
 
     if (billableTextCount > 0 && TEXT_ADDON_VARIANT_ID) {
-      cartItems.push({ id: TEXT_ADDON_VARIANT_ID, quantity: billableTextCount * qtyMain, properties: { "_for_order_ref": orderRef } });
+      pushSplit(TEXT_ADDON_VARIANT_ID, billableTextCount, { "_for_order_ref": orderRef });
     }
     if (sleevePhotoCount > 0 && SLEEVE_PHOTO_ADDON_VARIANT_ID) {
-      cartItems.push({ id: SLEEVE_PHOTO_ADDON_VARIANT_ID, quantity: sleevePhotoCount * qtyMain, properties: { "_for_order_ref": orderRef } });
+      pushSplit(SLEEVE_PHOTO_ADDON_VARIANT_ID, sleevePhotoCount, { "_for_order_ref": orderRef });
     }
     for (const { design: addDesign, addSize } of additionalPhotoDesigns) {
       const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
       if (addVariantId) {
         const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
         const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
-        cartItems.push({ id: addVariantId, quantity: qtyMain, properties: { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view } });
+        pushSplit(addVariantId, 1, { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view });
       }
     }
     console.log("[ADD TO CART] variantKey:", variantKey, "variantId:", variantId, "appPrice:", currentPrice);

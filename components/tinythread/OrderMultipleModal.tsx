@@ -100,12 +100,15 @@ export function OrderMultipleModal({
           })}
         </div>
 
+        {/* Always-visible duplicate-discount note */}
+        <p className="text-xs text-center text-[#3e92cc] mb-3">{t.dupDiscountNote}</p>
+
         <div className={cn(
           "flex items-center justify-between py-3 border-t mb-4",
           theme === "dark" ? "border-white/10" : "border-gray-200"
         )}>
           <span className={cn("text-sm", theme === "dark" ? "text-white/50" : "text-gray-500")}>{t.orderMultipleTotal}</span>
-          <span className={cn("font-bold text-lg", theme === "dark" ? "text-white" : "text-gray-900")}>€{multipleOrderTotal}</span>
+          <span className={cn("font-bold text-lg", theme === "dark" ? "text-white" : "text-gray-900")}>€{Number.isInteger(multipleOrderTotal) ? multipleOrderTotal : multipleOrderTotal.toFixed(2)}</span>
         </div>
 
         <Button
@@ -119,7 +122,7 @@ export function OrderMultipleModal({
               {t.orderMultipleAdding}
             </>
           ) : (
-            <>{t.orderMultipleAddBtn}{multipleOrderTotal > 0 ? ` — €${multipleOrderTotal}` : ""}</>
+            <>{t.orderMultipleAddBtn}{multipleOrderTotal > 0 ? ` — €${Number.isInteger(multipleOrderTotal) ? multipleOrderTotal : multipleOrderTotal.toFixed(2)}` : ""}</>
           )}
         </Button>
       </div>
