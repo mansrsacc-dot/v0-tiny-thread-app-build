@@ -76,15 +76,15 @@ export function SizeStyleSelector({
         setAddingMode({ ...addingMode, size: s });
       }
     } else {
-      const { min, max } = SIZE_CONSTRAINTS[s];
-      const mid = Math.round(min + (max - min) / 2);
+      // Default to the top of the (enlarged) range so each tier renders at max+10%.
+      const newSizePx = SIZE_CONSTRAINTS[s].max;
       setDesigns(prev => prev.map(d => {
         if (isSleeveView(d.view) || d.textContent) return d;
         const targeted = selectedDesignId
           ? d.id === selectedDesignId && d.view === view
           : d.view === view && !d.textContent;
         if (!targeted) return d;
-        return { ...d, size: s, currentSizePx: mid };
+        return { ...d, size: s, currentSizePx: newSizePx };
       }));
       setViewSizes(prev => ({ ...prev, [view]: s }));
     }

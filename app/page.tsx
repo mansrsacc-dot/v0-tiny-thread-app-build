@@ -587,7 +587,7 @@ export default function TinyThreadStudio() {
         style: style,
         view: view,
         size: sleevePlacement ? "M" : effectiveSize,
-        currentSizePx: sleevePlacement ? SLEEVE_DESIGN_SIZE_PX : SIZE_CONSTRAINTS[effectiveSize].min + (SIZE_CONSTRAINTS[effectiveSize].max - SIZE_CONSTRAINTS[effectiveSize].min) / 2,
+        currentSizePx: sleevePlacement ? SLEEVE_DESIGN_SIZE_PX : SIZE_CONSTRAINTS[effectiveSize].max,
         position: { x: 50, y: 40 },
         generatedImages: {},
         processedImages: {},
@@ -864,10 +864,8 @@ export default function TinyThreadStudio() {
         const design = designs.find(d => d.id === selectedDesignId);
         if (design) {
           // Divide delta by the on-screen scale so the resize handle tracks the cursor 1:1.
-          // Images render at currentSizePx * sizeScale * imgBoost, where M/L (non-sleeve)
-          // get an extra +15% boost (kept in sync with GarmentCanvas).
-          const imgBoost = (!design.textContent && !isSleeveView(design.view) && (design.size === "M" || design.size === "L")) ? 1.15 : 1;
-          const delta = (pos.x - resizeState.startX) / ((sizeScale * imgBoost) || 1);
+          // No preview-only boost any more (preview == real mm); mirrors GarmentCanvas.
+          const delta = (pos.x - resizeState.startX) / (sizeScale || 1);
           const constraints = design.textContent
             ? TEXT_SIZE_CONSTRAINTS[design.size as "S" | "M" | "L"]
             : isSleeveView(design.view)
@@ -912,10 +910,9 @@ export default function TinyThreadStudio() {
       // currentSizePx maps to canvas via (px/780)*800; garment=700mm, canvas=800px -- mm = px*(700/780)
       return Math.round(sizePx * (700 / 780));
     }
-    const constraints = SIZE_CONSTRAINTS[sizeCategory];
-    const ratio = (sizePx - constraints.min) / (constraints.max - constraints.min);
-    const mmRange = sizeCategory === "S" ? [45, 100] : sizeCategory === "M" ? [100, 150] : [150, 250];
-    return Math.round(mmRange[0] + ratio * (mmRange[1] - mmRange[0]));
+    // Same conversion the designer email uses (px × 700/780) so the on-screen "~XXmm" label
+    // always equals the real stitched mm. (sizeCategory kept for signature compatibility.)
+    return Math.round(sizePx * (700 / 780));
   };
 
   const handleRegenerate = useCallback(() => {

@@ -191,10 +191,9 @@ export function GarmentCanvas({
         const safeTextSizePx = isText ? Math.min(design.currentSizePx, TEXT_SIZE_CONSTRAINTS.L.max) : design.currentSizePx;
         if (!isText && !imageToShow) return null;
 
-        // 2026-06-08: extra +15% render boost for M/L generated image designs (S and
-        // fixed-size sleeve designs unchanged). Visual only — currentSizePx/mm untouched.
-        // Mirrored in the resize-handle math in page.tsx so the handle still tracks 1:1.
-        const imgBoost = (!isText && !isSleeveView(design.view) && (design.size === "M" || design.size === "L")) ? 1.15 : 1;
+        // No render boost: the preview renders purely from currentSizePx so the on-screen size
+        // equals the mm sent to the designer. (Designs were enlarged via the size tiers instead.)
+        const imgBoost = 1;
 
         const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
         // Thread color: explicit color from design, else auto (white on black, black on white)

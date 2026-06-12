@@ -35,10 +35,12 @@ export type Style = "outline" | "standard" | "pet-head" | "car";
 //   M ≈ 1/3 of hoodie chest  →  rendered ~16% of canvas
 //   L ≈ 1/2 of hoodie chest  →  rendered ~25% of canvas
 // Garment size (incl. XL) is selected on the Shopify product page before app load.
+// Each tier's max is +10% over its previous top mm (S 80→88, M 125→137, L 185→204), and a
+// picked size now DEFAULTS to that max. mm is always px × 700/780, so preview/label/email agree.
 export const SIZE_CONSTRAINTS = {
-  S: { min: 45,  max: 90,  label: "40-80mm"   },
-  M: { min: 85,  max: 140, label: "75-125mm"  },
-  L: { min: 140, max: 210, label: "125-185mm" },
+  S: { min: 45,  max: 98,  label: "40-88mm"   },
+  M: { min: 85,  max: 153, label: "75-137mm"  },
+  L: { min: 140, max: 227, label: "125-204mm" },
 } as const;
 
 export const STYLES = [
