@@ -203,9 +203,8 @@ export default function TinyThreadStudio() {
     if (urlProduct === "hoodie" || urlProduct === "cap") setProduct(urlProduct);
     if (urlColor === "black" || urlColor === "white") setColor(urlColor);
 
-    // ---- Auth resolution: URL handoff → session cookie → localStorage → one silent OAuth → gate ----
+    // ---- Auth resolution: signed-email handoff → session cookie → localStorage → email gate ----
     const safeStore = (data: { id: string }) => { try { localStorage.setItem("tinythread_session", JSON.stringify(data)); } catch {} };
-    const clearSilentGuard = () => { try { sessionStorage.removeItem("oauth_silent_tried"); } catch {} };
     const stripQuery = () => { try { window.history.replaceState({}, "", window.location.pathname); } catch {} };
 
     // 1. Storefront fast-path: signed email in the URL (when the page rendered logged-in).
@@ -222,7 +221,6 @@ export default function TinyThreadStudio() {
           if (data.id) {
             setCustomer(data);
             safeStore(data);
-            clearSilentGuard();
             loadSavedDesigns(data.id);
             stripQuery();
           }
@@ -232,7 +230,7 @@ export default function TinyThreadStudio() {
       return;
     }
 
-    // 2/3/4. No URL handoff — cookie session, then localStorage, else one silent OAuth or the gate.
+    // 2/3/4. No URL handoff — cookie session, then localStorage, else the email gate.
     (async () => {
       // 2. First-party session cookie (survives mobile Safari ITP / in-app browsers).
       try {
@@ -241,7 +239,6 @@ export default function TinyThreadStudio() {
         if (d.customer?.id) {
           setCustomer(d.customer);
           safeStore(d.customer);
-          clearSilentGuard();
           loadSavedDesigns(d.customer.id);
           setAuthChecked(true);
           return;
@@ -256,7 +253,6 @@ export default function TinyThreadStudio() {
           const session = JSON.parse(stored);
           if (session.id) {
             setCustomer(session);
-            clearSilentGuard();
             loadSavedDesigns(session.id);
             setAuthChecked(true);
             return;
@@ -265,21 +261,11 @@ export default function TinyThreadStudio() {
         try { localStorage.removeItem("tinythread_session"); } catch {}
       }
 
-      // 4. No session anywhere. Try silent SSO ONCE; if already tried/failed, show the email gate.
-      const authError = params.get("auth_error");
-      if (authError) stripQuery();
-      let silentTried = true; // fail-safe: if sessionStorage is unreadable, treat as tried → gate.
-      try { silentTried = sessionStorage.getItem("oauth_silent_tried") === "1"; } catch {}
-      if (authError || silentTried) {
-        setAuthChecked(true); // → LoginGate (genuinely logged out, or silent already attempted)
-        return;
-      }
-      // Only start silent OAuth if we can persist the one-shot guard — otherwise we can't
-      // prevent a loop, so fall back to the gate instead.
-      let guarded = false;
-      try { sessionStorage.setItem("oauth_silent_tried", "1"); guarded = true; } catch {}
-      if (!guarded) { setAuthChecked(true); return; }
-      window.location.href = "/api/auth/login?silent=1";
+      // 4. No session → show the email gate. We do NOT auto-start OAuth: that path needs a
+      //    Customer Account API app we don't use. The real login is the storefront button's
+      //    signed-email handoff (step 1); direct app opens land on the gate, as before.
+      if (params.get("auth_error")) stripQuery();
+      setAuthChecked(true);
     })();
   }, []);
 
