@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getShopifyAdminToken } from "@/lib/shopify-admin";
+import { resolveCustomerByEmail } from "@/lib/customer-lookup";
+import { signSession, SESSION_COOKIE, SESSION_COOKIE_OPTS } from "@/lib/session";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
 const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
@@ -27,6 +28,17 @@ async function hashEmail(email: string): Promise<string> {
   return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
 }
 
+// Return the customer JSON AND set the first-party session cookie, so any successful login here
+// persists via the cookie (read later by GET /api/session) — not just localStorage.
+async function withSession(
+  customer: { id: string; email: string; firstName: string; lastName: string },
+  extra: Record<string, unknown> = {},
+): Promise<NextResponse> {
+  const res = NextResponse.json({ ...customer, ...extra });
+  res.cookies.set(SESSION_COOKIE, await signSession(customer), SESSION_COOKIE_OPTS);
+  return res;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password, accessToken, emailSignature } = await req.json();
@@ -38,39 +50,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
       }
 
-      // Look up the real Shopify customer ID by email so this path returns the same
-      // ID as password/token login — without this, designs saved in one session are
-      // invisible in another because the metafield keys differ.
-      try {
-        const adminRes = await fetch(
-          `https://${SHOPIFY_STORE}/admin/api/2024-01/customers/search.json?query=email:${encodeURIComponent(email)}&limit=1`,
-          { headers: { "X-Shopify-Access-Token": await getShopifyAdminToken() } }
-        );
-        const adminData = await adminRes.json();
-        const shopifyCustomer = adminData.customers?.[0];
-        if (shopifyCustomer?.id) {
-          return NextResponse.json({
-            id: String(shopifyCustomer.id),
-            firstName: shopifyCustomer.first_name || email.split("@")[0],
-            lastName: shopifyCustomer.last_name || "",
-            email: email,
-          });
-        }
-      } catch (e) {
-        console.error("[CUSTOMER] Admin lookup failed, falling back to hash ID:", e);
-      }
-
-      // Fallback if Admin API is unavailable
-      const encoder = new TextEncoder();
-      const idData = encoder.encode(email.toLowerCase());
-      const idHash = await crypto.subtle.digest("SHA-256", idData);
-      const numericId = Array.from(new Uint8Array(idHash)).slice(0, 6).reduce((acc, b) => acc * 256 + b, 0).toString();
-      return NextResponse.json({
-        id: numericId,
-        firstName: email.split("@")[0],
-        lastName: "",
-        email: email,
-      });
+      // Resolve the real Shopify customer ID by email (shared helper) so this path returns the
+      // same ID as token login, then set the session cookie.
+      return withSession(await resolveCustomerByEmail(email));
     }
 
     // If we already have a Storefront access token, fetch customer info
@@ -90,7 +72,10 @@ export async function POST(req: NextRequest) {
       if (!c) return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
 
       const numericId = c.id.replace("gid://shopify/Customer/", "");
-      return NextResponse.json({ id: numericId, firstName: c.firstName, lastName: c.lastName, email: c.email, accessToken });
+      return withSession(
+        { id: numericId, firstName: c.firstName || "", lastName: c.lastName || "", email: c.email },
+        { accessToken },
+      );
     }
 
     // Login with email + password via Storefront API
@@ -142,13 +127,10 @@ export async function POST(req: NextRequest) {
 
     const numericId = c.id.replace("gid://shopify/Customer/", "");
 
-    return NextResponse.json({
-      id: numericId,
-      firstName: c.firstName,
-      lastName: c.lastName,
-      email: c.email,
-      accessToken: token,
-    });
+    return withSession(
+      { id: numericId, firstName: c.firstName || "", lastName: c.lastName || "", email: c.email },
+      { accessToken: token },
+    );
   } catch (error: any) {
     console.error("[CUSTOMER] Error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });

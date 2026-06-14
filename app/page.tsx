@@ -203,7 +203,12 @@ export default function TinyThreadStudio() {
     if (urlProduct === "hoodie" || urlProduct === "cap") setProduct(urlProduct);
     if (urlColor === "black" || urlColor === "white") setColor(urlColor);
 
-    // Auto-login if customer_email + signature are passed from Shopify
+    // ---- Auth resolution: URL handoff → session cookie → localStorage → one silent OAuth → gate ----
+    const safeStore = (data: { id: string }) => { try { localStorage.setItem("tinythread_session", JSON.stringify(data)); } catch {} };
+    const clearSilentGuard = () => { try { sessionStorage.removeItem("oauth_silent_tried"); } catch {} };
+    const stripQuery = () => { try { window.history.replaceState({}, "", window.location.pathname); } catch {} };
+
+    // 1. Storefront fast-path: signed email in the URL (when the page rendered logged-in).
     const customerEmail = params.get("customer_email");
     const emailSig = params.get("customer_sig");
     if (customerEmail && emailSig) {
@@ -216,52 +221,66 @@ export default function TinyThreadStudio() {
         .then(data => {
           if (data.id) {
             setCustomer(data);
-            localStorage.setItem("tinythread_session", JSON.stringify(data));
+            safeStore(data);
+            clearSilentGuard();
             loadSavedDesigns(data.id);
+            stripQuery();
           }
         })
-        .catch(e => console.error("[AUTH] Auto-login error:", e))
+        .catch(e => console.error("[AUTH] Fast-path login error:", e))
         .finally(() => setAuthChecked(true));
       return;
     }
 
-    // No URL params — restore session from localStorage
-    const stored = localStorage.getItem("tinythread_session");
-    if (stored) {
+    // 2/3/4. No URL handoff — cookie session, then localStorage, else one silent OAuth or the gate.
+    (async () => {
+      // 2. First-party session cookie (survives mobile Safari ITP / in-app browsers).
       try {
-        const session = JSON.parse(stored);
-        if (session.accessToken) {
-          // Validate the stored token with Shopify
-          fetch("/api/customer", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accessToken: session.accessToken }),
-          })
-            .then(r => r.json())
-            .then(data => {
-              if (data.id) {
-                setCustomer(data);
-                localStorage.setItem("tinythread_session", JSON.stringify(data));
-                loadSavedDesigns(data.id);
-              } else {
-                localStorage.removeItem("tinythread_session");
-              }
-            })
-            .catch(() => localStorage.removeItem("tinythread_session"))
-            .finally(() => setAuthChecked(true));
-        } else {
-          // Email+sig session (no token) — restore directly
-          setCustomer(session);
-          loadSavedDesigns(session.id);
+        const r = await fetch("/api/session");
+        const d = await r.json();
+        if (d.customer?.id) {
+          setCustomer(d.customer);
+          safeStore(d.customer);
+          clearSilentGuard();
+          loadSavedDesigns(d.customer.id);
           setAuthChecked(true);
+          return;
         }
-      } catch {
-        localStorage.removeItem("tinythread_session");
-        setAuthChecked(true);
+      } catch (e) { console.error("[AUTH] /api/session error:", e); }
+
+      // 3. Legacy localStorage session (best-effort cache).
+      let stored: string | null = null;
+      try { stored = localStorage.getItem("tinythread_session"); } catch {}
+      if (stored) {
+        try {
+          const session = JSON.parse(stored);
+          if (session.id) {
+            setCustomer(session);
+            clearSilentGuard();
+            loadSavedDesigns(session.id);
+            setAuthChecked(true);
+            return;
+          }
+        } catch {}
+        try { localStorage.removeItem("tinythread_session"); } catch {}
       }
-    } else {
-      setAuthChecked(true);
-    }
+
+      // 4. No session anywhere. Try silent SSO ONCE; if already tried/failed, show the email gate.
+      const authError = params.get("auth_error");
+      if (authError) stripQuery();
+      let silentTried = true; // fail-safe: if sessionStorage is unreadable, treat as tried → gate.
+      try { silentTried = sessionStorage.getItem("oauth_silent_tried") === "1"; } catch {}
+      if (authError || silentTried) {
+        setAuthChecked(true); // → LoginGate (genuinely logged out, or silent already attempted)
+        return;
+      }
+      // Only start silent OAuth if we can persist the one-shot guard — otherwise we can't
+      // prevent a loop, so fall back to the gate instead.
+      let guarded = false;
+      try { sessionStorage.setItem("oauth_silent_tried", "1"); guarded = true; } catch {}
+      if (!guarded) { setAuthChecked(true); return; }
+      window.location.href = "/api/auth/login?silent=1";
+    })();
   }, []);
 
   // Load saved designs for a customer

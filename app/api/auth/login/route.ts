@@ -26,6 +26,10 @@ export async function GET(req: NextRequest) {
   }
 
   const email = req.nextUrl.searchParams.get("email") ?? "";
+  // Silent SSO: the app auto-starts this on load. prompt=none returns a code with no UI if a
+  // Shopify customer-account session exists, or error=login_required (no UI) if not — which the
+  // callback turns into ?auth_error=login_required so the app falls back to the email gate.
+  const silent = req.nextUrl.searchParams.get("silent") === "1";
 
   // PKCE: code_verifier → code_challenge
   const codeVerifier = base64URLEncode(crypto.getRandomValues(new Uint8Array(32)));
@@ -51,6 +55,7 @@ export async function GET(req: NextRequest) {
     code_challenge_method: "S256",
   });
   if (email) params.set("login_hint", email);
+  if (silent) params.set("prompt", "none");
 
   const res = NextResponse.redirect(`${AUTH_URL}?${params.toString()}`);
   res.cookies.set("auth_csrf", csrfToken, {

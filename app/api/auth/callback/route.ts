@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveCustomerByEmail } from "@/lib/customer-lookup";
+import { signSession, SESSION_COOKIE, SESSION_COOKIE_OPTS } from "@/lib/session";
 
 const SHOP = process.env.SHOPIFY_STORE!;
 const CLIENT_ID = process.env.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID!;
-const EMAIL_SECRET = process.env.EMAIL_SECRET!;
 const REDIRECT_URI = "https://app.tinythread.lv/api/auth/callback";
 const TOKEN_URL = `https://shopify.com/authentication/${SHOP}/oauth/token`;
 const APP_URL = "https://app.tinythread.lv";
-
-// Reproduce the same HMAC used by the Shopify Liquid theme and /api/customer
-async function hashEmail(email: string): Promise<string> {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw", enc.encode(EMAIL_SECRET),
-    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(email));
-  return Array.from(new Uint8Array(sig))
-    .map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
-}
 
 function decodeJWTPayload(token: string): Record<string, unknown> {
   const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -98,14 +87,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${APP_URL}?auth_error=no_email`);
     }
 
-    // Generate the same HMAC signature used by the Shopify theme & /api/customer
-    // so the existing URL-params auto-login in app/page.tsx handles the session
-    const sig = await hashEmail(email);
-    const returnURL = new URL(APP_URL);
-    returnURL.searchParams.set("customer_email", email);
-    returnURL.searchParams.set("customer_sig", sig);
+    // Resolve the customer and set the first-party session cookie directly — OAuth success no
+    // longer depends on a follow-up client POST, and no email is exposed in the URL. The app
+    // reads this cookie via GET /api/session on load.
+    const customer = await resolveCustomerByEmail(email);
+    const token = await signSession({
+      id: customer.id, email: customer.email,
+      firstName: customer.firstName, lastName: customer.lastName,
+    });
 
-    const res = NextResponse.redirect(returnURL.toString());
+    const res = NextResponse.redirect(APP_URL);
+    res.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
     res.cookies.delete("auth_csrf");
     return res;
   } catch (e) {
