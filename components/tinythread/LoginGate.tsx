@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Lang } from "@/lib/translations";
 
 interface LoginGateProps {
@@ -8,19 +7,12 @@ interface LoginGateProps {
   onLangChange: (l: Lang) => void;
 }
 
+// Shown when the app couldn't recognize the customer (no signed-email handoff, no session cookie).
+// We do NOT call /api/auth/login here — OAuth is not configured, so it only throws auth_error=config.
+// Instead we guide the customer to log in on the storefront and re-enter via a product page (which
+// performs the signed-email handoff).
 export function LoginGate({ lang, onLangChange }: LoginGateProps) {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-
   const lv = lang === "lv";
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setLoading(true);
-    // Redirect to OAuth login — Shopify sends magic link, returns via /api/auth/callback
-    window.location.href = "/api/auth/login?email=" + encodeURIComponent(email.trim());
-  };
 
   return (
     <div className="min-h-screen bg-[#0f0e0d] flex flex-col items-center justify-center p-4 relative">
@@ -52,42 +44,28 @@ export function LoginGate({ lang, onLangChange }: LoginGateProps) {
         <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-7">
           <p className="text-white/55 text-sm text-center mb-6 leading-relaxed">
             {lv
-              ? "Lūdzu pieslēdzies, lai izmantotu TinyThread Studio"
-              : "Please log in to use TinyThread Studio"}
+              ? "Lai sāktu veidot dizainu, atver studiju no produkta lapas mūsu veikalā. Kad esi pieslēdzies, mēs tevi atpazīsim automātiski."
+              : "To start designing, open the studio from a product page in our shop. Once you're logged in, we'll recognize you automatically."}
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-white/40 text-xs uppercase tracking-wider block mb-1.5">
-                {lv ? "E-pasts" : "Email"}
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                autoFocus
-                placeholder="you@example.com"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
-              />
-            </div>
+          <a
+            href="https://tinythread.lv/account"
+            className="block w-full py-3 bg-[#3e92cc] text-white font-bold rounded-lg hover:bg-[#2f7bb0] transition-colors text-sm text-center"
+          >
+            {lv ? "Pieslēgties" : "Log in"}
+          </a>
 
-            <button
-              type="submit"
-              disabled={loading || !email.trim()}
-              className="w-full py-3 bg-[#3e92cc] text-white font-bold rounded-lg hover:bg-[#2f7bb0] disabled:opacity-50 transition-colors text-sm"
-            >
-              {loading
-                ? (lv ? "Novirza uz pieslēgšanos..." : "Redirecting...")
-                : (lv ? "Pieslēdzies" : "Log in")}
-            </button>
-          </form>
+          <a
+            href="https://tinythread.lv"
+            className="block w-full py-3 mt-3 bg-white/5 border border-white/10 text-white/80 font-semibold rounded-lg hover:bg-white/10 transition-colors text-sm text-center"
+          >
+            {lv ? "Atvērt veikalu" : "Open the shop"}
+          </a>
 
           <p className="text-white/30 text-xs text-center mt-4 leading-relaxed">
             {lv
-              ? "Mēs nosūtīsim saiti uz tavu e-pastu"
-              : "We'll send a login link to your email"}
+              ? "Pēc pieslēgšanās atver studiju no produkta lapas — poga “Izveidot savu dizainu”."
+              : "After logging in, open the studio from a product page — the “Create your design” button."}
           </p>
         </div>
 
