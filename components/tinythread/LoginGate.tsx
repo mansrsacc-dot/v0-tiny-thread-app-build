@@ -18,8 +18,10 @@ export function LoginGate({ lang, onLangChange, product, color }: LoginGateProps
 
   // Storefront product handle for this product+color (matches the theme's productMap).
   const productPath = `/products/custom-embroidered-${product}-${color}`;
-  // After Shopify login, return the customer to the product page (not the orders page).
-  const loginUrl = `https://tinythread.lv/account/login?return_url=${encodeURIComponent(productPath)}`;
+  // New customer accounts ignore return_url and strand on /orders, so we open login in a NEW TAB
+  // (this gate stays open), then the customer comes back and opens the product page — visiting the
+  // storefront while logged in is what establishes the online-store session that populates {{ customer }}.
+  const loginUrl = "https://tinythread.lv/account/login";
   const productUrl = `https://tinythread.lv${productPath}`;
 
   return (
@@ -52,28 +54,30 @@ export function LoginGate({ lang, onLangChange, product, color }: LoginGateProps
         <div className="bg-[#1e1b18] border border-white/10 rounded-2xl p-7">
           <p className="text-white/55 text-sm text-center mb-6 leading-relaxed">
             {lv
-              ? "Lai sāktu veidot dizainu, atver studiju no produkta lapas mūsu veikalā. Kad esi pieslēdzies, mēs tevi atpazīsim automātiski."
-              : "To start designing, open the studio from a product page in our shop. Once you're logged in, we'll recognize you automatically."}
+              ? "Divi soļi, lai sāktu:"
+              : "Two steps to start:"}
           </p>
 
           <a
             href={loginUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="block w-full py-3 bg-[#3e92cc] text-white font-bold rounded-lg hover:bg-[#2f7bb0] transition-colors text-sm text-center"
           >
-            {lv ? "Pieslēgties" : "Log in"}
+            {lv ? "1. Pieslēgties (jaunā cilnē)" : "1. Log in (new tab)"}
           </a>
 
           <a
             href={productUrl}
             className="block w-full py-3 mt-3 bg-white/5 border border-white/10 text-white/80 font-semibold rounded-lg hover:bg-white/10 transition-colors text-sm text-center"
           >
-            {lv ? "Atvērt produkta lapu" : "Open the product page"}
+            {lv ? "2. Atvērt produkta lapu" : "2. Open the product page"}
           </a>
 
           <p className="text-white/30 text-xs text-center mt-4 leading-relaxed">
             {lv
-              ? "Pēc pieslēgšanās atver studiju no produkta lapas — poga “Izveidot savu dizainu”."
-              : "After logging in, open the studio from a product page — the “Create your design” button."}
+              ? "Pieslēdzies (1), tad atgriezies un atver produkta lapu (2). Veikala apmeklējums pēc pieslēgšanās tevi atpazīst, un poga “Izveidot savu dizainu” ielādēs studiju."
+              : "Log in (1), then come back and open the product page (2). Visiting the shop while logged in recognizes you, and the “Create your design” button loads the studio."}
           </p>
         </div>
 
