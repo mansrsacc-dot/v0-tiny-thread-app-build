@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveCustomerByEmail } from "@/lib/customer-lookup";
 import { signSession, SESSION_COOKIE, SESSION_COOKIE_OPTS } from "@/lib/session";
 
-const SHOP = process.env.SHOPIFY_STORE!;
 const CLIENT_ID = process.env.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID!;
 const REDIRECT_URI = "https://app.tinythread.lv/api/auth/callback";
-const TOKEN_URL = `https://shopify.com/authentication/${SHOP}/oauth/token`;
+// Token endpoint on the store's account domain (from the Customer Account API page).
+const TOKEN_URL = "https://account.tinythread.shop/authentication/oauth/token";
 const APP_URL = "https://app.tinythread.lv";
 
 function decodeJWTPayload(token: string): Record<string, unknown> {

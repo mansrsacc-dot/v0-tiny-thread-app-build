@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SHOP = process.env.SHOPIFY_STORE!; // e.g. us173z-az.myshopify.com
-// Must match a Customer Account App (separate from the Admin app) registered in Shopify Partners.
-// Add SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID to Vercel env vars + .env.local.
+// New customer accounts — Customer Account API client (Headless channel). Client ID from
+// Settings → Headless → Customer Account API; set SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID in Vercel.
 const CLIENT_ID = process.env.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID!;
 const REDIRECT_URI = "https://app.tinythread.lv/api/auth/callback";
-const AUTH_URL = `https://shopify.com/authentication/${SHOP}/oauth/authorize`;
+// Endpoints are the store's account domain (NOT shopify.com) — from the Customer Account API page.
+const AUTH_URL = "https://account.tinythread.shop/authentication/oauth/authorize";
 
 function base64URLEncode(buf: Uint8Array): string {
   return btoa(String.fromCharCode(...Array.from(buf)))
