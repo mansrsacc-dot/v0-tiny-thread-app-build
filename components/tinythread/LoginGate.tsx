@@ -5,14 +5,22 @@ import type { Lang } from "@/lib/translations";
 interface LoginGateProps {
   lang: Lang;
   onLangChange: (l: Lang) => void;
+  product: string;
+  color: string;
 }
 
 // Shown when the app couldn't recognize the customer (no signed-email handoff, no session cookie).
 // We do NOT call /api/auth/login here — OAuth is not configured, so it only throws auth_error=config.
-// Instead we guide the customer to log in on the storefront and re-enter via a product page (which
-// performs the signed-email handoff).
-export function LoginGate({ lang, onLangChange }: LoginGateProps) {
+// Instead we send the customer to the Shopify storefront login with a return_url back to the product
+// page, where the "Create your design" button performs the signed-email handoff.
+export function LoginGate({ lang, onLangChange, product, color }: LoginGateProps) {
   const lv = lang === "lv";
+
+  // Storefront product handle for this product+color (matches the theme's productMap).
+  const productPath = `/products/custom-embroidered-${product}-${color}`;
+  // After Shopify login, return the customer to the product page (not the orders page).
+  const loginUrl = `https://tinythread.lv/account/login?return_url=${encodeURIComponent(productPath)}`;
+  const productUrl = `https://tinythread.lv${productPath}`;
 
   return (
     <div className="min-h-screen bg-[#0f0e0d] flex flex-col items-center justify-center p-4 relative">
@@ -49,17 +57,17 @@ export function LoginGate({ lang, onLangChange }: LoginGateProps) {
           </p>
 
           <a
-            href="https://tinythread.lv/account"
+            href={loginUrl}
             className="block w-full py-3 bg-[#3e92cc] text-white font-bold rounded-lg hover:bg-[#2f7bb0] transition-colors text-sm text-center"
           >
             {lv ? "Pieslēgties" : "Log in"}
           </a>
 
           <a
-            href="https://tinythread.lv"
+            href={productUrl}
             className="block w-full py-3 mt-3 bg-white/5 border border-white/10 text-white/80 font-semibold rounded-lg hover:bg-white/10 transition-colors text-sm text-center"
           >
-            {lv ? "Atvērt veikalu" : "Open the shop"}
+            {lv ? "Atvērt produkta lapu" : "Open the product page"}
           </a>
 
           <p className="text-white/30 text-xs text-center mt-4 leading-relaxed">
