@@ -1023,8 +1023,6 @@ export default function TinyThreadStudio() {
       <LoginGate
         lang={lang}
         onLangChange={handleLangChange}
-        product={product}
-        color={color}
       />
     );
   }
