@@ -27,20 +27,16 @@ export type View = "front" | "back" | "left-sleeve" | "right-sleeve";
 export type Size = "S" | "M" | "L";
 export type Style = "outline" | "standard" | "pet-head" | "car";
 
-// NOTE: Embroidery design size pixel ranges keyed by S/M/L.
-// Coordinate system: canvas ~780px tall → 700mm hoodie → 1mm ≈ 1.11px.
-// RENDER_SCALE 0.55 is applied at render time (currentSizePx × sizeScale).
-// Targets at typical desktop preview (~560px wide, sizeScale ≈ 0.77):
-//   S ≈ 1/5 of hoodie chest  →  rendered ~10% of canvas
-//   M ≈ 1/3 of hoodie chest  →  rendered ~16% of canvas
-//   L ≈ 1/2 of hoodie chest  →  rendered ~25% of canvas
-// Garment size (incl. XL) is selected on the Shopify product page before app load.
-// Each tier's max is +10% over its previous top mm (S 80→88, M 125→137, L 185→204), and a
-// picked size now DEFAULTS to that max. mm is always px × 700/780, so preview/label/email agree.
+// Embroidery design size, keyed by S/M/L. Values are currentSizePx in the internal 780-unit
+// design space. Real-world mm = px × 700/780 (so the 780-unit-wide canvas = 700mm). The SAME
+// conversion drives the preview render, the on-screen "~XXmm" label, and the designer-email mm,
+// so all three stay in sync. px = mm × 780/700. A picked size DEFAULTS to its max → S=70 / M=100
+// / L=140 mm; the customer can drag down to the min within a tier. (Garment size incl. XL is
+// chosen on the Shopify product page; it does not affect embroidery size or price.)
 export const SIZE_CONSTRAINTS = {
-  S: { min: 45,  max: 98,  label: "40-88mm"   },
-  M: { min: 85,  max: 153, label: "75-137mm"  },
-  L: { min: 140, max: 227, label: "125-204mm" },
+  S: { min: 45,  max: 78,  label: "40-70mm"   },
+  M: { min: 79,  max: 111, label: "71-100mm"  },
+  L: { min: 113, max: 156, label: "101-140mm" },
 } as const;
 
 export const STYLES = [
