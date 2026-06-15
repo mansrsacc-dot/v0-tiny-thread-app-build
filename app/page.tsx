@@ -119,7 +119,9 @@ export default function TinyThreadStudio() {
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+    // Depend on `customer`: the canvas (previewRef) only mounts after login, so the first run
+    // (on the auth gate) finds no element. Re-running once customer is set attaches the observer.
+  }, [customer]);
 
   // When the garment color changes, existing generated images are stale (wrong color context).
   // Clear them and auto-regenerate the selected design so it always matches the current color.
@@ -150,8 +152,11 @@ export default function TinyThreadStudio() {
   // 2026-06-08: bumped 0.55 -> 0.6325 (+15%) so generated designs render larger on canvas.
   // Affects generated image designs only (text uses its own font-size formula); applies to
   // all views. Size is still driven by S/M/L + px-per-mm — this is purely the render multiplier.
-  const RENDER_SCALE = 0.6325;
-  const sizeScale = (previewWidth / 400) * RENDER_SCALE;
+  // Design renders at the SAME fraction of the canvas the designer mockup uses: currentSizePx/780
+  // of the container width (screenshot = currentSizePx/780 * SHOT_W on an identical 4:5 canvas).
+  // previewWidth tracks the live container, so the design stays proportional at any window size
+  // and matches the stitched mm 1:1 — no resize dependence, no calibration fudge factor.
+  const sizeScale = previewWidth / 780;
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
