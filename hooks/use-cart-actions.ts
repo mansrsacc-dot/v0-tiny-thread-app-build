@@ -172,7 +172,7 @@ const handleAddMultipleToCart = useCallback(async () => {
     if (textDesigns.length > 0) {
       sharedProps["_text_detail"] = textDesigns.map(d => {
         const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
-        const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (700 / 780)) : 20;
+        const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (500 / 780)) : 20;
         const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
         const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
         return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
@@ -180,7 +180,7 @@ const handleAddMultipleToCart = useCallback(async () => {
       sharedProps[isLVm ? "Teksts" : "Text"] = textDesigns.map(d => `"${d.textContent}"`).join(" | ");
     }
 
-    const designSizeMm = designs.map(d => d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100);
+    const designSizeMm = designs.map(d => d.currentSizePx ? Math.round((d.currentSizePx / 780) * 500) : 100);
     const embroiderySizeDetail = designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", ");
 
     // Composite mockups (front/back/sleeves) for the designer email — same helper the single
@@ -245,7 +245,7 @@ const handleAddMultipleToCart = useCallback(async () => {
       const backVariantId = BACK_DESIGN_VARIANT_IDS[photoBack.style]?.[photoBack.size];
       if (backVariantId) {
         const backStyleName = STYLES.find(s => s.id === photoBack.style)?.name || photoBack.style;
-        const backMm = Math.round((photoBack.currentSizePx / 780) * 700);
+        const backMm = Math.round((photoBack.currentSizePx / 780) * 500);
         pushSplit(backVariantId, 1, { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" });
       }
     }
@@ -259,7 +259,7 @@ const handleAddMultipleToCart = useCallback(async () => {
       const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
       if (addVariantId) {
         const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
-        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
+        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 500);
         pushSplit(addVariantId, 1, { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view });
       }
     }
@@ -314,7 +314,7 @@ const handleAddToCart = useCallback(async () => {
       view: d.view,
       style: d.style,
       size: d.size,
-      sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 700) : 100,
+      sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 500) : 100,
     }));
 
     // Build the cart/add URL with properties
@@ -338,7 +338,7 @@ const handleAddToCart = useCallback(async () => {
     if (textDesigns.length > 0) {
       params.set("properties[_text_detail]", textDesigns.map(d => {
         const fontName = (TEXT_FONTS.find(f => f.id === d.textFont) || TEXT_FONTS[0]).name;
-        const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (700 / 780)) : 20;
+        const sizeMm = d.currentSizePx ? Math.round(d.currentSizePx * (500 / 780)) : 20;
         const colorEntry = TEXT_COLOR_PALETTE.find(c => c.hex && c.hex.toUpperCase() === (d.textColor || "").toUpperCase());
         const colorLabel = d.textColor ? (colorEntry?.label || d.textColor) : "Auto";
         return `"${d.textContent}" (font: ${fontName}, ${sizeMm}mm, color: ${colorLabel}, ${d.view})`;
@@ -613,7 +613,7 @@ const handleAddToCart = useCallback(async () => {
       const backVariantId = BACK_DESIGN_VARIANT_IDS[photoBack.style]?.[photoBack.size];
       if (backVariantId) {
         const backStyleName = STYLES.find(s => s.id === photoBack.style)?.name || photoBack.style;
-        const backMm = Math.round((photoBack.currentSizePx / 780) * 700);
+        const backMm = Math.round((photoBack.currentSizePx / 780) * 500);
         pushSplit(backVariantId, 1, { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" });
       }
     }
@@ -641,7 +641,7 @@ const handleAddToCart = useCallback(async () => {
       const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
       if (addVariantId) {
         const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
-        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 700);
+        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 500);
         pushSplit(addVariantId, 1, { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view });
       }
     }

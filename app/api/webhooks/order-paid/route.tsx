@@ -183,9 +183,9 @@ async function analyzeDesignImage(url: string, sizePx: number): Promise<{
     let dw: number, dh: number;
     if (ir >= 1) { dw = sizePx; dh = Math.round(sizePx / ir); }
     else         { dh = sizePx; dw = Math.round(sizePx * ir); }
-    // Convert px to mm (780px preview height = 700mm)
-    const widthMm  = Math.round((dw / 780) * 700);
-    const heightMm = Math.round((dh / 780) * 700);
+    // Convert px to TRUE mm (canvas 780 units = 500mm reference zone width; garment-independent)
+    const widthMm  = Math.round((dw / 780) * 500);
+    const heightMm = Math.round((dh / 780) * 500);
 
     // Extract raw RGBA pixel data and count non-transparent pixels (alpha > 0)
     const { data } = await instance.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -539,7 +539,7 @@ export async function POST(req: NextRequest) {
 
       // Build detailed per-design dimension info for the designer
       const positionInfo = positionsData.map(p => {
-        const sizeMm = Math.round((p.size / 780) * 700);
+        const sizeMm = Math.round((p.size / 780) * 500);
         const isSleeve = p.view === "left-sleeve" || p.view === "right-sleeve";
         const label = p.view === "left-sleeve" ? "Left Sleeve"
                     : p.view === "right-sleeve" ? "Right Sleeve"

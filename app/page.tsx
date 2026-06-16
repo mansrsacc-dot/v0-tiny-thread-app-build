@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { GARMENT_IMAGES, SIZE_CONSTRAINTS, type Product, type Color, type View, type Size, type Style } from "@/lib/garment-images";
+import { GARMENT_IMAGES, SIZE_CONSTRAINTS, zoneRenderScale, type Product, type Color, type View, type Size, type Style } from "@/lib/garment-images";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
@@ -146,17 +146,11 @@ export default function TinyThreadStudio() {
     }
   }, [color]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Visual scale: reduce on-screen size so designs match real-life embroidery proportions
-  // on the hoodie (max 250mm on a ~550mm chest = ~45% of body width). Stored sizePx and
-  // mm calculations stay unchanged -- this only affects visual rendering.
-  // 2026-06-08: bumped 0.55 -> 0.6325 (+15%) so generated designs render larger on canvas.
-  // Affects generated image designs only (text uses its own font-size formula); applies to
-  // all views. Size is still driven by S/M/L + px-per-mm — this is purely the render multiplier.
-  // Design renders at the SAME fraction of the canvas the designer mockup uses: currentSizePx/780
-  // of the container width (screenshot = currentSizePx/780 * SHOT_W on an identical 4:5 canvas).
-  // previewWidth tracks the live container, so the design stays proportional at any window size
-  // and matches the stitched mm 1:1 — no resize dependence, no calibration fudge factor.
-  const sizeScale = previewWidth / 780;
+  // On-screen scale: currentSizePx/780 of the live container width, then × zoneRenderScale so the
+  // design matches its real proportion of THIS hoodie size's invisible embroidery zone (1.0 for
+  // M/L, larger for S, smaller for XL). previewWidth tracks the container → window-independent.
+  // The TRUE mm (px × 500/780) is garment-independent; only the visual scale changes per zone.
+  const sizeScale = (previewWidth / 780) * zoneRenderScale(garmentSize);
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
@@ -916,13 +910,11 @@ export default function TinyThreadStudio() {
   }, [dragState, resizeState, pinchState, selectedDesignId, designs, sizeScale]);
 
   const getSizeInMm = (sizePx: number, sizeCategory: Size, isText = false) => {
-    if (isText) {
-      // currentSizePx maps to canvas via (px/780)*800; garment=700mm, canvas=800px -- mm = px*(700/780)
-      return Math.round(sizePx * (700 / 780));
-    }
-    // Same conversion the designer email uses (px × 700/780) so the on-screen "~XXmm" label
-    // always equals the real stitched mm. (sizeCategory kept for signature compatibility.)
-    return Math.round(sizePx * (700 / 780));
+    // TRUE stitched mm — same conversion the designer email uses (px × 500/780, garment-independent)
+    // so the on-screen "~XXmm" label always equals the real mm. (sizeCategory/isText kept for the
+    // call signature.)
+    void sizeCategory; void isText;
+    return Math.round(sizePx * (500 / 780));
   };
 
   const handleRegenerate = useCallback(() => {

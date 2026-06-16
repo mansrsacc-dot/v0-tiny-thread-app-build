@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
             brittany: "Brittany", moontine: "Moontine", cocogothic: "Coco Gothic SC",
             sans: "Sans Serif", serif: "Serif", mono: "Monospace", script: "Cursive", display: "Display",
           } as Record<string, string>)[d.textFont || "montserrat"] || d.textFont;
-          const sizeMm = d.sizePx ? Math.round((d.sizePx / 780) * 700) : 100;
+          const sizeMm = d.sizePx ? Math.round((d.sizePx / 780) * 500) : 100;
           const colorInfo = d.textColor ? `, Thread color: ${d.textColor}` : "";
           designHtml += `<p><strong>${viewLabel} TEXT:</strong> "${d.textContent}" — Font: ${fontName}, Size: ${sizeMm}mm${colorInfo}. See placement-text-${view}.png</p>`;
         }
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const sizeMm = designs[0]?.sizePx ? Math.round((designs[0].sizePx / 780) * 700) : 100;
+    const sizeMm = designs[0]?.sizePx ? Math.round((designs[0].sizePx / 780) * 500) : 100;
     const style = designs.map((d: any) => d.style).join(", ");
     const placement = designs.map((d: any) => d.view).join(", ");
 
