@@ -186,7 +186,7 @@ const handleAddMultipleToCart = useCallback(async () => {
     // Composite mockups (front/back/sleeves) for the designer email — same helper the single
     // Add-to-Cart flow uses. Stamped on the anchor line only (the design-bearing line the
     // webhook processes), so the email renders every side identically to single orders.
-    const shots = await captureCartScreenshots(designs, product, color);
+    const shots = await captureCartScreenshots(designs, product, color, garmentSize);
     const screenshotProps: Record<string, string> = {};
     if (shots.front) { screenshotProps["_screenshot_front"] = shots.front; screenshotProps["_preview_image"] = shots.front; }
     if (shots.back) screenshotProps["_screenshot_back"] = shots.back;
@@ -411,7 +411,7 @@ const handleAddToCart = useCallback(async () => {
     params.set("return_to", "/?added=true");
 
     // --- Capture front/back/sleeve composite mockups for the designer email (shared helper) ---
-    const _shots = await captureCartScreenshots(designs, product, color);
+    const _shots = await captureCartScreenshots(designs, product, color, garmentSize);
     const screenshotFrontUrl = _shots.front;
     const screenshotBackUrl = _shots.back;
     const screenshotLeftSleeveUrl = _shots.leftSleeve;

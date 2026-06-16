@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { GARMENT_IMAGES, SIZE_CONSTRAINTS, zoneRenderScale, type Product, type Color, type View, type Size, type Style } from "@/lib/garment-images";
+import { GARMENT_IMAGES, SIZE_CONSTRAINTS, designRenderScale, type Product, type Color, type View, type Size, type Style } from "@/lib/garment-images";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
@@ -146,11 +146,11 @@ export default function TinyThreadStudio() {
     }
   }, [color]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // On-screen scale: currentSizePx/780 of the live container width, then × zoneRenderScale so the
-  // design matches its real proportion of THIS hoodie size's invisible embroidery zone (1.0 for
-  // M/L, larger for S, smaller for XL). previewWidth tracks the container → window-independent.
-  // The TRUE mm (px × 500/780) is garment-independent; only the visual scale changes per zone.
-  const sizeScale = (previewWidth / 780) * zoneRenderScale(garmentSize);
+  // On-screen scale: currentSizePx/780 of the live container width, then × designRenderScale so the
+  // design shows at its real proportion of THIS hoodie's embroidery zone — and the zone is only a
+  // fraction of the canvas (the chest patch), so a 150mm design is a modest square, not the whole
+  // chest. previewWidth tracks the container → window-independent. TRUE mm (px × 500/780) unchanged.
+  const sizeScale = (previewWidth / 780) * designRenderScale(garmentSize);
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);

@@ -2,7 +2,7 @@
 
 import type { Product, Color, View } from "@/lib/garment-images";
 import type { Design } from "@/lib/types";
-import { GARMENT_IMAGES } from "@/lib/garment-images";
+import { GARMENT_IMAGES, designRenderScale } from "@/lib/garment-images";
 import { TEXT_FONTS } from "@/lib/constants";
 
 export interface CartScreenshots {
@@ -21,6 +21,7 @@ export async function captureCartScreenshots(
   designs: Design[],
   product: Product,
   color: Color,
+  garmentSize: string,
 ): Promise<CartScreenshots> {
   let front: string | null = null;
   let back: string | null = null;
@@ -28,6 +29,9 @@ export async function captureCartScreenshots(
   let rightSleeve: string | null = null;
   try {
     const SHOT_W = 800, SHOT_H = 1000;
+    // Same on-screen scale the live preview uses → the mockup (and the cart thumbnail derived from
+    // it) match what the customer saw: the design at its real proportion of the chest zone.
+    const dScale = designRenderScale(garmentSize);
 
     // Route replicate CDN URLs through our proxy so canvas can draw them (CORS)
     const proxyIfNeeded = (url: string) => {
@@ -93,7 +97,7 @@ export async function captureCartScreenshots(
       //    size = currentSizePx / 780 * SHOT_W  (780px reference space -- 800px canvas)
       const viewDesigns = designs.filter(d => d.view === targetView);
       for (const design of viewDesigns) {
-        const sizePx = Math.round((design.currentSizePx / 780) * SHOT_W);
+        const sizePx = Math.round((design.currentSizePx / 780) * SHOT_W * dScale);
         const cx = Math.round(SHOT_W * design.position.x / 100);
         const cy = Math.round(SHOT_H * design.position.y / 100);
 
@@ -106,7 +110,7 @@ export async function captureCartScreenshots(
           const textColor = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
           // Font size is a vertical (height) measurement: use SHOT_H not SHOT_W.
           // Formula: textMm * (SHOT_H / garmentMm) = (currentSizePx/780) * SHOT_H
-          const fontSize = Math.round((design.currentSizePx / 780) * SHOT_H);
+          const fontSize = Math.round((design.currentSizePx / 780) * SHOT_H * dScale);
           ctx.fillStyle = textColor;
           ctx.textBaseline = "middle";
           const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
@@ -183,7 +187,7 @@ export async function captureCartScreenshots(
       } catch { /* white background fallback already set */ }
       const viewDesigns = designs.filter(d => d.view === side);
       for (const design of viewDesigns) {
-        const sizePx = Math.round((design.currentSizePx / 780) * SHOT_W);
+        const sizePx = Math.round((design.currentSizePx / 780) * SHOT_W * dScale);
         const cx = Math.round(SHOT_W * design.position.x / 100);
         const cy = Math.round(SHOT_H * design.position.y / 100);
         ctx.save();
@@ -193,7 +197,7 @@ export async function captureCartScreenshots(
           const fontDef = TEXT_FONTS.find(f => f.id === design.textFont) || TEXT_FONTS[0];
           const textColorVal = design.textColor || (color === "black" ? "#FFFFFF" : "#000000");
           // Font size is a vertical measurement: use SHOT_H not SHOT_W.
-          const fontSize = Math.round((design.currentSizePx / 780) * SHOT_H);
+          const fontSize = Math.round((design.currentSizePx / 780) * SHOT_H * dScale);
           ctx.fillStyle = textColorVal;
           ctx.textBaseline = "middle";
           const lines = design.textMultiRow ? design.textContent.split("\n") : [design.textContent];
