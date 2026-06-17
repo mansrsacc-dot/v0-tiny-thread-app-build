@@ -23,7 +23,7 @@ export async function cropTransparentPadding(dataUrl: string): Promise<string> {
         }
       }
       if (minX >= maxX || minY >= maxY) { resolve(dataUrl); return; }
-      const pad = Math.ceil(Math.max(img.width, img.height) * 0.05);
+      const pad = 0; // tight crop, no margin → a full design fills the box and reports ~tier mm
       const x0 = Math.max(0, minX - pad), y0 = Math.max(0, minY - pad);
       const x1 = Math.min(img.width, maxX + pad + 1), y1 = Math.min(img.height, maxY + pad + 1);
       const cw = x1 - x0, ch = y1 - y0;
