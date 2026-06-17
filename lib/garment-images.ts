@@ -60,13 +60,14 @@ const ZONE_PREVIEW_WIDTH_FRACTION = 0.33;
 export const designRenderScale = (garmentSize: string): number =>
   ZONE_PREVIEW_WIDTH_FRACTION * (ZONE_REF_MM / (EMBROIDERY_ZONES[garmentSize as keyof typeof EMBROIDERY_ZONES]?.width ?? ZONE_REF_MM));
 
-// Embroidery size tiers — real stitched mm, independent of hoodie size. A picked tier DEFAULTS to
-// its `max` (the tier mm: S=70 / M=110 / L=150; L=150 = practical max); the customer can drag down
-// to `min`. px = mmToPx(mm); mm reads back as pxToMm(px). One conversion → preview, label, email.
+// Embroidery size tiers — each is an adjustable mm RANGE (min–max), independent of hoodie size.
+// A picked tier DEFAULTS to the MIDPOINT of its range; the customer resizes anywhere from min to
+// max. px = mmToPx(mm) = mm × 780/500; mm reads back as pxToMm(px) = px × 500/780. The shown mm is
+// pxToMm(px) × contentScale (true visible-artwork size) — one conversion → preview, label, email.
 export const SIZE_CONSTRAINTS = {
-  S: { min: 62,  max: 109, label: "70mm"  }, // mmToPx: 40→62, 70→109
-  M: { min: 78,  max: 172, label: "110mm" }, // 50→78, 110→172
-  L: { min: 109, max: 234, label: "150mm" }, // 70→109, 150→234
+  S: { min: 62,  max: 109, label: "40-70mm"   }, // mmToPx: 40→62, 70→109; midpoint ~55mm
+  M: { min: 111, max: 187, label: "71-120mm"  }, // 71→111, 120→187;       midpoint ~95mm
+  L: { min: 189, max: 273, label: "121-175mm" }, // 121→189, 175→273;      midpoint ~148mm
 } as const;
 
 export const STYLES = [

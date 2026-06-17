@@ -76,8 +76,8 @@ export function SizeStyleSelector({
         setAddingMode({ ...addingMode, size: s });
       }
     } else {
-      // Default to the top of the (enlarged) range so each tier renders at max+10%.
-      const newSizePx = SIZE_CONSTRAINTS[s].max;
+      // Default to the MIDPOINT of the tier's range; the customer can resize up to max / down to min.
+      const newSizePx = Math.round((SIZE_CONSTRAINTS[s].min + SIZE_CONSTRAINTS[s].max) / 2);
       setDesigns(prev => prev.map(d => {
         if (isSleeveView(d.view) || d.textContent) return d;
         const targeted = selectedDesignId

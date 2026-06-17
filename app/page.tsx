@@ -610,7 +610,7 @@ export default function TinyThreadStudio() {
         style: style,
         view: view,
         size: sleevePlacement ? "M" : effectiveSize,
-        currentSizePx: sleevePlacement ? SLEEVE_DESIGN_SIZE_PX : SIZE_CONSTRAINTS[effectiveSize].max,
+        currentSizePx: sleevePlacement ? SLEEVE_DESIGN_SIZE_PX : Math.round((SIZE_CONSTRAINTS[effectiveSize].min + SIZE_CONSTRAINTS[effectiveSize].max) / 2),
         position: { x: 50, y: 40 },
         generatedImages: {},
         processedImages: {},
