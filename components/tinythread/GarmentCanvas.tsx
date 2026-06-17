@@ -37,7 +37,7 @@ interface GarmentCanvasProps {
   setStyle: React.Dispatch<React.SetStateAction<Style>>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   getGarmentImage: () => string | null;
-  getSizeInMm: (sizePx: number, sizeCategory: Size, isText?: boolean) => number;
+  getSizeInMm: (sizePx: number, contentScale?: number) => number;
   handlePointerDown: (e: React.MouseEvent | React.TouchEvent, designId: string) => void;
   handleResizePointerDown: (e: React.MouseEvent | React.TouchEvent, designId: string) => void;
   handleDeleteDesign: (id: string) => void;
@@ -403,7 +403,7 @@ export function GarmentCanvas({
                       ? (isText
                           ? t.sleeveSizeFixed
                           : `${Math.round((design.currentSizePx / SLEEVE_DESIGN_SIZE_PX) * 100)}%`)
-                      : `~${getSizeInMm(design.currentSizePx, design.size, !!design.textContent)}mm`}
+                      : `~${getSizeInMm(design.currentSizePx, design.textContent ? 1 : (design.contentScale ?? 1))}mm`}
                   </span>
 
                   {/* Regen + history — only when a generated image exists */}

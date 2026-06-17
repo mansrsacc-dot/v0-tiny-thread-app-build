@@ -17,7 +17,7 @@ import {
 } from "@/lib/constants";
 import type { Design, AddingMode } from "@/lib/types";
 import { calculatePrice } from "@/hooks/use-price-calculator";
-import { cropTransparentPadding, compressImage, createThumbnail, removeImageBackground } from "@/lib/image-utils";
+import { cropTransparentPadding, compressImage, createThumbnail, removeImageBackground, getContentScale } from "@/lib/image-utils";
 import { useCartActions } from "@/hooks/use-cart-actions";
 import { TextModal } from "@/components/tinythread/TextModal";
 import { DesignLayersPanel } from "@/components/tinythread/DesignLayersPanel";
@@ -154,6 +154,22 @@ export default function TinyThreadStudio() {
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
+
+  // Keep the selected design's contentScale in sync with its visible artwork (covers history
+  // undo/redo, style switches, and saved designs — generation sets it inline). Image designs only.
+  const selectedStitchedImg = selectedDesign && !selectedDesign.textContent
+    ? (selectedDesign.processedImages?.[selectedDesign.style] || selectedDesign.originalImage)
+    : null;
+  useEffect(() => {
+    if (!selectedStitchedImg || !selectedDesignId) return;
+    let cancelled = false;
+    getContentScale(selectedStitchedImg).then(scale => {
+      if (cancelled) return;
+      setDesigns(prev => prev.map(d =>
+        d.id === selectedDesignId && d.contentScale !== scale ? { ...d, contentScale: scale } : d));
+    });
+    return () => { cancelled = true; };
+  }, [selectedStitchedImg, selectedDesignId]);
   // Is the selected design a 2nd/3rd photo on its side? (L size not available, size changes independent)
   const selectedIsAdditional = !!selectedDesign && !selectedDesign.textContent &&
     designs.filter(d => d.view === selectedDesign.view && !d.textContent).indexOf(selectedDesign) > 0;
@@ -522,6 +538,8 @@ export default function TinyThreadStudio() {
         }
 
         processed = await cropTransparentPadding(processed);
+        // Measure the visible artwork's extent so the mm reflects the real design, not the box.
+        const cScale = await getContentScale(processed);
 
         setDesigns(prev => prev.map(d => {
           if (d.id === designId) {
@@ -535,6 +553,7 @@ export default function TinyThreadStudio() {
               ...d,
               generatedImages: { ...d.generatedImages, [styleType]: data.imageUrl },
               processedImages: { ...d.processedImages, [styleType]: processed },
+              contentScale: cScale,
               generationHistory: { ...d.generationHistory, [styleType]: newHistory },
               processedHistory: { ...d.processedHistory, [styleType]: newProcessedHistory },
               currentHistoryIndex: { ...d.currentHistoryIndex, [styleType]: newIndex },
@@ -909,12 +928,11 @@ export default function TinyThreadStudio() {
     }
   }, [dragState, resizeState, pinchState, selectedDesignId, designs, sizeScale]);
 
-  const getSizeInMm = (sizePx: number, sizeCategory: Size, isText = false) => {
-    // TRUE stitched mm — same conversion the designer email uses (px × 500/780, garment-independent)
-    // so the on-screen "~XXmm" label always equals the real mm. (sizeCategory/isText kept for the
-    // call signature.)
-    void sizeCategory; void isText;
-    return Math.round(sizePx * (500 / 780));
+  const getSizeInMm = (sizePx: number, contentScale = 1) => {
+    // TRUE stitched mm of the VISIBLE artwork — px × 500/780 (garment-independent) × contentScale
+    // (the artwork's extent within its padded box). Same value the designer email uses, so the
+    // on-screen "~XXmm" label equals the real stitched size, not the bounding box.
+    return Math.round(sizePx * (500 / 780) * contentScale);
   };
 
   const handleRegenerate = useCallback(() => {

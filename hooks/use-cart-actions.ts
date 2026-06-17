@@ -151,6 +151,7 @@ const handleAddMultipleToCart = useCallback(async () => {
         view: d.view, x: d.position.x, y: d.position.y,
         size: d.currentSizePx || 150, rotation: d.rotation || 0,
         type: d.textContent ? "text" : "photo",
+        contentScale: d.textContent ? 1 : (d.contentScale ?? 1),
         ...(d.textContent ? {} : { blobUrl: designBlobUrls[idx] || undefined }),
       }))),
     };
@@ -180,7 +181,10 @@ const handleAddMultipleToCart = useCallback(async () => {
       sharedProps[isLVm ? "Teksts" : "Text"] = textDesigns.map(d => `"${d.textContent}"`).join(" | ");
     }
 
-    const designSizeMm = designs.map(d => d.currentSizePx ? Math.round((d.currentSizePx / 780) * 500) : 100);
+    // TRUE mm of the visible artwork: box mm × contentScale (text has no transparent padding).
+    const designSizeMm = designs.map(d => d.currentSizePx
+      ? Math.round((d.currentSizePx / 780) * 500 * (d.textContent ? 1 : (d.contentScale ?? 1)))
+      : 100);
     const embroiderySizeDetail = designs.map((d, i) => `${d.size} (${designSizeMm[i]}mm)`).join(", ");
 
     // Composite mockups (front/back/sleeves) for the designer email — same helper the single
@@ -245,7 +249,7 @@ const handleAddMultipleToCart = useCallback(async () => {
       const backVariantId = BACK_DESIGN_VARIANT_IDS[photoBack.style]?.[photoBack.size];
       if (backVariantId) {
         const backStyleName = STYLES.find(s => s.id === photoBack.style)?.name || photoBack.style;
-        const backMm = Math.round((photoBack.currentSizePx / 780) * 500);
+        const backMm = Math.round((photoBack.currentSizePx / 780) * 500 * (photoBack.contentScale ?? 1));
         pushSplit(backVariantId, 1, { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" });
       }
     }
@@ -259,7 +263,7 @@ const handleAddMultipleToCart = useCallback(async () => {
       const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
       if (addVariantId) {
         const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
-        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 500);
+        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 500 * (addDesign.contentScale ?? 1));
         pushSplit(addVariantId, 1, { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view });
       }
     }
@@ -314,7 +318,7 @@ const handleAddToCart = useCallback(async () => {
       view: d.view,
       style: d.style,
       size: d.size,
-      sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 500) : 100,
+      sizeMm: d.currentSizePx ? Math.round((d.currentSizePx / 780) * 500 * (d.textContent ? 1 : (d.contentScale ?? 1))) : 100,
     }));
 
     // Build the cart/add URL with properties
@@ -467,6 +471,7 @@ const handleAddToCart = useCallback(async () => {
       size: d.currentSizePx || 150, rotation: d.rotation || 0,
       style: d.style,
       type: d.textContent ? "text" : "photo",
+      contentScale: d.textContent ? 1 : (d.contentScale ?? 1),
       ...(d.textContent ? {} : { blobUrl: singleBlobUrls[idx] || undefined }),
     }))));
     // Legacy single-design-per-view properties (backward compat)
@@ -613,7 +618,7 @@ const handleAddToCart = useCallback(async () => {
       const backVariantId = BACK_DESIGN_VARIANT_IDS[photoBack.style]?.[photoBack.size];
       if (backVariantId) {
         const backStyleName = STYLES.find(s => s.id === photoBack.style)?.name || photoBack.style;
-        const backMm = Math.round((photoBack.currentSizePx / 780) * 500);
+        const backMm = Math.round((photoBack.currentSizePx / 780) * 500 * (photoBack.contentScale ?? 1));
         pushSplit(backVariantId, 1, { "_for_order_ref": orderRef, "_style": backStyleName, "_size": `${photoBack.size} (${backMm}mm)`, "_placement": "back" });
       }
     }
@@ -641,7 +646,7 @@ const handleAddToCart = useCallback(async () => {
       const addVariantId = ADDITIONAL_DESIGN_VARIANT_IDS[addDesign.style]?.[addSize];
       if (addVariantId) {
         const styleName = STYLES.find(s => s.id === addDesign.style)?.name || addDesign.style;
-        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 500);
+        const sizeMm = Math.round((addDesign.currentSizePx / 780) * 500 * (addDesign.contentScale ?? 1));
         pushSplit(addVariantId, 1, { "_for_order_ref": orderRef, "_style": styleName, "_size": `${addSize} (${sizeMm}mm)`, "_placement": addDesign.view });
       }
     }

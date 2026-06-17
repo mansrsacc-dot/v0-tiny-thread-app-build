@@ -37,6 +37,44 @@ export async function cropTransparentPadding(dataUrl: string): Promise<string> {
   });
 }
 
+// Measure the VISIBLE artwork's largest dimension as a fraction of the image's largest dimension.
+// 1.0 = the artwork fills the box edge-to-edge; <1 = there's transparent padding, so the real
+// stitched size is smaller than the box. Used to convert box mm → true artwork mm everywhere.
+// Falls back to 1 (no adjustment) if the image can't be read (e.g. a tainted cross-origin canvas).
+export async function getContentScale(src: string): Promise<number> {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const w = img.width, h = img.height;
+      if (!w || !h) { resolve(1); return; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(1); return; }
+      ctx.drawImage(img, 0, 0);
+      let data: Uint8ClampedArray;
+      try { data = ctx.getImageData(0, 0, w, h).data; }
+      catch { resolve(1); return; } // tainted canvas → can't measure, assume full
+      let minX = w, maxX = 0, minY = h, maxY = 0, found = false;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (data[(y * w + x) * 4 + 3] > 10) {
+            found = true;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (!found) { resolve(1); return; }
+      const contentLargest = Math.max(maxX - minX + 1, maxY - minY + 1);
+      resolve(Math.min(1, contentLargest / Math.max(w, h)));
+    };
+    img.onerror = () => resolve(1);
+    img.src = src;
+  });
+}
+
 export function compressImage(base64: string, maxWidth = 1024): Promise<string> {
   return new Promise(resolve => {
     const img = new Image();

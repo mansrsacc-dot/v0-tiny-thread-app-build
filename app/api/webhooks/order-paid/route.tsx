@@ -363,7 +363,7 @@ export async function POST(req: NextRequest) {
       }
       const garmentColorVal = (frontGarmentRef || backGarmentRef || "").includes("white") ? "white" : "black";
 
-      let positionsData: { view: string; x: number; y: number; size: number; rotation?: number; style?: string; type?: string; blobUrl?: string }[] = [];
+      let positionsData: { view: string; x: number; y: number; size: number; rotation?: number; style?: string; type?: string; blobUrl?: string; contentScale?: number }[] = [];
       try { positionsData = JSON.parse(getProp("_positions") || "[]"); } catch {}
       // Use first photo position for each view (type="photo", or first entry for legacy orders)
       const frontPos = positionsData.find(p => p.view === "front" && p.type !== "text") || positionsData.find(p => p.view === "front") || { x: 50, y: 40, size: 150 };
@@ -539,7 +539,9 @@ export async function POST(req: NextRequest) {
 
       // Build detailed per-design dimension info for the designer
       const positionInfo = positionsData.map(p => {
-        const sizeMm = Math.round((p.size / 780) * 500);
+        // TRUE mm of the visible artwork: box mm × contentScale (visible extent ÷ box). Passed
+        // from the client; defaults to 1 (legacy orders) so nothing regresses.
+        const sizeMm = Math.round((p.size / 780) * 500 * (p.contentScale ?? 1));
         const isSleeve = p.view === "left-sleeve" || p.view === "right-sleeve";
         const label = p.view === "left-sleeve" ? "Left Sleeve"
                     : p.view === "right-sleeve" ? "Right Sleeve"

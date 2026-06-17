@@ -17,6 +17,9 @@ export interface Design {
   regenerationCount: number;
   rawImageUrl: string | null;
   rotation: number;
+  // Visible-artwork largest dim ÷ image largest dim (1 = fills box, <1 = padded). True stitched
+  // mm = pxToMm(currentSizePx) × contentScale. Measured from the processed (bg-removed) image.
+  contentScale?: number;
   textContent?: string;
   textFont?: string;
   textColor?: string;
