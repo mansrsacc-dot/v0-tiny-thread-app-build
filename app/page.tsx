@@ -30,6 +30,7 @@ import { LicensePlateModal } from "@/components/tinythread/LicensePlateModal";
 import { OrderMultipleModal } from "@/components/tinythread/OrderMultipleModal";
 import { GarmentCanvas } from "@/components/tinythread/GarmentCanvas";
 import { CartButtons } from "@/components/tinythread/CartButtons";
+import { CartLoadingOverlay } from "@/components/tinythread/CartLoadingOverlay";
 import { SavedDesignsPanel } from "@/components/tinythread/SavedDesignsPanel";
 import { LoginGate } from "@/components/tinythread/LoginGate";
 
@@ -1617,6 +1618,12 @@ export default function TinyThreadStudio() {
           onClose={() => setShowConfirmCart(false)}
         />
       )}
+
+      {/* Branded loading overlay — covers the full add-to-cart async path (screenshots →
+          blob upload → cart submit → redirect). Driven by the same isAddingMultiple state
+          the confirm popup and order-multiple popup set, so it appears the moment either
+          closes and stays until navigation (or resets on error via the hook's finally). */}
+      {isAddingMultiple && <CartLoadingOverlay t={t} />}
     </div>
   );
 }
