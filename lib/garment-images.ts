@@ -52,7 +52,10 @@ export const mmToPx = (mm: number) => Math.round((mm * CANVAS_UNITS) / ZONE_REF_
 // (mm / zoneWidth) of the zone, i.e. (mm / zoneWidth) × ZONE_PREVIEW_WIDTH_FRACTION of the canvas.
 // TUNE THIS to match where the chest sits in the photo: raise it if designs look too small, lower
 // if too big. (At 0.33 a 150mm design in a 450mm zone = ⅓ of the zone = ~11% of the canvas width.)
-const ZONE_PREVIEW_WIDTH_FRACTION = 0.33;
+// VISUAL-ONLY: this scales the on-screen/email mockup render of designs. It does NOT touch pxToMm,
+// so the "~XXmm" label, designer-email mm, and cart mm are unchanged. Bumped 0.33 → 0.4125 (+25%)
+// so designs appear 25% bigger on the preview while the true stitched mm stays exactly the same.
+const ZONE_PREVIEW_WIDTH_FRACTION = 0.4125;
 
 // VISUAL-ONLY on-screen scale per garment size (used by BOTH the live preview and the email
 // mockup). currentSizePx maps to canvas units; multiply by this so the design shows at its real
