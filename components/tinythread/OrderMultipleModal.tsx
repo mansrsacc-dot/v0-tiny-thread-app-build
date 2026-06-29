@@ -64,6 +64,7 @@ export function OrderMultipleModal({
           setMultipleQtys={setMultipleQtys}
           theme={theme}
           className="mb-5"
+          t={t}
         />
 
         {/* Always-visible duplicate-discount note */}

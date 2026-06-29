@@ -10,18 +10,56 @@ interface SizeQtyGridProps {
   setMultipleQtys: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   theme: "dark" | "light";
   className?: string;
+  t: Record<string, string>;
 }
 
-// Per-size quantity grid: S/M/L/XL columns (hoodie) or S/M↔"S/M","L/XL" (cap), each with a
-// +/- stepper and the flat per-unit price. Garment size is fit-only (flat price). Shared by the
-// Order-Multiple popup and the confirm popup so the control stays identical in both.
-export function SizeQtyGrid({ product, flatUnitPrice, multipleQtys, setMultipleQtys, theme, className }: SizeQtyGridProps) {
-  const sizes = product === "hoodie"
-    ? [{ key: "S", label: "S" }, { key: "M", label: "M" }, { key: "L", label: "L" }, { key: "XL", label: "XL" }]
-    : [{ key: "S", label: "S/M" }, { key: "M", label: "L/XL" }];
+// Per-unit quantity control. Hoodies have fit sizes → S/M/L/XL grid, each a +/- stepper with the
+// flat per-unit price. Caps are ONE SIZE → a single "how many caps" stepper (no size columns); the
+// total lives under key "S" so the cart/total logic is unchanged. Garment size is fit-only (flat
+// price). Shared by the Order-Multiple popup and the confirm popup so the control matches in both.
+export function SizeQtyGrid({ product, flatUnitPrice, multipleQtys, setMultipleQtys, theme, className, t }: SizeQtyGridProps) {
+  // Caps: single quantity stepper, no S/M / L/XL grid.
+  if (product === "cap") {
+    const qty = multipleQtys.S || 0;
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-between gap-3 p-3 rounded-xl border",
+          theme === "dark" ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50",
+          className
+        )}
+      >
+        <div className="flex flex-col items-start">
+          <span className={cn("font-bold text-sm", theme === "dark" ? "text-white" : "text-gray-900")}>{t.capQtyLabel}</span>
+          <span className={cn("text-xs", theme === "dark" ? "text-white/45" : "text-gray-400")}>€{flatUnitPrice}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMultipleQtys(prev => ({ ...prev, S: Math.max(0, (prev.S || 0) - 1) }))}
+            disabled={qty === 0}
+            className={cn(
+              "w-7 h-7 shrink-0 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30",
+              theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+            )}
+          >−</button>
+          <span className={cn("w-7 shrink-0 text-center text-base font-bold tabular-nums", theme === "dark" ? "text-white" : "text-gray-900")}>{qty}</span>
+          <button
+            onClick={() => setMultipleQtys(prev => ({ ...prev, S: Math.min(10, (prev.S || 0) + 1) }))}
+            disabled={qty === 10}
+            className={cn(
+              "w-7 h-7 shrink-0 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30",
+              theme === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+            )}
+          >+</button>
+        </div>
+      </div>
+    );
+  }
+
+  const sizes = [{ key: "S", label: "S" }, { key: "M", label: "M" }, { key: "L", label: "L" }, { key: "XL", label: "XL" }];
 
   return (
-    <div className={cn("grid gap-2", product === "hoodie" ? "grid-cols-4" : "grid-cols-2", className)}>
+    <div className={cn("grid grid-cols-4 gap-2", className)}>
       {sizes.map(({ key, label }) => {
         const qty = multipleQtys[key] || 0;
 

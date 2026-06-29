@@ -69,10 +69,11 @@ const handleAddMultipleToCart = useCallback(async () => {
   }
 
   // Garment-size columns = fit only, flat price. Hoodie: S/M/L/XL (XL now selectable).
-  // Cap: two fit groups. The label is what we send to Shopify as the visible size.
+  // Cap: ONE SIZE (no variants) → a single column under key "S"; the quantity stepper writes here.
+  // The label is what we send to Shopify as the visible size.
   const garmentCols: { key: string; label: string }[] = product === "hoodie"
     ? [{ key: "S", label: "S" }, { key: "M", label: "M" }, { key: "L", label: "L" }, { key: "XL", label: "XL" }]
-    : [{ key: "S", label: "S/M" }, { key: "M", label: "L/XL" }];
+    : [{ key: "S", label: t.capOneSize }];
   const selectedCols = garmentCols.filter(c => (multipleQtys[c.key] || 0) > 0);
   const totalUnits = selectedCols.reduce((s, c) => s + (multipleQtys[c.key] || 0), 0);
   if (totalUnits === 0) {

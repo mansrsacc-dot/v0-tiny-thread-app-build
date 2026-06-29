@@ -51,6 +51,7 @@ export function ConfirmCartModal({
           setMultipleQtys={setMultipleQtys}
           theme="dark"
           className="mb-6"
+          t={t}
         />
 
         {/* Always-visible duplicate-discount note + live discounted total */}
