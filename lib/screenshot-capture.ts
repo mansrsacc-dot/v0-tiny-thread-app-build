@@ -31,7 +31,7 @@ export async function captureCartScreenshots(
     const SHOT_W = 800, SHOT_H = 1000;
     // Same on-screen scale the live preview uses → the mockup (and the cart thumbnail derived from
     // it) match what the customer saw: the design at its real proportion of the chest zone.
-    const dScale = designRenderScale(garmentSize);
+    const dScale = designRenderScale(garmentSize, product);
 
     // Route replicate CDN URLs through our proxy so canvas can draw them (CORS)
     const proxyIfNeeded = (url: string) => {

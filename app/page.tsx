@@ -151,7 +151,7 @@ export default function TinyThreadStudio() {
   // design shows at its real proportion of THIS hoodie's embroidery zone — and the zone is only a
   // fraction of the canvas (the chest patch), so a 150mm design is a modest square, not the whole
   // chest. previewWidth tracks the container → window-independent. TRUE mm (px × 500/780) unchanged.
-  const sizeScale = (previewWidth / 780) * designRenderScale(garmentSize);
+  const sizeScale = (previewWidth / 780) * designRenderScale(garmentSize, product);
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
   const currentDesignsForView = designs.filter(d => d.view === view);
