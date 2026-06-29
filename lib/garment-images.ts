@@ -79,7 +79,7 @@ export const STYLES = [
   },
   {
     id: "standard" as Style,
-    name: "Standarta Logo",
+    name: "Klasiskais",
     description: "Tīrs, plakans dizains",
     bestFor: "logo, teksts, emblēmas",
   },

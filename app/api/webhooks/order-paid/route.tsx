@@ -582,7 +582,7 @@ export async function POST(req: NextRequest) {
           // fall back to parsing the "Embroidery Style" property (legacy orders)
           const STYLE_NAME_MAP: Record<string, string> = {
             outline: "Outline (Kontūra)",
-            standard: "Standard Logo",
+            standard: "Classic",
             "pet-head": "Pet Head (Mīluļa Portrets)",
             car: "Car Embroidery (Mašīnas izšuvums)",
           };
